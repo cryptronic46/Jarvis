@@ -1,0 +1,50 @@
+{
+  "active_profile": "owner",
+  "profiles": {
+    "owner": {
+      "display_name": "Tiago",
+      "address_as": "Senhor",
+      "role": "owner",
+      "voice_profile": "owner",
+      "allowed_tools": [
+        "*"
+      ],
+      "allowed_routines": [
+        "*"
+      ]
+    },
+    "partner": {
+      "display_name": "Utilizador autorizado",
+      "address_as": "Senhora",
+      "role": "restricted",
+      "voice_profile": null,
+      "allowed_tools": [
+        "get_current_time",
+        "get_precise_location",
+        "get_configured_location",
+        "get_home_environment",
+        "get_system_status",
+        "get_pre_request_telemetry",
+        "get_recent_telemetry",
+        "list_available_apps",
+        "inspect_application",
+        "open_application",
+        "get_master_volume",
+        "set_master_volume",
+        "set_mute",
+        "get_pc_health",
+        "list_agenda_items",
+        "get_integrations_status",
+        "get_dashboard_snapshot",
+        "list_routines",
+        "run_routine",
+        "get_privacy_status"
+      ],
+      "allowed_routines": [
+        "work",
+        "night",
+        "cinema"
+      ]
+    }
+  }
+}

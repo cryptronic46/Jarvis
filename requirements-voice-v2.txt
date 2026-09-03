@@ -1,0 +1,7 @@
+# JARVIS Voice Engine v2 — pinned inference-only Windows runtime.
+# openWakeWord is installed separately with --no-deps by setup_voice_v2.ps1.
+PyAudioWPatch==0.2.12.8
+onnxruntime==1.29.0
+requests==2.34.2
+tqdm==4.70.0
+# faster-whisper and numpy are pinned in requirements.txt.

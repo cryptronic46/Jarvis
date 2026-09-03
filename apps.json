@@ -1,0 +1,142 @@
+{
+  "apps": {
+    "brave": {
+      "name": "Brave",
+      "aliases": [
+        "brave browser",
+        "browser",
+        "breif",
+        "brief",
+        "breive"
+      ],
+      "launch": {
+        "type": "path",
+        "target": "%LOCALAPPDATA%\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
+      },
+      "path_candidates": [
+        "%ProgramFiles%\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
+        "%ProgramFiles(x86)%\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
+        "%LOCALAPPDATA%\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
+      ],
+      "executable_candidates": [
+        "brave.exe"
+      ],
+      "process_names": [
+        "brave.exe"
+      ]
+    },
+    "spotify": {
+      "name": "Spotify",
+      "aliases": [
+        "spotify music"
+      ],
+      "launch": {
+        "type": "path",
+        "target": "%APPDATA%\\Spotify\\Spotify.exe"
+      },
+      "path_candidates": [
+        "%APPDATA%\\Spotify\\Spotify.exe",
+        "%LOCALAPPDATA%\\Microsoft\\WindowsApps\\Spotify.exe"
+      ],
+      "executable_candidates": [
+        "Spotify.exe",
+        "spotify.exe"
+      ],
+      "process_names": [
+        "Spotify.exe"
+      ]
+    },
+    "steam": {
+      "name": "Steam",
+      "aliases": [
+        "steam client"
+      ],
+      "launch": {
+        "type": "path",
+        "target": "%ProgramFiles(x86)%\\Steam\\steam.exe"
+      },
+      "path_candidates": [
+        "%ProgramFiles(x86)%\\Steam\\steam.exe",
+        "%ProgramFiles%\\Steam\\steam.exe"
+      ],
+      "executable_candidates": [
+        "steam.exe"
+      ],
+      "process_names": [
+        "steam.exe",
+        "steamwebhelper.exe"
+      ]
+    },
+    "discord": {
+      "name": "Discord",
+      "aliases": [],
+      "launch": {
+        "type": "command",
+        "command": "cmd",
+        "args": [
+          "/c",
+          "start",
+          "",
+          "%LOCALAPPDATA%\\Discord\\Update.exe",
+          "--processStart",
+          "Discord.exe"
+        ]
+      },
+      "executable_candidates": [
+        "Discord.exe"
+      ],
+      "process_names": [
+        "Discord.exe"
+      ]
+    },
+    "notepad": {
+      "name": "Bloco de Notas",
+      "aliases": [
+        "notepad",
+        "bloco de notas"
+      ],
+      "launch": {
+        "type": "path",
+        "target": "notepad.exe"
+      },
+      "path_candidates": [
+        "%SystemRoot%\\System32\\notepad.exe"
+      ],
+      "executable_candidates": [
+        "notepad.exe"
+      ],
+      "process_names": [
+        "Notepad.exe"
+      ]
+    },
+    "calculator": {
+      "name": "Calculadora",
+      "aliases": [
+        "calculator",
+        "calc"
+      ],
+      "launch": {
+        "type": "uri",
+        "target": "calculator:"
+      },
+      "process_names": [
+        "CalculatorApp.exe",
+        "Calculator.exe"
+      ]
+    },
+    "cyberpunk2077": {
+      "name": "Cyberpunk 2077",
+      "aliases": [
+        "cyberpunk",
+        "cp2077"
+      ],
+      "launch": {
+        "type": "uri",
+        "target": "steam://rungameid/1091500"
+      },
+      "process_names": [
+        "Cyberpunk2077.exe"
+      ]
+    }
+  }
+}

@@ -1,0 +1,8 @@
+# Full wake-learning stack (WSL/training only) — deterministic baseline.
+openwakeword==0.6.0
+scipy==1.17.1
+scikit-learn==1.8.0
+onnxruntime==1.29.0
+numpy==2.3.5
+tqdm==4.70.0
+requests==2.34.2

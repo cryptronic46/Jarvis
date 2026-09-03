@@ -1,0 +1,85 @@
+{
+  "routines": {
+    "game": {
+      "label": "Modo Jogo",
+      "actions": [
+        {
+          "type": "mute",
+          "muted": false
+        },
+        {
+          "type": "volume",
+          "percent": 35
+        },
+        {
+          "type": "open_app",
+          "app": "steam"
+        },
+        {
+          "type": "open_app",
+          "app": "discord"
+        }
+      ]
+    },
+    "cyberpunk": {
+      "label": "Cyberpunk",
+      "actions": [
+        {
+          "type": "mute",
+          "muted": false
+        },
+        {
+          "type": "volume",
+          "percent": 35
+        },
+        {
+          "type": "open_app",
+          "app": "steam"
+        },
+        {
+          "type": "open_app",
+          "app": "cyberpunk2077"
+        }
+      ]
+    },
+    "work": {
+      "label": "Modo Trabalho",
+      "actions": [
+        {
+          "type": "mute",
+          "muted": false
+        },
+        {
+          "type": "volume",
+          "percent": 25
+        },
+        {
+          "type": "open_app",
+          "app": "brave"
+        }
+      ]
+    },
+    "night": {
+      "label": "Modo Noite",
+      "actions": [
+        {
+          "type": "volume",
+          "percent": 15
+        }
+      ]
+    },
+    "cinema": {
+      "label": "Modo Cinema",
+      "actions": [
+        {
+          "type": "mute",
+          "muted": false
+        },
+        {
+          "type": "volume",
+          "percent": 30
+        }
+      ]
+    }
+  }
+}

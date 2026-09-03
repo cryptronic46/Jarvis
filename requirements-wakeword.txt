@@ -1,0 +1,2 @@
+# Core 0.6.4 does not install a separate wake-word engine.
+# It reuses sounddevice + numpy + faster-whisper from the voice-input stack.

@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "policy": {
+    "default_trust": "official",
+    "allow_arbitrary_web_sources": false,
+    "notes": "Web sources are explicitly allowlisted; local user documents are ingested separately."
+  },
+  "sources": [
+    {
+      "id": "nist_csf_2",
+      "name": "NIST Cybersecurity Framework 2.0",
+      "publisher": "NIST",
+      "kind": "html",
+      "url": "https://www.nist.gov/cyberframework",
+      "category": "risk-management",
+      "trust": "official",
+      "auto_sync": true,
+      "max_bytes": 5000000
+    },
+    {
+      "id": "nist_sp800_53",
+      "name": "NIST SP 800-53 Rev. 5",
+      "publisher": "NIST",
+      "kind": "html",
+      "url": "https://csrc.nist.gov/pubs/sp/800/53/r5/upd1/final",
+      "category": "security-controls",
+      "trust": "official",
+      "auto_sync": true,
+      "max_bytes": 5000000
+    },
+    {
+      "id": "owasp_top10_2025",
+      "name": "OWASP Top 10:2025",
+      "publisher": "OWASP",
+      "kind": "html",
+      "url": "https://owasp.org/Top10/2025/",
+      "category": "application-security",
+      "trust": "official",
+      "auto_sync": true,
+      "max_bytes": 5000000
+    },
+    {
+      "id": "microsoft_windows_security",
+      "name": "Windows Security Documentation",
+      "publisher": "Microsoft",
+      "kind": "html",
+      "url": "https://learn.microsoft.com/en-us/windows/security/",
+      "category": "windows-security",
+      "trust": "official",
+      "auto_sync": true,
+      "max_bytes": 5000000
+    },
+    {
+      "id": "cisa_kev",
+      "name": "CISA Known Exploited Vulnerabilities",
+      "publisher": "CISA",
+      "kind": "cisa_kev",
+      "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+      "category": "vulnerability-intelligence",
+      "trust": "official",
+      "auto_sync": true,
+      "max_bytes": 20000000
+    },
+    {
+      "id": "mitre_attack_enterprise",
+      "name": "MITRE ATT&CK Enterprise",
+      "publisher": "MITRE",
+      "kind": "mitre_attack_stix",
+      "url": "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack.json",
+      "category": "threat-behavior",
+      "trust": "official-repository",
+      "auto_sync": false,
+      "bulk": true,
+      "max_bytes": 75000000
+    }
+  ]
+}

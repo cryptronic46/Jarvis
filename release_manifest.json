@@ -1,0 +1,1450 @@
+{
+  "release": "0.27.8",
+  "source": "JARVIS Core 0.27.8 — App Control Observe-Only Hotfix v10.2 (enforcement retired; legacy disarm)",
+  "scope": {
+    "trees": [
+      "jarvis_core",
+      "tests",
+      "defaults"
+    ],
+    "top_level": [
+      ".gitignore",
+      "jarvis.py",
+      "setup.ps1",
+      "run.ps1",
+      "migrate_state.ps1",
+      "migrate_to_g.ps1",
+      "finalize_g_migration.ps1",
+      "diagnose_app_control.ps1",
+      "repair_security_baseline.ps1",
+      "full_system_validation.ps1",
+      "setup_native_brain.ps1",
+      "setup_appcontrol_trust.ps1",
+      "setup_cloud.ps1",
+      "setup_voiceid.ps1",
+      "setup_wakeword.ps1",
+      "setup_voice_v2.ps1",
+      "setup_voice_reset.ps1",
+      "install_custom_wake_model.ps1",
+      "setup_wake_learning_wsl.ps1",
+      "setup_voice_learning.ps1",
+      "collect_voice_learning.ps1",
+      "train_voice_learning.ps1",
+      "setup_vision.ps1",
+      "requirements.txt",
+      "requirements-cloud.txt",
+      "requirements-voiceid.txt",
+      "requirements-wakeword.txt",
+      "requirements-voice-v2.txt",
+      "requirements-voice-learning.txt",
+      "README.md",
+      "AUDIT_0.27.8.md",
+      "acceptance_real_machine.ps1",
+      "update_core.ps1",
+      "verify_release.ps1"
+    ],
+    "external_addons": "preserved-outside-core-manifest"
+  },
+  "mutable_files": [
+    "settings.json",
+    "apps.json"
+  ],
+  "files": [
+    {
+      "path": ".gitignore",
+      "sha256": "f530fb2f8c9bfd41004fef2af0d41ddff61b3ebf22850279a8ae764426d9477c"
+    },
+    {
+      "path": "acceptance_real_machine.ps1",
+      "sha256": "59d023c4a6d984da5e7fefff3bb15513b41400f9842bb791c390b9a98823a2f5"
+    },
+    {
+      "path": "AUDIT_0.27.8.md",
+      "sha256": "2287b6b97151440c9058801c4b7adb5ff52db3dcf67bb02dc57b64da81e6aa34"
+    },
+    {
+      "path": "collect_voice_learning.ps1",
+      "sha256": "75204d72650c6d96538dfbb933f23bceb5c6d63828b09efea5f4b8705a375930"
+    },
+    {
+      "path": "defaults/cyber_sources.json",
+      "sha256": "e57834ca4c922e096f65d2f0a4d9ccf793f3e75b61a29cd3285228a3fd36e029"
+    },
+    {
+      "path": "defaults/integrations.json",
+      "sha256": "6ae14e08ede380c1893f4884f230f1d84e6660fdcd125b8e79db7cb936a4b463"
+    },
+    {
+      "path": "defaults/profiles.json",
+      "sha256": "6b4ed8f31642328026767ab91fb10f51a4130811cc5eb82dc14d4c2421771c2c"
+    },
+    {
+      "path": "defaults/routines.json",
+      "sha256": "953c2f3cdb10bfbe584ca69c41072a8f538913e9dd3188803f03e527f243760f"
+    },
+    {
+      "path": "defaults/user_profile.json",
+      "sha256": "842d3a0730cd54ad941c8ea27593f3860928ccdf63c4ee78029bb7a3ce464b77"
+    },
+    {
+      "path": "diagnose_app_control.ps1",
+      "sha256": "827a5335a861ee9e0a747340d3f09435d2dfbfcc7f06649b5db38c4db563041e"
+    },
+    {
+      "path": "finalize_g_migration.ps1",
+      "sha256": "b2ecdb835b347f88d85a8a41abdaa771b6cf996a8a0f981481d41e6ad96fe4cf"
+    },
+    {
+      "path": "full_system_validation.ps1",
+      "sha256": "428b6d3be1eb5949d8df146f21a39670f452a71cce689cf485eb640b35204b06"
+    },
+    {
+      "path": "install_custom_wake_model.ps1",
+      "sha256": "4e7554a079d1f54def931043e936840331af7359579a07e66bda252aa3c55081"
+    },
+    {
+      "path": "jarvis.py",
+      "sha256": "c31b2739591093822c92c59af25a0af03aebd977336877285954af8e0d2bdaae"
+    },
+    {
+      "path": "jarvis_core/__init__.py",
+      "sha256": "b536287c234c3d1882e50b3b295455df63553eb750d878df8283037f87c286c4"
+    },
+    {
+      "path": "jarvis_core/cli.py",
+      "sha256": "6a761fcde53d402dcc9d3f0fdbfbfaae29d727da4cdc5fc01af6cac8cd27319e"
+    },
+    {
+      "path": "jarvis_core/core/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "jarvis_core/core/brain.py",
+      "sha256": "da53c6f51c059f06aab1e5fbded842eb55de158f286d9230d01d5d9ec03faa80"
+    },
+    {
+      "path": "jarvis_core/core/cloud_brain.py",
+      "sha256": "535e7c5b4cc79bb7ece71c77ee778e39b9de39ac821dfc3de78582bf5da86a1d"
+    },
+    {
+      "path": "jarvis_core/core/config.py",
+      "sha256": "04cbb5c54e761e59d087c0840e460125ed9fb63384da1e9b21c6859b53c4b5eb"
+    },
+    {
+      "path": "jarvis_core/core/conversation_policy.py",
+      "sha256": "2248d0cd003b1d8454e59c780ff97e1ba21c6af808901669b75ebc2c8ecb308c"
+    },
+    {
+      "path": "jarvis_core/core/events.py",
+      "sha256": "fb3e11e288ac8ddfdfe07a04240de94bd363634e68b081cec890315ef74ff9fa"
+    },
+    {
+      "path": "jarvis_core/core/fast_router.py",
+      "sha256": "15dbf77e4be060a485384d3b42aa4e8d19e9d0040d5c2dbbbf57fc35e56a585d"
+    },
+    {
+      "path": "jarvis_core/core/freshness.py",
+      "sha256": "4bb5daa4269a40ec51c805be632d44416a629f506d24815215a7a335dedc2b25"
+    },
+    {
+      "path": "jarvis_core/core/hybrid_brain.py",
+      "sha256": "d0726c41b098c7e446e85d6f171b046d0bbc8c6fc2399291dda3bf453e35ff5b"
+    },
+    {
+      "path": "jarvis_core/core/local_llm.py",
+      "sha256": "925902149a21be04f3162dc62a551712468ee4176d2efd7465a0be1ece9a5652"
+    },
+    {
+      "path": "jarvis_core/core/local_vision.py",
+      "sha256": "2d1dca0da697ce69d972a2c6d9fed9fd7451d245045de8d0ec0102ca4affc351"
+    },
+    {
+      "path": "jarvis_core/core/subprocess_text.py",
+      "sha256": "5921d4e0b2a9410a2d2508c5271729fdc0b519626e551ea31b755969525591e5"
+    },
+    {
+      "path": "jarvis_core/core/tool_registry.py",
+      "sha256": "b3db56ef9829c5eebdefec05384bea3aa86b1753243b9a8111e43e04893a5ceb"
+    },
+    {
+      "path": "jarvis_core/security/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "jarvis_core/security/policy.py",
+      "sha256": "a2fd96f8e699d23d3533b0c36a9205516befab72d1c523cb29c134ed1ba450eb"
+    },
+    {
+      "path": "jarvis_core/services/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "jarvis_core/services/action_truth.py",
+      "sha256": "4cf05af74fa94ef9be4aaa1e08081ef72a239c2bcb4b266580ebafe1b78b68f6"
+    },
+    {
+      "path": "jarvis_core/services/activity_trace.py",
+      "sha256": "46c3ca2ee6eb643633abe37a13dbf84c12ccc39ae5d8186c34b8077ee788b3e8"
+    },
+    {
+      "path": "jarvis_core/services/agenda.py",
+      "sha256": "1a74b42574cbc77504d46c80bb87a2cbaa0fd730d0c8359b4af6d36ecafdec46"
+    },
+    {
+      "path": "jarvis_core/services/autonomy.py",
+      "sha256": "6d711b41e0d81ca16016f44f2fcc74b29954c8d69e4f94bc7e27a5c4d10e7ef6"
+    },
+    {
+      "path": "jarvis_core/services/av_devices.py",
+      "sha256": "b7dee113797d54e33202a0eeae36f6d3852493966c6c8c78f1e8ddb339ea7a4e"
+    },
+    {
+      "path": "jarvis_core/services/companion_presence.py",
+      "sha256": "ecbf3dccc8584b17656406a649aa9799165df3bc03f8531fdfbaaa53785164e0"
+    },
+    {
+      "path": "jarvis_core/services/context_store.py",
+      "sha256": "b386846661886bcbfa86062a4418cd85a1a2bc46660bec3b80324250d4045e77"
+    },
+    {
+      "path": "jarvis_core/services/cyber_knowledge.py",
+      "sha256": "4b50720bcb4a05b0acc46232abedc4391afd6f739e743cd50f4fb2639145ccde"
+    },
+    {
+      "path": "jarvis_core/services/cyber_range.py",
+      "sha256": "fcf384b8c2243ad0266c945b49bbe5a0482d590c3acbd1fb81fcfc168b55b3fa"
+    },
+    {
+      "path": "jarvis_core/services/cybersecurity.py",
+      "sha256": "77514d1434c3b68decaab994485e722e5cfab1342e0523794a888790adb0d3c1"
+    },
+    {
+      "path": "jarvis_core/services/deep_network_inspection.py",
+      "sha256": "de8ea9c63bf2897f9351e732ce7a756df56f75ca3361beb8fd81c8b1e311d21d"
+    },
+    {
+      "path": "jarvis_core/services/desktop_integration.py",
+      "sha256": "08baa175e364191323d1c0bf014e4fa48778fbabacdd214a89d70088f2913fde"
+    },
+    {
+      "path": "jarvis_core/services/file_index.py",
+      "sha256": "e70e10d702a575e209d583f87d6fc29bcd62e155dc74823ad079b6ea746c984c"
+    },
+    {
+      "path": "jarvis_core/services/followup_intent.py",
+      "sha256": "009c967e58fe545f040696eb261cd515962c1ba0ebbfe8fd01119005534f9eb8"
+    },
+    {
+      "path": "jarvis_core/services/full_validation.py",
+      "sha256": "4f62e7531d731a11acba77606ae006cfbb2e0f03c62cb530eae93ce5f290b72a"
+    },
+    {
+      "path": "jarvis_core/services/idle_mind.py",
+      "sha256": "888807c0a8d304bede2710b597090116ac3d727904ad97f4a90299960a1eeb65"
+    },
+    {
+      "path": "jarvis_core/services/integrations.py",
+      "sha256": "f4baef8287bc9635c47100720e3f4e982a68929ddb4ed0b061a271fafb87e1b6"
+    },
+    {
+      "path": "jarvis_core/services/kali_bridge.py",
+      "sha256": "377d92ddc5cc02dc74588f6cbba85af32a3073648a5403bc1021df2217348061"
+    },
+    {
+      "path": "jarvis_core/services/language_refinement.py",
+      "sha256": "da6030d916e5407c0ce514ca5c4f3d3f970de58143778b5b5825dd229b94799f"
+    },
+    {
+      "path": "jarvis_core/services/learning_gap.py",
+      "sha256": "bfdddf635ae4e18eac4f278bd4e187ca64db2dd4961052e29c631b539d25b6f3"
+    },
+    {
+      "path": "jarvis_core/services/listening.py",
+      "sha256": "b72c605256b8f3cf302e89a2419e913cb75e622aa332f13e779fe0f8bf829067"
+    },
+    {
+      "path": "jarvis_core/services/listening_watchdog.py",
+      "sha256": "15df92de830da4b857acc7ff8a9638074db4a3142ae57f68dabc50c602f62f3b"
+    },
+    {
+      "path": "jarvis_core/services/local_research.py",
+      "sha256": "1ab64642ad0186a64b4255d9f1071c2135780af22b6a44ad7eceb30e064ab343"
+    },
+    {
+      "path": "jarvis_core/services/network_inventory.py",
+      "sha256": "137422c277b18b2d192beb648a438d217edbef37484c82952937bd1d3e3ab7f5"
+    },
+    {
+      "path": "jarvis_core/services/openwakeword_compat.py",
+      "sha256": "909493696f95cd758ee8a7bfbbffe4298e6ebc93df662478452bf8899b0afd23"
+    },
+    {
+      "path": "jarvis_core/services/performance.py",
+      "sha256": "f68adc6d275d293335aa738904c91497acb90e28be00357f38318a67348cade0"
+    },
+    {
+      "path": "jarvis_core/services/personal_cognition.py",
+      "sha256": "c46d0987298560ef20ae2493b19b280c87011c2ab9fe87226906f7d3d1078eaa"
+    },
+    {
+      "path": "jarvis_core/services/presentation.py",
+      "sha256": "a4f96ec3861a172c5a0e9496d778de881c3d2cdb91fec549e67f9b0f726c6f66"
+    },
+    {
+      "path": "jarvis_core/services/privacy.py",
+      "sha256": "1229614d59a9a77944aa0362036bab98acbda2fd7a3a594c711789dae325fae2"
+    },
+    {
+      "path": "jarvis_core/services/profiles.py",
+      "sha256": "c3e4bb91b37b00f4a75269b8eb8b9c83dfa7b2079676b72eff27f3affe2077f2"
+    },
+    {
+      "path": "jarvis_core/services/reminders.py",
+      "sha256": "92e9a950a6ce726795c08bbb20993cf12bd3326522e30783993c2822648ed974"
+    },
+    {
+      "path": "jarvis_core/services/request_intent.py",
+      "sha256": "7cb8b66a9a21a35dc31d42b435080328213d4c22afbfb0a3209b9203da06b970"
+    },
+    {
+      "path": "jarvis_core/services/response_completion.py",
+      "sha256": "6c31e7199c8565df39551ac63525de54ee4670d9db3d7bf609450233187df510"
+    },
+    {
+      "path": "jarvis_core/services/routines.py",
+      "sha256": "171ead56a4e2ca9b2215fe2087122774bda8b7f094d0014286e7f7dd0a5c6e5d"
+    },
+    {
+      "path": "jarvis_core/services/secret_store.py",
+      "sha256": "7c42a9a7d28090acd89221467f1757ed58b68cb10ef21e03c972d5aa1eacf7d4"
+    },
+    {
+      "path": "jarvis_core/services/security_watch.py",
+      "sha256": "71c91aaa37b1586a014368b3b1765af483b896dc140f2cb91557b0077489c377"
+    },
+    {
+      "path": "jarvis_core/services/self_grounding.py",
+      "sha256": "3c8f52e248589bd4fa8bb01227f3339bf68ad9c1880ceb1401799199047aa9aa"
+    },
+    {
+      "path": "jarvis_core/services/silence_latch.py",
+      "sha256": "f354718fba238d4738282b7966a620587333dff40213c34765f468f9e056623c"
+    },
+    {
+      "path": "jarvis_core/services/speaker_verification.py",
+      "sha256": "53798275bccfaca7311f3da4f2a4b07bafd3b8709edfeafeef4aa31db69d28a4"
+    },
+    {
+      "path": "jarvis_core/services/speech.py",
+      "sha256": "65908bf43f41bab7f078d2c9a6059c5724570b3e6012faa6e00a285a3442c750"
+    },
+    {
+      "path": "jarvis_core/services/speech_text.py",
+      "sha256": "118bb886ff82797128c7cd386d4ea6ef2a3b85cd61ce8abf86ccf579b611c03a"
+    },
+    {
+      "path": "jarvis_core/services/startup_briefing.py",
+      "sha256": "e1102e650209e26f19662b09103466fe547378321f1c7527d1e72bc09df5bf56"
+    },
+    {
+      "path": "jarvis_core/services/stt_compat.py",
+      "sha256": "766401ae7d5962079c8d7065a3e67984d7ebdd8d9484ed84352843bbf152ed02"
+    },
+    {
+      "path": "jarvis_core/services/synthetic_self.py",
+      "sha256": "5c0d4a81f16026c4c2bb83b4227f9a72b36a27cfe6b51d5d4aa6fcc045527fa8"
+    },
+    {
+      "path": "jarvis_core/services/system_cyber_audit.py",
+      "sha256": "a5781920ad667f32e333f46c97ca3710ff171caae9d440e8e1d7b1d1384d7228"
+    },
+    {
+      "path": "jarvis_core/services/telemetry.py",
+      "sha256": "bec2016049d3f1b49440ce3675f2f27ba27892759f46e8055af6aa43f15225e6"
+    },
+    {
+      "path": "jarvis_core/services/train_wake_verifier_wsl.py",
+      "sha256": "c21231dd23611342db19dfeabf0b5a3249c0716eaa0f86ef4bc45165d4dfc5b6"
+    },
+    {
+      "path": "jarvis_core/services/user_memory.py",
+      "sha256": "462445e2a1964c400ce691f8fffc74dcec73179f2464cf41c564371c887bae3e"
+    },
+    {
+      "path": "jarvis_core/services/voice_engine_v2.py",
+      "sha256": "09c8e9934929f2caeae6be74bd60abd5bc8c22062ef7ac179e03cf3bd0fe503d"
+    },
+    {
+      "path": "jarvis_core/services/voice_pipeline.py",
+      "sha256": "d94431718bfb258b63dbe01b47fdd32f4c6c70be066b6b6dbe061bd735c73c8b"
+    },
+    {
+      "path": "jarvis_core/services/wake_verifier.py",
+      "sha256": "48bb6322298aa91151d94f065c2d265231e5ddb9d57fc043d3927209a32381c5"
+    },
+    {
+      "path": "jarvis_core/services/wakeword.py",
+      "sha256": "4e7127075e652f5738f41821948751294d51c4b46f9683ce7b6faddc068c61bf"
+    },
+    {
+      "path": "jarvis_core/services/windows_block_audit.py",
+      "sha256": "463039a36c55479c7ee3c16c760b13b2ef8c3ffc84d5eced544673594e7f9b2c"
+    },
+    {
+      "path": "jarvis_core/setup_secret.py",
+      "sha256": "e5a2e6ca34dc705217373bd12e7f91988cb50556b9b4a25f3ab22eea02949152"
+    },
+    {
+      "path": "jarvis_core/skills/__init__.py",
+      "sha256": "6f7deea28940863f7851227d7e9aa5e75f117064f0c6a85d61c1b84e3fbf5be8"
+    },
+    {
+      "path": "jarvis_core/skills/base.py",
+      "sha256": "b0ecfb1ae81bda7bbc4f321c4b08d794b81ea221d6993a4d565986d1a16f81ec"
+    },
+    {
+      "path": "jarvis_core/skills/builtin/__init__.py",
+      "sha256": "21e7b84e3146cc6057900644f99145c73fb58085c21fb5fee5e8b87045a72e99"
+    },
+    {
+      "path": "jarvis_core/skills/builtin/desktop_agent.py",
+      "sha256": "88d80816b24d57e08ad38ada0024adcb6d3b7003ecf68ae3a683cef405451fc7"
+    },
+    {
+      "path": "jarvis_core/skills/builtin/memory_graph.py",
+      "sha256": "e9e7555a423e6116af4f5ba06c64343744b6d45a4a96bf1e14afdc9774a1ed6b"
+    },
+    {
+      "path": "jarvis_core/skills/builtin/meta.py",
+      "sha256": "b0c909321cacb7a942cae231ee5da1e0f3c8b1fd75869e1e4e042dccb4ceb512"
+    },
+    {
+      "path": "jarvis_core/skills/builtin/purple_team.py",
+      "sha256": "6d9c31529827c1821adb30c61505031b93d636f327ee81fcd07d50f725fbab37"
+    },
+    {
+      "path": "jarvis_core/skills/builtin/self_repair.py",
+      "sha256": "c1f079bc9441ad6fde16e60c6f80bfdf61e691183b3b68ce0ad17807b84a9501"
+    },
+    {
+      "path": "jarvis_core/skills/builtin/system_guardian.py",
+      "sha256": "9720aa1e882de65f93ca349a905ecea8b77ebd0599e02d3b480576b145f88a9c"
+    },
+    {
+      "path": "jarvis_core/skills/builtin/task_planner.py",
+      "sha256": "8f3c39fa3e48da3bd19d5d0491533dd08e4ea7c1afe3df7b012c359ea1534b83"
+    },
+    {
+      "path": "jarvis_core/skills/builtin/vision.py",
+      "sha256": "2f461b81a8113ba04c2251236b45218f5e2ee38246e0b6e83de3f7c5cc0042da"
+    },
+    {
+      "path": "jarvis_core/skills/builtin/wallpaper_live.py",
+      "sha256": "6e46d7debd7b692ac49c5d9efd9db214c55c51914d644c86a46d87f90647cf5c"
+    },
+    {
+      "path": "jarvis_core/skills/manager.py",
+      "sha256": "214dafb98c0fb1e344b804fc7ecb39563b58e6b373d3175626267ce68be2f5e9"
+    },
+    {
+      "path": "jarvis_core/tools/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "jarvis_core/tools/dashboard_tools.py",
+      "sha256": "2c4f19de24557c2b910668a98f26540b2787ebe77cd83ff1a118ec43a2f7cd14"
+    },
+    {
+      "path": "jarvis_core/tools/environment_tools.py",
+      "sha256": "2613fc433fd53e5ebc6fba841dd1a10c85896ff6443f22a79f4d0d87238d00fc"
+    },
+    {
+      "path": "jarvis_core/tools/location_tools.py",
+      "sha256": "7c7b4b66089eb4dda8e298c5558735d4dd5969b6e430dd9234b8f79db4981e45"
+    },
+    {
+      "path": "jarvis_core/tools/pc_health.py",
+      "sha256": "6b7720f39428840facb4e5934c3ab05586ece97a5f0a395372a3594c69867b66"
+    },
+    {
+      "path": "jarvis_core/tools/security_audit.py",
+      "sha256": "04715e899dffe647ddd1b31f8f17ed09313d38be9b413343fbe3f133e5c67fd8"
+    },
+    {
+      "path": "jarvis_core/tools/system_tools.py",
+      "sha256": "541ebb54ac39172e84e57ba7b519b52e5bb4fe2197814222a16589a63e3ae4c6"
+    },
+    {
+      "path": "jarvis_core/tools/windows_actions.py",
+      "sha256": "aaebb15cbfbf11631bf5b4cb450c59c6fe9dff2cb179907330689fb24d6f761a"
+    },
+    {
+      "path": "migrate_state.ps1",
+      "sha256": "5e6f3427ab7b681edfd6134009eb8e44e5fc400ed7f745b7937305157571bce9"
+    },
+    {
+      "path": "migrate_to_g.ps1",
+      "sha256": "3c5428d87055a868b96b8919f3626215e1753b76e21b38c3bc04577a0246a90a"
+    },
+    {
+      "path": "README.md",
+      "sha256": "e65c39cdab6beed70c7909422e800fbf6df5791b32c6feac1174eb0d765ed4b2"
+    },
+    {
+      "path": "repair_security_baseline.ps1",
+      "sha256": "ec49ef57ac57a1c7ba2b28b587a5bca17b6e6d9448cadc2eba1d2e9432e6719b"
+    },
+    {
+      "path": "requirements-cloud.txt",
+      "sha256": "7d5eecaf4acafd27f40184aa86704066fa69f19e7f7dc3d155c4990b8d1d28b9"
+    },
+    {
+      "path": "requirements-voice-learning.txt",
+      "sha256": "0453bdc34d585939ddb025c5ad11946408e2faf15aeec3fc287e23cad1f46985"
+    },
+    {
+      "path": "requirements-voice-v2.txt",
+      "sha256": "c89c9c69190b2606a5a5028b5487109f40d59d6c2ddc7d310356d26cea4cfe1d"
+    },
+    {
+      "path": "requirements-voiceid.txt",
+      "sha256": "d0ebd5c9d1268122a1cb0e7f37fbbbd065b86c20eab36d977bb7363629df3277"
+    },
+    {
+      "path": "requirements-wakeword.txt",
+      "sha256": "7af255373a1aaf83abe6c89b5805ef647dcb9de89de7de405cbda5d9232ad6c7"
+    },
+    {
+      "path": "requirements.txt",
+      "sha256": "fd473737d84805799e62c1d07265539f7ee312a5e509a65b847fbe98d7789e32"
+    },
+    {
+      "path": "run.ps1",
+      "sha256": "f71c6ae75409bdaee913b35efda440476438290d4494d891cebdce1ead508f51"
+    },
+    {
+      "path": "setup.ps1",
+      "sha256": "d25e9ea8bd49723231aeaacd9d7db11d7bdf8458f1303d3fa6d80b703d250091"
+    },
+    {
+      "path": "setup_appcontrol_trust.ps1",
+      "sha256": "eb7e3c9ebdbb714caac7989ab5c39cf69a4553e79c0e34aef7c60231d00e38c1"
+    },
+    {
+      "path": "setup_cloud.ps1",
+      "sha256": "3f6fd8bee8a1a74a076a658ff99c6f8ffcf4bd32931c2e3cd269498dbe4dbe78"
+    },
+    {
+      "path": "setup_native_brain.ps1",
+      "sha256": "e4021dd4e371e745961d1a7c8fadd0a878f89161b22863890f81e4cca0383f00"
+    },
+    {
+      "path": "setup_vision.ps1",
+      "sha256": "c43256cec7b22109cf330ad16d4a186766cd6ed63c26033d9438bd79418d8110"
+    },
+    {
+      "path": "setup_voice_learning.ps1",
+      "sha256": "a839404510b4e66bf815fa36ba202cc07c46ca009ca34d638ecc7521adec1204"
+    },
+    {
+      "path": "setup_voice_reset.ps1",
+      "sha256": "2dad60a9eeb34498679336cbc689c11505b55f17fdb2c84386645af6b7b44ede"
+    },
+    {
+      "path": "setup_voice_v2.ps1",
+      "sha256": "48b259923f62f6d10bbede78602c628ec42aa07eb8d1318d31e29ca32db9c8a5"
+    },
+    {
+      "path": "setup_voiceid.ps1",
+      "sha256": "fd4400bc9f4bd840450ef2053504b41057c83c5a62a4211be05f0d6949647124"
+    },
+    {
+      "path": "setup_wake_learning_wsl.ps1",
+      "sha256": "67238c8e0fff90116c2cac75ba51fca09395b446ddb2c96c98e100d2bc1e4dd7"
+    },
+    {
+      "path": "setup_wakeword.ps1",
+      "sha256": "474436a0bd8970b6935e0779acf0aac7143bcee73c9377f57587d84ee05a743b"
+    },
+    {
+      "path": "tests/test_0278_acceptance_hotfix.py",
+      "sha256": "a194af9f490fe70235420fafddf8443ea49efe90829f820a6a25f23e9d0b7aa3"
+    },
+    {
+      "path": "tests/test_0278_acceptance_hotfix_v10.py",
+      "sha256": "a5e7b3b5b331c7c9ea350e354e18764d6d41e599ac6a85830a3dd501f0590879"
+    },
+    {
+      "path": "tests/test_0278_acceptance_hotfix_v3.py",
+      "sha256": "533219868aad092891d6be40cc67cee316627714ae1040884bbc12939a418f5b"
+    },
+    {
+      "path": "tests/test_0278_acceptance_hotfix_v4.py",
+      "sha256": "5712977683c553d3bdf993caa547fba6f2b67398b59f7e8881219e304e256210"
+    },
+    {
+      "path": "tests/test_0278_acceptance_hotfix_v5.py",
+      "sha256": "3c4876dc03d4b46d4add2a2eb6cd0b7a7ef671136ae498b732dcbf53b94b6dc0"
+    },
+    {
+      "path": "tests/test_0278_acceptance_hotfix_v6.py",
+      "sha256": "ef426d6a0b27dae97cbaee854cf0383e7045f721f9af3ea53cc827adc2ad8285"
+    },
+    {
+      "path": "tests/test_0278_acceptance_hotfix_v7.py",
+      "sha256": "b7ea3e3dac7c14871451832c5bc0f8ec86cd4ee87e0851bdb6b24be77b3a3729"
+    },
+    {
+      "path": "tests/test_0278_acceptance_hotfix_v9.py",
+      "sha256": "ea8de8658a5f9887b75f0ca7177132b7f6c674726700d01c96734721b6593a0c"
+    },
+    {
+      "path": "tests/test_0278_consolidated_hotfix.py",
+      "sha256": "7a7e0aa2af3466df029817bc4c6326ccc0a461a5035bd26072ec682d912067d0"
+    },
+    {
+      "path": "tests/test_0278_language_refinement_hotfix.py",
+      "sha256": "e7f016ecf89fd219f8775287b5a3d1b551d2fba2bde1fcadb45ea0693ae26943"
+    },
+    {
+      "path": "tests/test_0278_runtime_trust_optimization.py",
+      "sha256": "0693eb32fa4eb2b5d0bf4358f9ad8a4a17f5d0ab42fa5e1806018b9498622043"
+    },
+    {
+      "path": "tests/test_activity_trace_0239.py",
+      "sha256": "dbaa9e2fceefccb8990201a1f42cb6bc77f5d5717e0e296f1b0c41c01ee420aa"
+    },
+    {
+      "path": "tests/test_agenda.py",
+      "sha256": "d25bf6d8eaa2c32113c8e7b25ad535b15ac424b2c702c6ed67d57df9fa3f06f3"
+    },
+    {
+      "path": "tests/test_app_discovery.py",
+      "sha256": "9e48c9aec176353018238b588a1b6264111591de6a441f2151a17a1d41885843"
+    },
+    {
+      "path": "tests/test_appcontrol_observe_only_0278.py",
+      "sha256": "c054b0068174ed97e4a72bcddf603c90ed610d11b863db1f337b0d51032e90a9"
+    },
+    {
+      "path": "tests/test_appcontrol_trust_policy_0277.py",
+      "sha256": "29057604cd0764fdfdaef35d636f77d8a07a9c9dec4ca50de1217cd05f9dffa3"
+    },
+    {
+      "path": "tests/test_apps.py",
+      "sha256": "25ae3894d29f58a5e4a73d0e21d08dc7140830942b751b71b1a3236ceaa6fadc"
+    },
+    {
+      "path": "tests/test_audio_contract.py",
+      "sha256": "6862466b82e1a1e7c6e573087553d308f9d6a0b7c44b6966f412f50e64b48ddb"
+    },
+    {
+      "path": "tests/test_authorized_learning.py",
+      "sha256": "f3824e58617d3bc67bef47ec9decdc61a746bdf8c3cccb86c8cdc1c634afa4f2"
+    },
+    {
+      "path": "tests/test_authorized_learning_retrieval.py",
+      "sha256": "e560f7ac2ff586634254b7a512d2e9d8b8745d6539e3c7fec96ed534dae6c9ee"
+    },
+    {
+      "path": "tests/test_autonomy_authority_contract.py",
+      "sha256": "ecaf0700df8381c750f551de24d5e46aff5e372a4c59f022da9e230349436119"
+    },
+    {
+      "path": "tests/test_autonomy_cli_contract.py",
+      "sha256": "e5e07a2f0279f92e33de394ca859cfab8551ed8c36cc6ed88cd45cbd873d3f34"
+    },
+    {
+      "path": "tests/test_autonomy_guardian.py",
+      "sha256": "d49c23eee881df6ec7e030f89fe5e8bd78f1aa940a7f195c7e0f6964ee8b7f26"
+    },
+    {
+      "path": "tests/test_bargein_v2_contract.py",
+      "sha256": "815feea444a4fccdb6a4ce82db77bba42303bba85a5cb54d1f580981ca746835"
+    },
+    {
+      "path": "tests/test_bluetooth_mic_recovery.py",
+      "sha256": "88c59834a28176e2e56342d295c803a8a18cb44e8a52c7b011c07be4e373eb99"
+    },
+    {
+      "path": "tests/test_clean_cli_contract.py",
+      "sha256": "836106c3c38908d74180e17f667f67ab1ae34642ada7d26be73887ca005b87eb"
+    },
+    {
+      "path": "tests/test_clean_presentation.py",
+      "sha256": "534cefb40f8447eadf8ea016474dd6ec93d95d5a2c21e7115b4df474f6eebaca"
+    },
+    {
+      "path": "tests/test_cli_regex_import_contract.py",
+      "sha256": "e61de3a5a816f007c501dfae7bd1db6fd7230ea8b6b7ebb21fe6a793f01f0bf7"
+    },
+    {
+      "path": "tests/test_cloud_auth_error_contract.py",
+      "sha256": "8f5edaaa8d6725296b3f3079ea878f8a1f9e86e3c5c6bfec1149a4c4953b1bca"
+    },
+    {
+      "path": "tests/test_cloud_auth_retry_contract.py",
+      "sha256": "7da8cb30e0b16c11f760fc0971062e113a19951d6bc0756aa23d4d761c2a0f84"
+    },
+    {
+      "path": "tests/test_cloud_credential_diagnostics.py",
+      "sha256": "36f22430ff9a7abb6c0f8a6e821610470b6b6d322a7791fdd5b441d64fcfa2fd"
+    },
+    {
+      "path": "tests/test_cloud_rate_limit_semantics.py",
+      "sha256": "36a8f71b4e880a3bd7914ca33284f8e1049f438d531731cc86a6baf2dc95bf20"
+    },
+    {
+      "path": "tests/test_command_intelligence_0275.py",
+      "sha256": "0ce6a272e121c8ada754ee1e2b695206625e84eef90ca206c1af2c9fa9e1bf5f"
+    },
+    {
+      "path": "tests/test_command_slash_alias.py",
+      "sha256": "f2b90b5ecff654784ccc9d435504b0a3d8ce426152644793a9c4affb07df8d90"
+    },
+    {
+      "path": "tests/test_companion_brain_planner.py",
+      "sha256": "f8adcfd0f523de35c9007655072153dae26ca8e07d304078c6e1be6be901dd52"
+    },
+    {
+      "path": "tests/test_companion_presence.py",
+      "sha256": "beb647d692ac97c593d65104e3ae3e3ad3e31ec11ecf46d8ccb8d1c4061ea51c"
+    },
+    {
+      "path": "tests/test_confirmation_expiry.py",
+      "sha256": "d0aab8dff34b519ce3fd0327b80605b95e2597203ffe04e2e9b5495611ea752d"
+    },
+    {
+      "path": "tests/test_context_store.py",
+      "sha256": "9872f7f73ab56af6985053bb6f464438dcd5e4967458a297ba38f60611eabddf"
+    },
+    {
+      "path": "tests/test_conversation_identity_0276.py",
+      "sha256": "8e4766afdaeb9d6a9ad746aa833b0fb17669378e303c23544712cbf5043cd979"
+    },
+    {
+      "path": "tests/test_conversation_primacy_0276.py",
+      "sha256": "5099f851680299ffb3af539140d777b3e369b6709a14c2e446963a7533c6566e"
+    },
+    {
+      "path": "tests/test_core_addon_boundary.py",
+      "sha256": "c0e0855cfab78a54d98e3007bf142b8e423274d4a4f725ee140710f9a4d455c6"
+    },
+    {
+      "path": "tests/test_cyber_knowledge_brain_contract.py",
+      "sha256": "1543b6414540d8b83de3d35b2593b6c51b2ee38b161b0f1cedeba40f2f058702"
+    },
+    {
+      "path": "tests/test_cyber_knowledge_cli.py",
+      "sha256": "6820593bb15222a1522212380c02c0b65a6b273037bcc035314e944cfad71d00"
+    },
+    {
+      "path": "tests/test_cyber_knowledge_parsers.py",
+      "sha256": "2f14d078bfe31398470772239e765d9de6b311a4749b4955d461b0e7a04e81d5"
+    },
+    {
+      "path": "tests/test_cyber_knowledge_sqlite_lifecycle.py",
+      "sha256": "591ce21b775bdee3221cdc785e86fdf4a4f9aaf9b96b7902f01617a224f832f7"
+    },
+    {
+      "path": "tests/test_cyber_knowledge_vault.py",
+      "sha256": "4a091fcd8001325bc49c69482189bd04e0fdb61306d4fd0dcdb0a4fc8140e0d5"
+    },
+    {
+      "path": "tests/test_cyber_range_contract.py",
+      "sha256": "2ba745cbea348bc893996c05f371c9b7bd1cade20d081af1107435d1cd3e7721"
+    },
+    {
+      "path": "tests/test_cyber_range_manager.py",
+      "sha256": "fbd39a962f8ab5695baafe6723b761958f2fc894bb5faf5b49f8d25cdf89473b"
+    },
+    {
+      "path": "tests/test_cyber_sources_contract.py",
+      "sha256": "a96975a02ce672c16c5e4ed5afda7e1eacc89b842824002735ee5fa7106e8337"
+    },
+    {
+      "path": "tests/test_cyber_tools_local_only.py",
+      "sha256": "9da9d400a577dab5abf88fc7a6f555ed40e83332aaa7533144fdedc0da5adf96"
+    },
+    {
+      "path": "tests/test_cybersecurity_mentor.py",
+      "sha256": "320ec485968099263cda1b543a2093780d86d32ec291389144eaf8b558db5851"
+    },
+    {
+      "path": "tests/test_dashboard_contract.py",
+      "sha256": "20014b70406bbfc71aa7420b139cffd3e7f9802b5e60b55c3dcc0dca28609c55"
+    },
+    {
+      "path": "tests/test_deep_network_inspection.py",
+      "sha256": "44e44903b6316058d09f0da8a16e692b82b23f4ce8b112d54b6592b6800670f7"
+    },
+    {
+      "path": "tests/test_deep_network_inspection_contract.py",
+      "sha256": "a6f2c95edf676d063af926b606abeba8a81b767990fbf5be4b7b02fa4e44d317"
+    },
+    {
+      "path": "tests/test_deep_network_inspection_safety.py",
+      "sha256": "f9e54a7e6dedc82e1cda6c351fd61420e739848a72d9505496d3f0462feb87da"
+    },
+    {
+      "path": "tests/test_deep_network_inspection_v2.py",
+      "sha256": "41b41e2f00d3b121fb9f41751d07bcfbeba37f6b303bb3de68e777df2d58a4f2"
+    },
+    {
+      "path": "tests/test_defender_powershell_compat.py",
+      "sha256": "6b890e12590d9803c03d760416788ee6bf83f2fcffa655a7c7b1d18381fdf2f3"
+    },
+    {
+      "path": "tests/test_desktop_integration.py",
+      "sha256": "4c5a2228963e6cfcd203970adad852375df5f2e71a74c0d7ebf37db5ed86d611"
+    },
+    {
+      "path": "tests/test_direct_learning_execution_contract.py",
+      "sha256": "8edaa0d9a9f30ea22807a3dbee4553e8f94b838de7b6e814a3ad06d66f0f81a0"
+    },
+    {
+      "path": "tests/test_direct_url_learning.py",
+      "sha256": "cb02b38dd9e816caa7f108e4c8cbe4fb0d54ff33e104d719589866188974fb9e"
+    },
+    {
+      "path": "tests/test_direct_url_learning_cli_contract.py",
+      "sha256": "a84dfc4a7c48faed7f7f8b57564ed38174150a6fb0a8fdcb7b2358fc5c6cc970"
+    },
+    {
+      "path": "tests/test_environment_tools.py",
+      "sha256": "7640e902162796b79062785575d351b7213213ed215ec56a312138bcd6ffd0f7"
+    },
+    {
+      "path": "tests/test_epistemic_learning_0278.py",
+      "sha256": "9b15c2c2ab85b170e59ea26eebb8a1b2006b5f7843eb6783a106e470dda40954"
+    },
+    {
+      "path": "tests/test_external_expert_privacy_0278.py",
+      "sha256": "0244898240a40dd6048c95d8b5838f61d3ee660682a573b8ab30055c1eb91502"
+    },
+    {
+      "path": "tests/test_false_wake_hardening_0254.py",
+      "sha256": "353c7140464ec2f3391dcefff5775e5fcf45fae6147f3c9cb65b0924f5dfb66a"
+    },
+    {
+      "path": "tests/test_fast_interaction_0240.py",
+      "sha256": "e3fd7a2ad1fb640f087c7737cc404e60cd16a6e9371fec11341422a60474bb42"
+    },
+    {
+      "path": "tests/test_fast_router.py",
+      "sha256": "c14eb5c5dcecada3541964b24264b98e60a62edea47186401f55761cb8bc4a5f"
+    },
+    {
+      "path": "tests/test_file_index_security.py",
+      "sha256": "9fda228b546861e8a1de810dab45502358ea640c5cb003635139fb0a3999dcff"
+    },
+    {
+      "path": "tests/test_followup_intent.py",
+      "sha256": "cb2718315dbbd414da074a8eee819aa4a31156cf41d8a67af4acceb736448951"
+    },
+    {
+      "path": "tests/test_followup_tool_routing_contract.py",
+      "sha256": "145a482056bb275886efbefbdf9665d4958f114b86e2f838246372eafa519a0d"
+    },
+    {
+      "path": "tests/test_freshness.py",
+      "sha256": "42a5911ba3e9221c0c693b2ff96080eb9870a943fd2186ade7623f85b68c8e75"
+    },
+    {
+      "path": "tests/test_full_validation_0274.py",
+      "sha256": "4ab083fb80a39b4094f6fd5dac5421761bb0efcd8794c854c58640de2df09338"
+    },
+    {
+      "path": "tests/test_g_drive_voice_reliability_0260.py",
+      "sha256": "c93e1e34b829f931ed97d516275a2b8618a36671975f6eab5bd172526839c15f"
+    },
+    {
+      "path": "tests/test_guardian_severity_contract.py",
+      "sha256": "fd91f1c487244637d4a3a1d5677681259797ebb7c4afe77db3af66b71e036e99"
+    },
+    {
+      "path": "tests/test_health_intelligence_baseline_0276.py",
+      "sha256": "1479ceb8b08f37f3452d5fb69248ce1ae5b40e8cb7823006893be25080c3d91e"
+    },
+    {
+      "path": "tests/test_hybrid_autonomy_contract.py",
+      "sha256": "ced6f7c1c2d23cb66e7578e913ee12e2a7e441f949836f95bd5c20d5efd073d8"
+    },
+    {
+      "path": "tests/test_hybrid_autonomy_gate.py",
+      "sha256": "7bcb4d22391da2b13e990930ca7a17b8df121ed26dcf39a982f3f33b00e75bbc"
+    },
+    {
+      "path": "tests/test_hybrid_behavior_0273.py",
+      "sha256": "2e34d29e4b709051d766c91c87bb6e58968ad10ee3dc4a4f7c21186bbf2a835e"
+    },
+    {
+      "path": "tests/test_hybrid_cloud.py",
+      "sha256": "fa983127d79c4b2810ab3767b3ba27ab8785957b919d4df4f1f79c9329c05440"
+    },
+    {
+      "path": "tests/test_identity_dialogue_runtime_0276.py",
+      "sha256": "4c6669e890f456dec1e760aad414788e6d5ad787b05f952987bf9b2e00ccd7bc"
+    },
+    {
+      "path": "tests/test_kali_bridge.py",
+      "sha256": "059aef3b6d77be06cb4ffc696afda4afcd19285d2828001499e54922abe847ad"
+    },
+    {
+      "path": "tests/test_kali_bridge_contract.py",
+      "sha256": "0bee095677c80f2bcae13275a8106f8f8aa8bd40420c414d667468ee77838854"
+    },
+    {
+      "path": "tests/test_learning_consent_grounding_0278.py",
+      "sha256": "f93550da9f083a665f66d166e6a5ad9db6eba13683277fd9188eae6f3f4643d6"
+    },
+    {
+      "path": "tests/test_learning_goal_permission_contract.py",
+      "sha256": "1f794dfb9e1e876ef51867db19c780f1c7309a487537ebb00c77be2223c3a51b"
+    },
+    {
+      "path": "tests/test_learning_relevance_quarantine.py",
+      "sha256": "40f021715076c875b4dbfbfe22c299266d5c161ea5a61bb43d4152d75895eb1d"
+    },
+    {
+      "path": "tests/test_listening_contract.py",
+      "sha256": "4dcb52de99db792fdeb2da55b2de88b033308b0b02e8281602d6b3948f30ca59"
+    },
+    {
+      "path": "tests/test_listening_event_contract.py",
+      "sha256": "b45a373f64b6e6fc13e498240d2ea99c28f13051656d0af2829a9cbe18524fd1"
+    },
+    {
+      "path": "tests/test_listening_threshold.py",
+      "sha256": "da3b97d269b0790b28fe4b49a12d1d2aebde8be8413d3b2235409558be6f311a"
+    },
+    {
+      "path": "tests/test_listening_watchdog.py",
+      "sha256": "1ee6d91241ca31970da7c96368319e0e5fdedcccea0d60260ef634c5107a2dbe"
+    },
+    {
+      "path": "tests/test_local_executor_compat_0277.py",
+      "sha256": "ab268a2c2df7bea5e064f1ea15b7af42bbefbb080e18151f138d30c53404e245"
+    },
+    {
+      "path": "tests/test_local_first_strict_0273.py",
+      "sha256": "47558bf87dc7d78b05a2805d3346630f4fd4b910adfb9f2271c8bce5d9480140"
+    },
+    {
+      "path": "tests/test_local_research_architecture.py",
+      "sha256": "4ed93b425fc37d2f274c351291487a5025e9ac165f1d7aa769e6530281338879"
+    },
+    {
+      "path": "tests/test_location_registry_contract.py",
+      "sha256": "1ea45ae213c4b498978be45f51b7151b6d07f6efcdd94a39243693a69d98553c"
+    },
+    {
+      "path": "tests/test_location_routing.py",
+      "sha256": "3c08a61268bf4989183f0e5ecb1de6335459c8b1224585836fb3a988a49ddb42"
+    },
+    {
+      "path": "tests/test_location_tool.py",
+      "sha256": "221577fe00056cc16d007cf22eaaf4b09b57cf895051b58ef6e6b889f905f4b3"
+    },
+    {
+      "path": "tests/test_maintenance_scripts_ascii.py",
+      "sha256": "4afe4f35083b6b130dc100e1fb1a2be8c1f277cf50e766253c34f1c47615ca1b"
+    },
+    {
+      "path": "tests/test_manifest_preflight_completeness.py",
+      "sha256": "f5b09c16e8893595d9bebf2471df46c91fb3f8019fd531268c01027b192101ce"
+    },
+    {
+      "path": "tests/test_memory_direct_order.py",
+      "sha256": "d6000de85cd7b903df9e00eeb65b64869d2326e36e4e7c15ecef58b01bcae3a7"
+    },
+    {
+      "path": "tests/test_mic_calibration_contract.py",
+      "sha256": "d372f95f5b81b6cba4eb78b2831c089ad1a75bf1a8c8b093f3aaa57520b8cdbb"
+    },
+    {
+      "path": "tests/test_mic_signal_failover_0235.py",
+      "sha256": "341c3c58c900a3fa738bcfc5c49b2cf40c8acf3e74d7e0c8732b5eb510307fc2"
+    },
+    {
+      "path": "tests/test_mic_webcam_48k_stereo_fix_0274.py",
+      "sha256": "e3ade1cecab1ad71502751191785312779c08f609623ac5632e719098677ada3"
+    },
+    {
+      "path": "tests/test_microphone_candidate_fallback.py",
+      "sha256": "8ea8e27dece15d4144e1966b70049630bc2d007698d02c8464c9919934d789ac"
+    },
+    {
+      "path": "tests/test_microphone_device_recovery.py",
+      "sha256": "845f61c710a51b133ef98c5ba3ae025be39ea0d64ed8beeb784fb9909bcb5b41"
+    },
+    {
+      "path": "tests/test_modular_skills_023.py",
+      "sha256": "1eb64cfb2c7b2294e9a133bb6d15147362ef82dd69dc88879f7897dde2c2df91"
+    },
+    {
+      "path": "tests/test_native_brain_0277.py",
+      "sha256": "62ab9a1bf5654806aaa8c4df55191fd50de3545ae0730ca3b01a5997a483c9d5"
+    },
+    {
+      "path": "tests/test_native_runtime_security_0277.py",
+      "sha256": "8dfa86243f30ae391c6227fc71b813e975d4c549a6987ad3e316771b90cc51da"
+    },
+    {
+      "path": "tests/test_natural_owner_authorization.py",
+      "sha256": "d50d5cf9289e06d19f0a563b229f994530232358c6db153013e1f34318d2eee2"
+    },
+    {
+      "path": "tests/test_network_cli_clean.py",
+      "sha256": "f0f61918dd0d339552aa5b216db602d82a932e192a2edc5d7a5e2dadd32c67b7"
+    },
+    {
+      "path": "tests/test_network_default_route_contract.py",
+      "sha256": "510ffa5e755e43de89c1fce1a5ada7392e4e1a2a5995bd64f7c96d987cffb226"
+    },
+    {
+      "path": "tests/test_network_inventory.py",
+      "sha256": "b3ad1b3d99f544860cb20f8365e06690061dcff8b37c80094d129c49a8fa76a7"
+    },
+    {
+      "path": "tests/test_ollama_health_0274.py",
+      "sha256": "7885c3da8c753b138d89e2c6a7287982925037250ee363a83db8352734172246"
+    },
+    {
+      "path": "tests/test_openwakeword_app_control_compat.py",
+      "sha256": "857118a5090d277e033b015dff9a6329bb8b75c72c89f3641e5fe3aaa7756d58"
+    },
+    {
+      "path": "tests/test_owner_authority_python_0263.py",
+      "sha256": "e03f02a196ff16f6960368d3a82fd078bfae09b2270555b4c1ba9acaf89e7e5b"
+    },
+    {
+      "path": "tests/test_owner_wake_profile_0264.py",
+      "sha256": "09ebf4b300c793649547379992f6d98fc6a39998070c5f0bacddf5c9ad1fd53d"
+    },
+    {
+      "path": "tests/test_performance_governor.py",
+      "sha256": "2781a4ed790fefeca621d2a10a3c20fee3238267fc0759b7dd2727c817fe2257"
+    },
+    {
+      "path": "tests/test_performance_integration_contract.py",
+      "sha256": "f744dfb71ed2025a53e38dea440c9dbc7284163795ce5179c17d2d9e0c62ec17"
+    },
+    {
+      "path": "tests/test_performance_settings.py",
+      "sha256": "c10c13e34f02ab67eb7d1a1e1554b67ab5263615ff6c7e5937db062e049808fa"
+    },
+    {
+      "path": "tests/test_performance_wiring.py",
+      "sha256": "886975a4b007cda3446ade4641b4ac77068cfe9f675393c54ae5db125e5692bb"
+    },
+    {
+      "path": "tests/test_personal_cognition.py",
+      "sha256": "66c572be21df76c14e593fd99870733252d072ad8846ad13e74ee105599326c0"
+    },
+    {
+      "path": "tests/test_personal_cognition_contract.py",
+      "sha256": "72f0b676bd0f1cf4f39fb031ecd264855c7bd8eb345901a344457839865ca610"
+    },
+    {
+      "path": "tests/test_personal_memory_semantics.py",
+      "sha256": "432e632c4d1db277c87d636124364d42ce3f3d5594a4731d7e83870528de5ccb"
+    },
+    {
+      "path": "tests/test_personal_ops_cli.py",
+      "sha256": "f56bd6f7009b6bf2eeefc61860585e934eac879393a9d8979c0d3d4ecc13d78d"
+    },
+    {
+      "path": "tests/test_personal_ops_tool_permissions.py",
+      "sha256": "6b10091f6e1e0f721ecda57b2ae5bed1400a02be7e19b66058e49b91b0c6b526"
+    },
+    {
+      "path": "tests/test_personalized_address.py",
+      "sha256": "e2f26b330571307965f21cb90dfd58c5e714b9c8a2b8916f28d7138daa7f88fd"
+    },
+    {
+      "path": "tests/test_powershell_interpolation_contract.py",
+      "sha256": "e2460079e869850f34187fbbde5edd71bcce24d009593e609bfa390bba961b18"
+    },
+    {
+      "path": "tests/test_precise_location.py",
+      "sha256": "16d9916f8c54d7f519d7a77a94a45a9924bb02e4e97d984c30bb0d25bf15b56d"
+    },
+    {
+      "path": "tests/test_privacy_cloud_gate.py",
+      "sha256": "91aeae1e2ec583d24976d62d641cc7b4a95c6cd5ee898ee90125eb3a31548358"
+    },
+    {
+      "path": "tests/test_proactive_learning_authorization.py",
+      "sha256": "e3fb3abdb5ef7155fc4bc6359aaae5a64fa6f3e20dd5f2c7c4d0066b18614b17"
+    },
+    {
+      "path": "tests/test_profiles_permissions.py",
+      "sha256": "b9bb8fa26b0d6a645b2f9887327fea661fc41fc86f005403682f2f7348e3e459"
+    },
+    {
+      "path": "tests/test_quiet_terminal.py",
+      "sha256": "cb2297e90e3012d829990b9ade99eea85cb83027b6a65dbb2df842a00e6f396f"
+    },
+    {
+      "path": "tests/test_release_installer_coverage.py",
+      "sha256": "6e5b1b702239bcfb7a2e1e5b4955ef913298918dfefa4aefbdb2c6812de1a6f8"
+    },
+    {
+      "path": "tests/test_release_manifest_complete.py",
+      "sha256": "cb18bf4f82df3e2602e98862dba77f18410eac4c0f92af1417cb88f752b56ad6"
+    },
+    {
+      "path": "tests/test_release_updater_contract.py",
+      "sha256": "430ef7d2f573ae9ba1ea6c14c1aa9a8273e1b18009458ac7331813863cd43052"
+    },
+    {
+      "path": "tests/test_reliability_optimization_0241.py",
+      "sha256": "a506b19dd21ed9f8e524d135f22ee14ea7e4020060aa5a0607c9dec0731a5c3a"
+    },
+    {
+      "path": "tests/test_request_intent_guard.py",
+      "sha256": "9e330bded47f1b3ea8a2a00fc7489b2929e89ef06520c204d92f51b7ac20358e"
+    },
+    {
+      "path": "tests/test_research_relevance_guard.py",
+      "sha256": "9c1546d18ea1342d8a10f0d968d9329998a68118be8279d34c4ff0de1ad7c436"
+    },
+    {
+      "path": "tests/test_response_completion.py",
+      "sha256": "89db6d620c4b6a1d7e9260ab953a92228f0a69ac0126f9570773b74a597d6db1"
+    },
+    {
+      "path": "tests/test_response_continuation_contract.py",
+      "sha256": "4c25dfe5269c1d614ade8bec7b77d2a7869c9f5fea2b60c13afe972969d3f6cc"
+    },
+    {
+      "path": "tests/test_routine_safety.py",
+      "sha256": "9cd8d4f73972b672da852d6828d2bf19c57cd022340799faf0a76596402138ec"
+    },
+    {
+      "path": "tests/test_security.py",
+      "sha256": "5cf05e44239cd5fb07c3baccf46075d3ef297983f0ed910d6c6fd54827d34d73"
+    },
+    {
+      "path": "tests/test_security_audit_contract.py",
+      "sha256": "b44c21ecfe52c90dd808b8649bb0911d69f1480f3c4b17586efb0acf4d6d44b5"
+    },
+    {
+      "path": "tests/test_security_audit_tools.py",
+      "sha256": "12744c10d03e3c45d4d278de61296585c9dbbc2331e350cc9d285f22de69e879"
+    },
+    {
+      "path": "tests/test_security_baseline_0273.py",
+      "sha256": "5ecd0b331d56d6a01622428668ce3bc7f371007c437644a1881552ddcad73414"
+    },
+    {
+      "path": "tests/test_security_cli_commands.py",
+      "sha256": "d02b97effdf0e1930cfd10473ab6c9928384e3582799e66e2a9ba70d2f655dae"
+    },
+    {
+      "path": "tests/test_security_cli_filtered.py",
+      "sha256": "09851f0305496a88a0d15e3cacfab31da6ae1c5704e596cfd182082da87a16ac"
+    },
+    {
+      "path": "tests/test_security_cli_levels.py",
+      "sha256": "38bdb32e3045e14fc3897dceccd3158fb12a791b45e433bb68830562926420ad"
+    },
+    {
+      "path": "tests/test_security_fast_route.py",
+      "sha256": "3fc9fedd8596c87f03fb5dc11823ca012ba53a4316bbc8346da73c72200b0ff4"
+    },
+    {
+      "path": "tests/test_security_filtered_output.py",
+      "sha256": "c78f189ca84c2f4168674f25d1bcc03e5afbef0576163e4ca0280d81d3c9bed9"
+    },
+    {
+      "path": "tests/test_security_full_clean.py",
+      "sha256": "40490f6a379befdf38bb8ac21fd93dfbe15d4c3fdb2ecda2a30d81281b76b986"
+    },
+    {
+      "path": "tests/test_security_promotion_0277.py",
+      "sha256": "960267566512af7f68a6508ef976ecd7ea74e1d4211ca73ea1f8fa9620f5c6c6"
+    },
+    {
+      "path": "tests/test_security_watch.py",
+      "sha256": "1898411664470e7e12217b9f7d97bc14b2946d4b1f48f1d44d3061859a0ff42f"
+    },
+    {
+      "path": "tests/test_selective_tool_schemas.py",
+      "sha256": "93d6414c86e8629506c68654ebceb85b710759a78569a799c217fb1b835a4fa2"
+    },
+    {
+      "path": "tests/test_self_audio_interrupt_guard.py",
+      "sha256": "734333385f284582627273349150a7b99c2cd517fb275aa97f668307db014d81"
+    },
+    {
+      "path": "tests/test_self_grounding_0276.py",
+      "sha256": "7b285e0739170e74722707c68e2c57a17caec1cd793b3e90b9c6f1661afdcaef"
+    },
+    {
+      "path": "tests/test_settings_schema_migration.py",
+      "sha256": "acabcd57be5ba4743ba2a98b32304e1ac1dd9b4150d8024fdc28e608e7da5583"
+    },
+    {
+      "path": "tests/test_setup_contract.py",
+      "sha256": "041410450d6ada0cba4b1d4f00d08918153a1e6946b182f5235a56ecfa4cff9a"
+    },
+    {
+      "path": "tests/test_setup_powershell_syntax.py",
+      "sha256": "54dd553af456a91c259a04965ac1f8c5b9dc1ea2c2b3aff203aa175954f761db"
+    },
+    {
+      "path": "tests/test_silence_latch_0239.py",
+      "sha256": "e4f0963f70b3ed2385f2e1eff39794bb3dbe1da768cfd27ad7a125073a40ad22"
+    },
+    {
+      "path": "tests/test_smart_app_control_compat.py",
+      "sha256": "e0c51e888053528aeaf3f834086b9ce97a8ad0ba8cc8190a172d4bc6183af0cd"
+    },
+    {
+      "path": "tests/test_speaker_lock_contract.py",
+      "sha256": "2742e00235a5d312efbd7f4f2e6e1acc67290a2dc78ee3ae4f27d1a4bf6c4fb0"
+    },
+    {
+      "path": "tests/test_speech_chunking.py",
+      "sha256": "980b31ce7dfac6550122a21ed672d586f902436823578b1772a0ef6c8344d9a9"
+    },
+    {
+      "path": "tests/test_speech_service_chunk_queue.py",
+      "sha256": "aea7dac1c92b172a25a674b5e8f320e801e18347a3f797f311fa1ae07aaf5eb4"
+    },
+    {
+      "path": "tests/test_speech_text.py",
+      "sha256": "09e93ea5b4dcc24f02f15c38a54005401fad04ce97fcceeaa1cfae182aeb4738"
+    },
+    {
+      "path": "tests/test_speed_contract.py",
+      "sha256": "434dc0b5641a9aa4285a7425c42dd68d57e65423948ebf96af7d71fc7a1777cf"
+    },
+    {
+      "path": "tests/test_stability_autonomy_kali_0271.py",
+      "sha256": "fff8c22325123e955e68cbd6432cb6ddb8267dfa15c3321dcb967d3acec8e604"
+    },
+    {
+      "path": "tests/test_startup_briefing.py",
+      "sha256": "4a35adba00a7cb13756af5d1b3150a2d06d9af367cd5e5441ac511eb4dac5a25"
+    },
+    {
+      "path": "tests/test_startup_device_binding_0237.py",
+      "sha256": "a4cdf0057d520304718ebd266d8aed97b61cc697729196dcc64be98b6c25b73f"
+    },
+    {
+      "path": "tests/test_stt_command_accuracy_profile.py",
+      "sha256": "40ee99275161509f2f5e8897be59afd5f03c1603f1e0e987cf50b2dc3129c090"
+    },
+    {
+      "path": "tests/test_stt_fallback_contract.py",
+      "sha256": "cf268366d816f52fc81e5af0ff962a9b51257995bc5cb7fc46665fa6f27a1526"
+    },
+    {
+      "path": "tests/test_stt_pcm_sac_compat.py",
+      "sha256": "c5e288d4f29b8b02682638b6847206948d4ed126344a5c0c0cd16bd43c79808d"
+    },
+    {
+      "path": "tests/test_stt_webcam_accuracy.py",
+      "sha256": "430bc59eecd668ec113a43b02aaf3d429f3f1e1a4f25047e7798973f513ce9c1"
+    },
+    {
+      "path": "tests/test_style_preference_classification.py",
+      "sha256": "bbb4d7875400c4333febf479e59a0dd78e24896eb1ad125bf570936a673e3867"
+    },
+    {
+      "path": "tests/test_synthetic_self_0276.py",
+      "sha256": "de10223a079d69066a96887ab3099427441b372a887f50b5775e9eea1823845a"
+    },
+    {
+      "path": "tests/test_system_cyber_auditor.py",
+      "sha256": "91ddcda177b3c50f90403d9c1f0e293efbeae00f001f447734aadba80ad888b8"
+    },
+    {
+      "path": "tests/test_system_cyber_auditor_contract.py",
+      "sha256": "eaaf73a4b58e5d78b624ac3ac240e6eb56d4ca6773365ab0a5cca23b6660e050"
+    },
+    {
+      "path": "tests/test_system_cyber_hardening_script.py",
+      "sha256": "64bc5c23fadb26eef04f0a10d8cbe7170fb749be60235bd4ed0ec6deab4bbe47"
+    },
+    {
+      "path": "tests/test_telemetry_gpu_throttle.py",
+      "sha256": "4704d80d88835317b9d26805bb712e1af5a0168ae9cea749969c2596de944bda"
+    },
+    {
+      "path": "tests/test_terminal_and_stt_resilience_0262.py",
+      "sha256": "b9246f8c3dc6485d8f22615e05e3b201c4df19dcacdbe8856a60c9b5bab4d55a"
+    },
+    {
+      "path": "tests/test_tool_schema_normalization_runtime.py",
+      "sha256": "e5fde85e66ca95d838ba7a5e9dc5debe629bfee383b2ab6490a49c25892c9f17"
+    },
+    {
+      "path": "tests/test_updater_joinpath_hotfix_0251.py",
+      "sha256": "4c1b4c5d8b5404658f8785e6bba19ef2cac59a2b4555f615137695f5374e6968"
+    },
+    {
+      "path": "tests/test_updater_same_tree.py",
+      "sha256": "279c95dd19016e9081cfbd80b6053ca40ebf33fb069d90bc2c87e85ec19a6e94"
+    },
+    {
+      "path": "tests/test_user_memory.py",
+      "sha256": "367f70c6ae5f5988c7e849ac437cb96845983628d63e7bcfcd83a17073fbf85f"
+    },
+    {
+      "path": "tests/test_verified_release_unblock_contract.py",
+      "sha256": "7fbed683f0152609d6b3da6cd9dc5775d15c90d4dcc531ac2157e7fd834f8032"
+    },
+    {
+      "path": "tests/test_voice_contract.py",
+      "sha256": "a106aa56e6c0e226b1a44906636b7ae7b12ba6e355531d1971117df843c24a25"
+    },
+    {
+      "path": "tests/test_voice_engine_v2_contract.py",
+      "sha256": "c258e4d61d2d6ea68c58e0db1975c554c9852f99c249c462d31b82f3edca24c0"
+    },
+    {
+      "path": "tests/test_voice_interrupt_contract.py",
+      "sha256": "070f0d29843ffa7fb06867b6ff034bedcc455d3eb34415491c58ca64a407b39a"
+    },
+    {
+      "path": "tests/test_voice_learning_security_0273.py",
+      "sha256": "162b64f4c946204d1d3522cc8e8600610d817d42d8b9b7486c7602d994b26a0d"
+    },
+    {
+      "path": "tests/test_voice_policy.py",
+      "sha256": "e4330acc64af7b6aef66a85eddce7eee6f595f1286a9b7753fe11aaeb3fc946f"
+    },
+    {
+      "path": "tests/test_voice_reset_0270.py",
+      "sha256": "4c3b5e20d8ddf8d2edd49dab1378053b526c6dcfed4fdde33f0ea0f2c0b04628"
+    },
+    {
+      "path": "tests/test_voice_responsiveness_0268.py",
+      "sha256": "02a38121a04b44b4232ea48fd84c2b1e3fb2aa807b8af7605a34ad6a54581c49"
+    },
+    {
+      "path": "tests/test_voice_wake_learning_0265.py",
+      "sha256": "c8cd56b5da4880e5c629b8afe8104b25a1724a6825c71796863f31a461c96fcd"
+    },
+    {
+      "path": "tests/test_voiceid_model_setup.py",
+      "sha256": "6407b7aed0e3a3a3d3d0341c79f65718406056f73c9258446b39e742c8db5a74"
+    },
+    {
+      "path": "tests/test_vram_residency_0233.py",
+      "sha256": "af1d8936d54be380e51c7e0048af8922cfa04d5369789ccbc6a6c605633e0d82"
+    },
+    {
+      "path": "tests/test_wake_acoustic_engine.py",
+      "sha256": "68ef62e38386beb23e790fc9f15ddbf33fec3c8659a3b90519f36f7a031b1a2d"
+    },
+    {
+      "path": "tests/test_wake_bluetooth_stream.py",
+      "sha256": "4af54d78e007ecada6de6e45aa5a6d5c1a09fa08f2e5447479ef42a280fbf289"
+    },
+    {
+      "path": "tests/test_wake_candidate_confirmation_0239.py",
+      "sha256": "eb1280cc62557eb2fab7f94e95f8232febfa300c64480e163747dfc32efd28cd"
+    },
+    {
+      "path": "tests/test_wake_constructor_081_contract.py",
+      "sha256": "fa5bdc10901efdc78b867d172518f2b8c831b7a57083eb13a26bbe9e0907a6aa"
+    },
+    {
+      "path": "tests/test_wake_enrollment_contract.py",
+      "sha256": "9671e7d379182a1b9bc7fe38d5dd2ee5c1732b2d91a82fd5b47b056ff9f2e843"
+    },
+    {
+      "path": "tests/test_wake_followup_0266.py",
+      "sha256": "77ef0006c30b752d0f0ed54a5b258b70c3601e6520fa13a82166d7e6c64037e2"
+    },
+    {
+      "path": "tests/test_wake_matches_listen_stream.py",
+      "sha256": "eeb4d57e9bc0e2a6ee857b1d7dab6007145aa5b75aecc7ae2dd5044493084416"
+    },
+    {
+      "path": "tests/test_wake_quiet_logging.py",
+      "sha256": "0a2d87a1f932670b1e79da57c6265fea88a2e034a4229a29fcb240c1739458ee"
+    },
+    {
+      "path": "tests/test_wake_soft_suppression.py",
+      "sha256": "d08d605fc5844dd86ae8b2129e8159ca4afb5eb8592290e8cd0fc3db479bee74"
+    },
+    {
+      "path": "tests/test_wake_threshold_scope.py",
+      "sha256": "265cb8d81e3b5807d5c4a2c312091ef5fa1afac2dee15fcfe14e2f8c8135d7be"
+    },
+    {
+      "path": "tests/test_wake_tts_guard.py",
+      "sha256": "82b50da165cd5fbf2b089a2dca91ab54d26041cac7c86af918bc40c803be5df9"
+    },
+    {
+      "path": "tests/test_wake_verifier_numpy.py",
+      "sha256": "082219d01c90d059a74ca8883a0b2485c3b8265f4885a1059a9ec27baa31b818"
+    },
+    {
+      "path": "tests/test_wake_whisper_after_only.py",
+      "sha256": "6b712f7cf654b239e582630ff0dd4be853e4e610c3157ea19409929a430ae233"
+    },
+    {
+      "path": "tests/test_wakeword_contract.py",
+      "sha256": "7664dc03165be1eeca32ec0e33ef141ebe4f30348b6ee9b73df0b295b6e9804d"
+    },
+    {
+      "path": "tests/test_wallpaper_event_io.py",
+      "sha256": "c63018d959b0b3b17167ce3d0e48e7ac6cc80b46280a057d0059eae833bdbaef"
+    },
+    {
+      "path": "tests/test_webcam_av_binding_0232.py",
+      "sha256": "d9e7c823ea21c0841f29b2a71cc8f3043fc6147bf0e37bb8cceb8ae09566db0c"
+    },
+    {
+      "path": "tests/test_webcam_wake_binding_0236.py",
+      "sha256": "297b207160dbd5e54d0bf872c90d5c639c8a1326f2ca81542d4d47a71c15ae9d"
+    },
+    {
+      "path": "tests/test_windows_block_audit.py",
+      "sha256": "961e726db9796e5b82bba86450dc6dc807c2c003c33cbd34cc739c94820341cd"
+    },
+    {
+      "path": "tests/test_windows_block_audit_contract.py",
+      "sha256": "f5b8c70fa8ba236a8bf2a4f4952455feca7bdd80e347187f1a1e0cee0789a757"
+    },
+    {
+      "path": "tests/test_windows_block_audit_current_corroboration_0277.py",
+      "sha256": "ba838e1a7e88067a40fec31ef2d5e70bc6d471139e064d889d0c6a92df45ce33"
+    },
+    {
+      "path": "tests/test_windows_block_audit_severity.py",
+      "sha256": "e2e1da07b028849abfe26c0aacafa998ba5f1a74f1af0ebaeb8ae2eb69b363a9"
+    },
+    {
+      "path": "tests/test_windows_sac_policy_detection.py",
+      "sha256": "0f33ca5b4f81316f9e7596aaa9a540b73bbeef316384182266cdaba303f09c6b"
+    },
+    {
+      "path": "tests/test_windows_signed_exitcode_0277.py",
+      "sha256": "d96ccdfb42833015abcc78fdbb74cb4cb4e46f691fd4897d2f6dfd8c3aee57fe"
+    },
+    {
+      "path": "tests/test_windows_subprocess_encoding_0276.py",
+      "sha256": "8f9e2ea4932797dba66ba7c00d51a37559df4f094bee4a1d074080da8648db46"
+    },
+    {
+      "path": "train_voice_learning.ps1",
+      "sha256": "9345c3075288bd49712df70076374f4ebcbdf0112c41ec5f4cfda64b6235beaa"
+    },
+    {
+      "path": "update_core.ps1",
+      "sha256": "adbe154e5929e5d81a8c7e760f4611e002e078e387a3fd8a205555ec18d05053"
+    },
+    {
+      "path": "verify_release.ps1",
+      "sha256": "5c4e9b619a133c2fcd3946e2d8e267bfba6e0fb84fb6f5136af8c380d6376268"
+    }
+  ]
+}

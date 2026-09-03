@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#020812">
+  <title>JARVIS Live Wallpaper</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main id="stage" class="state-offline">
+    <div class="reference-layer"></div>
+    <div class="vignette"></div>
+    <canvas id="particles" aria-hidden="true"></canvas>
+
+    <header class="system-status">
+      <span class="status-title">STATUS DO SISTEMA</span>
+      <div class="status-items">
+        <span data-state="idle">● IDLE</span>
+        <span data-state="listening">● LISTENING</span>
+        <span data-state="thinking">● THINKING</span>
+        <span data-state="speaking">● SPEAKING</span>
+        <span data-state="offline">● CORE OFFLINE</span>
+      </div>
+    </header>
+
+    <section class="live-panel panel-time">
+      <div class="panel-label">HORA / DATA</div>
+      <div class="clock-row">
+        <div class="clock-icon">◷</div>
+        <div>
+          <div id="clock" class="big-digital">--:--:--</div>
+          <div id="date" class="date-text">--</div>
+          <div id="weekday" class="muted spaced">--</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="live-panel panel-cpu">
+      <div class="panel-label">CPU</div>
+      <div id="cpuName" class="micro">PROCESSADOR</div>
+      <div class="metric-row">
+        <div>
+          <span id="cpuUsage" class="metric">--</span><span class="unit">%</span>
+          <div class="muted">UTILIZAÇÃO</div>
+        </div>
+        <canvas class="sparkline" id="cpuChart"></canvas>
+      </div>
+      <div class="triple">
+        <div><b id="cpuFreq">--</b><small>FREQ.</small></div>
+        <div><b id="cpuTemp">--</b><small>TEMP.</small></div>
+        <div><b id="cpuCores">--</b><small>NÚCLEOS</small></div>
+      </div>
+    </section>
+
+    <section class="live-panel panel-ram">
+      <div class="panel-label">RAM</div>
+      <div id="ramCapacity" class="micro">MEMÓRIA</div>
+      <div class="metric-row">
+        <div>
+          <span id="ramUsage" class="metric">--</span><span class="unit">%</span>
+          <div class="muted">UTILIZAÇÃO</div>
+        </div>
+        <canvas class="sparkline bars" id="ramChart"></canvas>
+      </div>
+      <div class="triple">
+        <div><b id="ramUsed">--</b><small>USADA</small></div>
+        <div><b id="ramFree">--</b><small>LIVRE</small></div>
+        <div><b id="ramTotal">--</b><small>TOTAL</small></div>
+      </div>
+    </section>
+
+    <section class="live-panel panel-gpu">
+      <div class="panel-label">GPU</div>
+      <div id="gpuName" class="micro">GPU</div>
+      <div class="metric-row">
+        <div>
+          <span id="gpuUsage" class="metric">--</span><span class="unit">%</span>
+          <div class="muted">UTILIZAÇÃO</div>
+        </div>
+        <canvas class="sparkline" id="gpuChart"></canvas>
+      </div>
+      <div class="triple">
+        <div><b id="gpuTemp">--</b><small>TEMP.</small></div>
+        <div><b id="gpuVram">--</b><small>VRAM</small></div>
+        <div><b id="gpuClock">--</b><small>FREQ.</small></div>
+      </div>
+    </section>
+
+    <div class="core-wrap" aria-hidden="true">
+      <div class="ring ring-a"></div>
+      <div class="ring ring-b"></div>
+      <div class="ring ring-c"></div>
+      <div class="core-halo"></div>
+      <div class="core-dot"></div>
+    </div>
+
+    <div class="core-caption">
+      <div id="coreState" class="core-state">CORE OFFLINE</div>
+      <div id="coreMessage" class="core-message">A aguardar ligação ao JARVIS</div>
+    </div>
+
+    <section class="live-panel panel-network">
+      <div class="panel-head">
+        <span class="panel-label">REDE</span>
+        <span id="networkType" class="micro accent">--</span>
+      </div>
+      <div class="network-grid">
+        <div><small>↓ DOWNLOAD</small><b id="download">--</b></div>
+        <div><small>↑ UPLOAD</small><b id="upload" class="magenta">--</b></div>
+      </div>
+      <div class="triple compact">
+        <div><b id="localIp">--</b><small>IP LOCAL</small></div>
+        <div><b id="activeDevices">--</b><small>ATIVOS</small></div>
+        <div><b id="bridgeLatency">--</b><small>BRIDGE</small></div>
+      </div>
+    </section>
+
+    <section class="live-panel panel-security">
+      <div class="panel-head">
+        <span class="panel-label">SECURITY WATCH</span>
+        <span id="securityLevel" class="security-ok">OK</span>
+      </div>
+      <div class="security-main">
+        <div class="shield">⬡</div>
+        <div>
+          <strong id="securityTitle">SISTEMA MONITORIZADO</strong>
+          <div id="securityDetail" class="muted">A aguardar baseline</div>
+        </div>
+      </div>
+      <div class="quad">
+        <div><b id="firewallState">--</b><small>FIREWALL</small></div>
+        <div><b id="defenderState">--</b><small>DEFENDER</small></div>
+        <div><b id="rdpState">--</b><small>RDP</small></div>
+        <div><b id="securityAlerts">0</b><small>ALERTAS</small></div>
+      </div>
+    </section>
+
+    <section class="live-panel panel-weather">
+      <div class="panel-head">
+        <span class="panel-label">CLIMA</span>
+        <span id="weatherLocation" class="micro accent">FURADOURO, OVAR</span>
+      </div>
+      <div class="weather-main">
+        <div id="weatherIcon" class="weather-icon">◌</div>
+        <div>
+          <div><span id="temperature" class="weather-temp">--</span><span> °C</span></div>
+          <div id="condition" class="condition">--</div>
+        </div>
+        <div class="weather-side">
+          <span>SENSAÇÃO <b id="feelsLike">--</b></span>
+          <span>VENTO <b id="wind">--</b></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="live-panel panel-humidity">
+      <div class="panel-label">HUMIDADE</div>
+      <div class="humidity-row">
+        <span class="drop">◉</span>
+        <span id="humidity" class="metric small-metric">--</span><span class="unit">%</span>
+        <div class="humidity-gauge"><i id="humidityGauge"></i></div>
+      </div>
+    </section>
+
+    <section class="live-panel panel-sea">
+      <div class="panel-head">
+        <span class="panel-label">MAR</span>
+        <span class="micro accent">FURADOURO</span>
+      </div>
+      <div class="sea-grid">
+        <div class="sea-icon">≋</div>
+        <div>
+          <span id="waveHeight" class="metric small-metric">--</span><span class="unit"> m</span>
+          <div id="seaState" class="condition">--</div>
+        </div>
+        <div class="weather-side">
+          <span>PERÍODO <b id="wavePeriod">--</b></span>
+          <span>TEMP. <b id="seaTemp">--</b></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="live-panel panel-agenda">
+      <div class="panel-head">
+        <span class="panel-label">AGENDA</span>
+        <span class="micro accent">PRÓXIMOS</span>
+      </div>
+      <div id="agendaList" class="agenda-list">
+        <div class="empty">Sem compromissos próximos.</div>
+      </div>
+    </section>
+
+    <section class="voice-panel">
+      <div>
+        <div id="greeting" class="voice-label">BOA NOITE, SENHOR</div>
+        <canvas id="audioLeft" class="audio-wave"></canvas>
+      </div>
+      <div class="mic-orb">
+        <span>◉</span>
+      </div>
+      <div>
+        <div id="voicePrompt" class="voice-label right">COMO POSSO AJUDAR?</div>
+        <canvas id="audioRight" class="audio-wave"></canvas>
+      </div>
+    </section>
+
+    <footer class="core-footer">
+      <span>JARVIS CORE <b id="coreVersion">0.12.0</b></span>
+      <span id="bridgeState">BRIDGE OFFLINE</span>
+    </footer>
+  </main>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

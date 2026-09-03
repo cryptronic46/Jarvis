@@ -1,0 +1,17 @@
+{
+  "google_calendar": {
+    "configured": false,
+    "status": "NOT_CONFIGURED",
+    "note": "Necessita ligação/autorização externa."
+  },
+  "email": {
+    "configured": false,
+    "status": "NOT_CONFIGURED",
+    "note": "Necessita ligação/autorização externa."
+  },
+  "smart_home": {
+    "configured": false,
+    "status": "NOT_CONFIGURED",
+    "note": "Necessita dispositivos/driver compatível configurados."
+  }
+}
