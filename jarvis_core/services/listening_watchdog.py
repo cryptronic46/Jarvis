@@ -42,6 +42,7 @@ class ListeningWatchdogService:
         self._recoveries = 0
         self._last_recovery_reason: str | None = None
         self._last_recovery_result: dict[str, Any] | None = None
+        self._device_waiting = False
 
     def _emit(self, name: str, **data: Any) -> None:
         try:
@@ -70,6 +71,7 @@ class ListeningWatchdogService:
                 "recoveries": self._recoveries,
                 "last_recovery_reason": self._last_recovery_reason,
                 "last_recovery_result": self._last_recovery_result,
+                "device_waiting": self._device_waiting,
                 "wake": wake,
                 "speech": speech,
             }
@@ -79,6 +81,7 @@ class ListeningWatchdogService:
             self.armed = bool(armed)
             if not self.armed:
                 self._unhealthy_since = None
+                self._device_waiting = False
         self._emit("LISTENING_WATCHDOG_ARMED", armed=self.armed)
 
     def _recovery_allowed(self) -> bool:
@@ -151,6 +154,24 @@ class ListeningWatchdogService:
                 self._unhealthy_since = None
             return
 
+        # Voice V2 owns reconnects while its worker thread is alive. A USB
+        # microphone being unplugged is an expected unavailable-device state,
+        # not a dead worker. Restarting here would reset Voice V2's exponential
+        # backoff and cause a noisy, tight recovery loop.
+        if wake.get("running") and wake.get("device_unavailable"):
+            with self._lock:
+                first_wait = not self._device_waiting
+                self._device_waiting = True
+                self._unhealthy_since = None
+            if first_wait:
+                self._emit(
+                    "LISTENING_DEVICE_WAITING",
+                    failures=wake.get("device_failure_count"),
+                    reconnect_in_seconds=wake.get("device_reconnect_in_seconds"),
+                    last_error=wake.get("last_error"),
+                )
+            return
+
         # If the only problem is stale TTS suppression while TTS is idle, clear
         # it without reopening the stream.
         if wake.get("running") and wake.get("stream_active") and wake.get("audio_suppressed"):
@@ -166,7 +187,11 @@ class ListeningWatchdogService:
         healthy = bool(wake.get("running") and wake.get("stream_active"))
         if healthy:
             with self._lock:
+                was_waiting = self._device_waiting
+                self._device_waiting = False
                 self._unhealthy_since = None
+            if was_waiting:
+                self._emit("LISTENING_DEVICE_RECONNECTED")
             return
 
         # Do not spam recovery when wake cannot legitimately run.
@@ -177,6 +202,7 @@ class ListeningWatchdogService:
 
         now = monotonic()
         with self._lock:
+            self._device_waiting = False
             if self._unhealthy_since is None:
                 self._unhealthy_since = now
                 self._emit(

@@ -62,7 +62,7 @@
     },
     {
       "path": "HOTFIX_0.27.8_PERFORMANCE_AUTONOMY_V11.md",
-      "sha256": "102f7bef517b242150866c77cf2c9cd86e771e3caf9ba6399f2f88e8d95694cc"
+      "sha256": "ea970944b6e03288976990f7907ff4548b2ec18f2f94c733aba4ecb572d723b9"
     },
     {
       "path": "README.md",
@@ -274,7 +274,7 @@
     },
     {
       "path": "jarvis_core/services/listening_watchdog.py",
-      "sha256": "15df92de830da4b857acc7ff8a9638074db4a3142ae57f68dabc50c602f62f3b"
+      "sha256": "cf4c93da4e60d9798b521a1c4aa866f074f9bbf20814b6a1d7d30f94f7a4d7b8"
     },
     {
       "path": "jarvis_core/services/local_research.py",
@@ -382,7 +382,7 @@
     },
     {
       "path": "jarvis_core/services/voice_engine_v2.py",
-      "sha256": "b886d66596111ab240dd1136f3a40436a175258ebbfd38828a96b45b8812bc7c"
+      "sha256": "f20d7561b4f4e74d8d6a6ce9f716d16b5c11472cc430e36f943098f0865e59ba"
     },
     {
       "path": "jarvis_core/services/voice_pipeline.py",
@@ -930,7 +930,7 @@
     },
     {
       "path": "tests/test_listening_watchdog.py",
-      "sha256": "1ee6d91241ca31970da7c96368319e0e5fdedcccea0d60260ef634c5107a2dbe"
+      "sha256": "2cd99acedf21d142a0aae7e33a5a28228c33babd30ad76d02b32cf58204127be"
     },
     {
       "path": "tests/test_local_executor_compat_0277.py",

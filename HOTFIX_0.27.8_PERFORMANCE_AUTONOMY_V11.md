@@ -22,3 +22,10 @@ JARVIS has no WDAC/App Control policy-enforcement capability in this hotfix. It 
 ## Validation
 
 The complete Python regression suite is executed from the final source tree before packaging. Real-machine validation is still required for Edge-TTS first-audio latency, Windows MCI playback, USB microphone hot-unplug/replug, CUDA/VRAM residency and the existing Windows startup shortcut.
+
+## Follow-up: disconnected microphone
+
+- Voice V2 now exposes an explicit unavailable-device/reconnect state while its worker remains alive.
+- The listening watchdog no longer restarts a live Voice V2 worker that is already waiting for an unplugged microphone, so the exponential backoff is preserved instead of repeatedly resetting to 1.6 seconds.
+- Reconnect waiting is observable through `LISTENING_DEVICE_WAITING`; successful recovery emits `LISTENING_DEVICE_RECONNECTED`.
+- Backoff waits are interruptible, so shutdown and deliberate restarts do not wait for the current retry timer.

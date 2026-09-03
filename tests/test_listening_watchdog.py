@@ -29,6 +29,9 @@ class FakeWake:
             "hard_paused": False,
             "audio_suppressed": False,
             "last_error": None,
+            "device_unavailable": False,
+            "device_failure_count": 0,
+            "device_reconnect_in_seconds": 0.0,
         }
         self.stop_calls = 0
         self.start_calls = 0
@@ -113,6 +116,31 @@ class ListeningWatchdogTests(unittest.TestCase):
         svc._check_once()
         self.assertEqual(wake.start_calls, 1)
         self.assertTrue(wake.state["stream_active"])
+
+    def test_unplugged_device_is_left_to_live_voice_worker(self):
+        svc, events, wake, speech = self.build()
+        wake.state.update({
+            "stream_active": False,
+            "device_unavailable": True,
+            "device_failure_count": 4,
+            "device_reconnect_in_seconds": 12.8,
+            "last_error": "OSError: [Errno -9996] Invalid device",
+        })
+
+        svc._check_once()
+        svc._check_once()
+
+        self.assertEqual(wake.stop_calls, 0)
+        self.assertEqual(wake.start_calls, 0)
+        self.assertIsNone(svc._unhealthy_since)
+        self.assertTrue(svc.status()["device_waiting"])
+        waiting = [name for name, _ in events.rows if name == "LISTENING_DEVICE_WAITING"]
+        self.assertEqual(waiting, ["LISTENING_DEVICE_WAITING"])
+
+        wake.state.update({"stream_active": True, "device_unavailable": False})
+        svc._check_once()
+        self.assertFalse(svc.status()["device_waiting"])
+        self.assertTrue(any(name == "LISTENING_DEVICE_RECONNECTED" for name, _ in events.rows))
 
 
 if __name__ == "__main__":

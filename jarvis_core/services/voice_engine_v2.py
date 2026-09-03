@@ -161,6 +161,9 @@ class VoiceEngineV2:
         self._last_device_name: str | None = None
         self._last_samplerate: int | None = None
         self._last_error: str | None = None
+        self._device_unavailable = False
+        self._device_failure_count = 0
+        self._device_retry_at = 0.0
         self._last_wake_score: float | None = None
         self._last_command: str | None = None
         self._detections = 0
@@ -1225,6 +1228,9 @@ class VoiceEngineV2:
                     self._last_device_index = idx
                     self._last_device_name = name
                     self._last_samplerate = source_rate
+                    self._device_unavailable = False
+                    self._device_failure_count = 0
+                    self._device_retry_at = 0.0
                 self._last_error = None
                 invalid_device_failures = 0
                 retry_now = retry
@@ -1351,6 +1357,10 @@ class VoiceEngineV2:
                     # loop re-enumerates devices by configured name; back off
                     # while a USB webcam/microphone is physically absent.
                     retry_now = min(60.0, max(retry, retry * (2 ** min(invalid_device_failures, 8))))
+                    with self._state_lock:
+                        self._device_unavailable = True
+                        self._device_failure_count = invalid_device_failures
+                        self._device_retry_at = monotonic() + retry_now
                     self.events.emit(
                         "VOICE_V2_DEVICE_BACKOFF",
                         error=self._last_error,
@@ -1359,6 +1369,10 @@ class VoiceEngineV2:
                     )
                 else:
                     retry_now = retry
+                    with self._state_lock:
+                        self._device_unavailable = False
+                        self._device_failure_count = 0
+                        self._device_retry_at = 0.0
                 self.events.emit("VOICE_V2_STREAM_ERROR", error=self._last_error)
             finally:
                 with self._state_lock:
@@ -1375,7 +1389,9 @@ class VoiceEngineV2:
                 except Exception:
                     pass
             if not self._stop.is_set():
-                sleep(retry_now)
+                # A disconnect can back off for up to a minute. Waiting on the
+                # stop event keeps shutdown/restart responsive during that wait.
+                self._stop.wait(retry_now)
 
     # ------------------------------------------------------------------
     # Diagnostics
@@ -1457,6 +1473,11 @@ class VoiceEngineV2:
                 "device": self._last_device_index,
                 "device_name": self._last_device_name,
                 "sample_rate": self._last_samplerate,
+                "device_unavailable": self._device_unavailable,
+                "device_failure_count": self._device_failure_count,
+                "device_reconnect_in_seconds": round(
+                    max(0.0, self._device_retry_at - monotonic()), 2
+                ),
             }
         return {
             "enabled": bool(self.config.enabled),
