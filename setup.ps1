@@ -139,11 +139,15 @@ Invoke-Checked {
 } "migracao do settings.json"
 
 Write-Host "A aplicar politica 0.27.8 JARVIS LEARNING-FIRST (executor local adaptativo)..."
-# App Control enforcement by JARVIS is retired in this hotfix. Historical
-# trust-state files are deliberately ignored so a stale 'enforced' marker can
-# never disable the compatibility executor or reintroduce policy coupling.
+$TrustStatePath = Join-Path $PSScriptRoot 'memory\security\appcontrol\jarvis_appcontrol_trust_state.json'
 $AllowCompat = $true
-$AllowCompatPython = 'True'
+if (Test-Path -LiteralPath $TrustStatePath -PathType Leaf) {
+    try {
+        $TrustState = Get-Content -LiteralPath $TrustStatePath -Raw | ConvertFrom-Json
+        if ([string]$TrustState.status -eq 'enforced_native_verified') { $AllowCompat = $false }
+    } catch { }
+}
+$AllowCompatPython = if ($AllowCompat) { 'True' } else { 'False' }
 Invoke-Checked {
     & ".\.venv\Scripts\python.exe" -c "from jarvis_core.core.config import Settings; Settings.update_file_values({'local_llm_backend':'jarvis_local','local_llm_allow_ollama_compat':$AllowCompatPython,'hybrid_mode':'local','cloud_fallback_on_local_error':False,'external_ai_enabled':False,'cloud_enabled':False,'expert_escalation_enabled':False,'external_ai_auto_escalate_complex':False,'performance_cloud_offload_under_pressure':False,'performance_release_llm_on_pressure':False,'voice_v2_preload_stt':True}); print('JARVIS local-only AI policy: enabled; external AI HARD BLOCKED; web->local synthesis; ollama_compat=$AllowCompatPython')"
 } "politica JARVIS local-only"
@@ -169,6 +173,12 @@ Invoke-Checked { & ".\repair_security_baseline.ps1" -Destination $PSScriptRoot }
 Write-Host ""
 Write-Host "A executar testes do Core $version..."
 Invoke-Checked { & ".\.venv\Scripts\python.exe" -m unittest discover -s tests -q } "testes do JARVIS"
+
+Write-Host ""
+Write-Host "A verificar atalho de arranque existente..."
+if (Test-Path -LiteralPath ".\repair_startup_shortcut.ps1") {
+    & ".\repair_startup_shortcut.ps1"
+}
 
 Write-Host ""
 Write-Host "Setup do JARVIS Core $version concluido com sucesso." -ForegroundColor Green

@@ -218,7 +218,7 @@ if ($PrepareTrustedCudaRuntime) {
     Write-Host '[JARVIS/TRUST] Preparing a fresh SHA-256-verified CUDA runtime without probing it yet...' -ForegroundColor Cyan
     Install-PinnedNativeRuntime 'cuda12'
     Write-Host '[JARVIS/TRUST] CUDA runtime prepared and per-file SHA-256 inventory recorded.' -ForegroundColor Green
-    Write-Host '[JARVIS/TRUST] Next: .\setup_appcontrol_trust.ps1 -Mode Plan' -ForegroundColor Cyan
+    Write-Host '[JARVIS/TRUST] App Control permanece observe-only; usa .\diagnose_app_control.ps1 para diagnostico.' -ForegroundColor Cyan
     exit 0
 }
 
@@ -293,10 +293,15 @@ if (-not (Test-Gguf $ModelPath) -and -not $UsingOllamaCompat) {
     else { throw "Valid GGUF model missing: $ModelPath" }
 }
 
-# JARVIS App Control enforcement is disabled in this release. Keep the local
-# compatibility executor available regardless of stale legacy trust-state.
+$TrustStatePath = Join-Path $PSScriptRoot 'memory\security\appcontrol\jarvis_appcontrol_trust_state.json'
 $AllowCompat = $true
-$AllowCompatPython = 'True'
+if (Test-Path -LiteralPath $TrustStatePath -PathType Leaf) {
+    try {
+        $TrustState = Get-Content -LiteralPath $TrustStatePath -Raw | ConvertFrom-Json
+        if ([string]$TrustState.status -eq 'enforced_native_verified') { $AllowCompat = $false }
+    } catch { }
+}
+$AllowCompatPython = if ($AllowCompat) { 'True' } else { 'False' }
 & ".\.venv\Scripts\python.exe" -c "from jarvis_core.core.config import Settings; print(Settings.update_file_values({'local_llm_backend':'jarvis_local','local_llm_allow_ollama_compat':$AllowCompatPython,'native_llama_server_path':'runtime/llama.cpp/llama-server.exe','native_llama_model_path':'models/llm/qwen3-8b.gguf','external_ai_enabled':False,'cloud_enabled':False,'expert_escalation_enabled':False,'external_ai_auto_escalate_complex':False}))"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 if ($UsingOllamaCompat) {

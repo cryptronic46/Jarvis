@@ -29,16 +29,12 @@ class Consolidated0278HotfixTests(unittest.TestCase):
         self.assertIn('COMPAT_OK', baseline)
         self.assertNotIn('[uint32]$LlamaCode', baseline)
 
-    def test_appcontrol_trust_is_promoted_to_0278(self):
+    def test_appcontrol_is_observe_only_in_current_hotfix(self):
         trust = Path('setup_appcontrol_trust.ps1').read_text(encoding='utf-8-sig')
-        self.assertIn('JARVIS App Control Observe-Only 0.27.8', trust)
-        self.assertIn("'1.0.27.8'", trust)
-        self.assertIn("release = '0.27.8'", trust)
-        self.assertIn('SmartAppControl.xml', trust)
-        self.assertIn('New-CIPolicyRule -Level Hash', trust)
-        self.assertNotIn('New-CIPolicyRule -Level FilePath', trust)
-        self.assertNotIn("if ($Mode -eq 'Enforce')", trust)
-        self.assertIn("if ($Mode -eq 'Disarm')", trust)
+        self.assertIn('OBSERVE-ONLY', trust)
+        self.assertIn('diagnose_app_control.ps1', trust)
+        self.assertNotIn('New-CIPolicyRule', trust)
+        self.assertNotIn('ConvertFrom-CIPolicy', trust)
 
     def test_setup_hard_blocks_external_ai(self):
         setup = Path('setup.ps1').read_text(encoding='utf-8-sig')

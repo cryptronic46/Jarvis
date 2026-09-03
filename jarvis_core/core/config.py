@@ -445,6 +445,8 @@ class Settings:
     autonomy_pending_ttl_seconds: int = 600
     autonomy_grant_ttl_seconds: int = 600
     autonomy_denial_cooldown_hours: float = 24.0
+    autonomy_expired_cooldown_minutes: float = 180.0
+    autonomy_recurring_topic_cooldown_hours: float = 6.0
     autonomy_max_pending: int = 8
     autonomy_proactive_learning_enabled: bool = True
     autonomy_direct_user_orders_authorize_exact_action: bool = True

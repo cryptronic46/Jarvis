@@ -5,7 +5,7 @@
 0.27.8 keeps the JARVIS Core as the primary local orchestration brain and combines two lines that had diverged during development:
 
 1. **Epistemic Learning & Permission-Gated Expert Escalation** — explicit local knowledge-gap detection, OWNER-authorized public-web study, persistent provenance/freshness metadata, request-scoped learned RAG, and an optional isolated external expert that is off by default and requires a separate one-shot authorization.
-2. **Final 0.27.7 Windows/runtime hardening** — adaptive local executor, signed Windows exit-code handling, current corroboration for App Control events, pinned CUDA/Vulkan runtime verification, local compatibility fallback, and observe-only App Control diagnostics for the verified llama.cpp runtime.
+2. **Final 0.27.7 Windows/runtime hardening** — adaptive local executor, signed Windows exit-code handling, current corroboration for App Control events, pinned CUDA/Vulkan runtime verification, local compatibility fallback, and exact-hash App Control trust for the verified llama.cpp runtime.
 
 The consolidated hotfix deliberately does **not** restore regressions present in the original 0.27.8 package. In particular, it does not revert to a native-only backend that aborts on `0xC0E90002`, does not treat historical Windows events as permanent active blockers, and does not erase an explicit OWNER external-expert opt-in during setup.
 
@@ -25,31 +25,44 @@ Important contracts:
 - Windows exit code `-1058471934` is reinterpreted safely as `0xC0E90002`; PowerShell never casts the negative value directly to `UInt32`.
 - A blocked native executor is not fatal when a healthy local compatibility executor is explicitly allowed.
 - `/quit` releases the selected local model/runtime; the compatibility path requests `keep_alive=0` for Qwen.
-- Legacy `enforced_native_verified` state is ignored; App Control enforcement by JARVIS is retired and the compatibility fallback remains available.
+- If App Control trust reaches `enforced_native_verified`, the compatibility fallback is disabled and future schema/setup runs preserve that decision.
 
-## Windows Pro App Control — observe-only correction
+## Windows Pro App Control runtime trust
 
-`setup_appcontrol_trust.ps1` remains part of the controlled release only for verified runtime inventory, Audit Mode diagnostics, status and legacy cleanup. The live-machine acceptance pass demonstrated that a JARVIS-derived enforcement policy could block legitimate vendor software outside the JARVIS runtime. Therefore this hotfix removes the JARVIS Enforce path entirely.
+`setup_appcontrol_trust.ps1` is now part of the 0.27.8 controlled release. It exists for the observed Windows block on `runtime\llama.cpp\llama-server-impl.dll` and does not disable Defender, Code Integrity, Secure Boot, TESTSIGNING or integrity checks.
 
-The supported flow is:
+The trust flow is staged:
 
-`Prepare -> Plan/Audit -> Status -> Disarm`
+`Prepare -> Plan/Audit -> Enforce (explicit confirmation) -> Status`
 
 Security properties:
 
-- Any JARVIS policy created by this release contains `Enabled:Audit Mode`.
-- No enforced policy artifact is generated and no code path deletes Audit Mode.
-- JARVIS does not write `VerifiedAndReputablePolicyState` or otherwise change Microsoft Smart App Control state.
-- `Disarm` removes only non-system JARVIS-managed App Control policies, including known legacy base/supplemental IDs and JARVIS friendly-name families; supplemental policies are removed before bases.
-- `Rollback` is retained only as an alias for `Disarm` and does not change Smart App Control state.
-- Exact-hash runtime inventory and ConfigCI batching remain available for audit diagnostics.
-- Historical `enforced_native_verified` state cannot disable the local compatibility executor.
+- Starts from the Microsoft `SmartAppControl.xml` example policy.
+- Removes `Enabled:Conditional Windows Lockdown Policy` before using the template as an App Control for Business base policy.
+- Adds JARVIS runtime rules at **Hash** level only; no broad FilePath allow rule is created.
+- Re-downloads/prepares the pinned CUDA runtime without re-downloading the multi-GB Qwen model.
+- Requires provenance showing the upstream archives were SHA-256 verified before `Unblock-File`.
+- Records the SHA-256 of every current runtime `.exe`/`.dll` immediately after the verified install.
+- Refuses policy creation/enforcement if any runtime binary changes after that inventory was recorded.
+- Deploys the custom App Control policy before turning the consumer Smart App Control state off.
+- Saves recovery state before migration and supports rollback.
+- Probes `llama-server.exe` after enforcement. Native success marks trust state `enforced_native_verified` and disables the Ollama compatibility executor.
 
-This release intentionally has **no App Control blocking authority owned by JARVIS**. Restoring an enforcement capability in the future requires a new explicit design and implementation.
+The policy has been promoted to release/policy version **0.27.8 / 1.0.27.8**.
 
-## Final live-machine observe-only corrections
 
-The correction preserves the useful diagnostic work from the earlier runtime-trust implementation—batched ConfigCI hashing, normalized Rule arrays, bounded probes and clean status reporting—while removing the unsafe operational consequence. No broad path allow rule, Defender disable, TESTSIGNING, integrity-check bypass or automatic Microsoft SAC state change is introduced.
+## Final live-machine runtime trust corrections
+
+The final 0.27.8 hotfix also incorporates the issues found while deploying the policy on the target Windows 11 Pro machine instead of leaving them as manual terminal patches:
+
+- `New-CIPolicyRule` receives the 55 verified runtime paths in one `String[]` batch instead of starting a ConfigCI catalogue/signature scan once per EXE/DLL.
+- ConfigCI `Rule[]` output is explicitly flattened before `Merge-CIPolicy`, preventing the `Object[]{ Rule[] } -> Rule` conversion failure observed on the real machine.
+- `Plan` and `Audit` reuse the existing valid policy artefacts by default. A new policy identity is created only when there is no valid plan or the OWNER explicitly requests `-RebuildPlan`; this avoids needless rescans and accidental GUID churn during repeated validation.
+- `Status` no longer aborts when `CiTool -lp` is denied in a non-elevated console. It reports the policy inventory as unknown, continues the local runtime probe, and tells the OWNER to rerun only Status elevated for authoritative policy enumeration.
+- The llama trust probe now has a hard timeout so a broken `--version` process cannot leave the status/migration flow waiting indefinitely.
+- The release metadata remains `0.27.8 / 1.0.27.8`; the old 0.27.7 friendly-name mismatch seen during the manual migration is not emitted by this package.
+
+These changes preserve the security model: no broad path allow rule, no Defender disable, no automatic MOTW removal outside the verified release/runtime chain, and no silent App Control bypass. Current Microsoft ConfigCI exposes `DriverFilePath` as `String[]` and `Merge-CIPolicy -Rules` as `Rule[]`, which is the contract exercised by the final implementation.
 
 ## Startup latency optimization
 
@@ -114,7 +127,7 @@ The consolidated release retains the 0.27.6/0.27.7 conversation work:
 - `memory`, `knowledge`, `.venv`, logs, models, voice profiles, settings and app registry remain runtime/mutable state and are not overwritten as immutable release content.
 - `setup.ps1` installs/prepares the local executor before the final security-baseline decision, so the Block Audit can corroborate the **current** runtime rather than only historical events.
 - External-AI/expert settings are revoked by the local-only policy; no external expert route is valid in this acceptance line.
-- App Control enforcement is not owned by JARVIS; stale legacy trust state cannot disable `local_llm_allow_ollama_compat`.
+- App-Control-enforced `local_llm_allow_ollama_compat=false` survives settings migration.
 
 ## Automated regression
 
@@ -148,12 +161,8 @@ The post-v9 acceptance run found several classes of remaining faults: provider-n
 
 v10 repairs those boundaries at the Core/router/service level. External AI remains structurally unavailable. Public Web remains a source-acquisition path only and does not become durable learning without an explicit study/learn request. Desktop input primitives remain bounded and typing/hotkeys still require OWNER confirmation. A move-only pointer command is a separate low-risk action and never synthesizes a click. Vision remains entirely local and now fails closed if its description cannot be reconciled with local window metadata after a bounded retry.
 
-The v10.2 regression suite contains **908 automated tests**. Final delivery additionally requires a clean manifest/hash validation and a second run from the extracted final ZIP. Real Windows acceptance is still required for UI focus/input, App Control, GPU/mmproj behaviour, audio devices and driver-dependent execution.
+The v10 regression suite contains **898 automated tests**. Final delivery additionally requires a clean manifest/hash validation and a second run from the extracted final ZIP. Real Windows acceptance is still required for UI focus/input, App Control, GPU/mmproj behaviour, audio devices and driver-dependent execution.
 
 ## Incremental v10.1 — pt-PT final language refinement
 
 A deterministic local final-pass now sits between response generation and presentation, and the same pass is applied before TTS normalisation. This prevents written and spoken JARVIS from diverging on European-Portuguese grammar/localisation. The refiner does not alter JSON/tool payloads or code, does not perform factual rewriting, and has no external-AI/Web path. Personal Cognition remains enabled and its explicit interaction-style preferences are injected into the local brain context.
-
-## Hotfix v10.2 — JARVIS App Control observe-only
-
-Live Windows acceptance confirmed that the former JARVIS-derived enforcement policy could disrupt ASUS Update, ROG Live Service, Aura/Fan HAL installation, Armoury Crate and unrelated signed components. v10.2 therefore removes enforcement artifact creation/deployment and SAC registry mutation from the controlled source. `Disarm` is the supported cleanup path for legacy JARVIS policies.

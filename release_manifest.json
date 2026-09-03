@@ -1,6 +1,6 @@
 {
   "release": "0.27.8",
-  "source": "JARVIS Core 0.27.8 — App Control Observe-Only Hotfix v10.2 (enforcement retired; legacy disarm)",
+  "source": "JARVIS Core 0.27.8 — Performance & Autonomy Hotfix v11 (low-latency TTS + natural auth + observe-only security)",
   "scope": {
     "trees": [
       "jarvis_core",
@@ -41,7 +41,9 @@
       "AUDIT_0.27.8.md",
       "acceptance_real_machine.ps1",
       "update_core.ps1",
-      "verify_release.ps1"
+      "verify_release.ps1",
+      "repair_startup_shortcut.ps1",
+      "HOTFIX_0.27.8_PERFORMANCE_AUTONOMY_V11.md"
     ],
     "external_addons": "preserved-outside-core-manifest"
   },
@@ -55,12 +57,20 @@
       "sha256": "f530fb2f8c9bfd41004fef2af0d41ddff61b3ebf22850279a8ae764426d9477c"
     },
     {
-      "path": "acceptance_real_machine.ps1",
-      "sha256": "59d023c4a6d984da5e7fefff3bb15513b41400f9842bb791c390b9a98823a2f5"
+      "path": "AUDIT_0.27.8.md",
+      "sha256": "d655033b329f920aa931261825f0dca186d59510381a5177fcc45ec509ce7d27"
     },
     {
-      "path": "AUDIT_0.27.8.md",
-      "sha256": "2287b6b97151440c9058801c4b7adb5ff52db3dcf67bb02dc57b64da81e6aa34"
+      "path": "HOTFIX_0.27.8_PERFORMANCE_AUTONOMY_V11.md",
+      "sha256": "102f7bef517b242150866c77cf2c9cd86e771e3caf9ba6399f2f88e8d95694cc"
+    },
+    {
+      "path": "README.md",
+      "sha256": "c959b9ecb8ba727b33018f6c9dd770e35c8db2e7d0184e40bce039bb2c321509"
+    },
+    {
+      "path": "acceptance_real_machine.ps1",
+      "sha256": "59d023c4a6d984da5e7fefff3bb15513b41400f9842bb791c390b9a98823a2f5"
     },
     {
       "path": "collect_voice_learning.ps1",
@@ -112,7 +122,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "6a761fcde53d402dcc9d3f0fdbfbfaae29d727da4cdc5fc01af6cac8cd27319e"
+      "sha256": "59dae519387077c91ad647839ec8b1bd55691a6ced05df8413d4a5de5e105e74"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -128,7 +138,7 @@
     },
     {
       "path": "jarvis_core/core/config.py",
-      "sha256": "04cbb5c54e761e59d087c0840e460125ed9fb63384da1e9b21c6859b53c4b5eb"
+      "sha256": "2c4b13d4c63495257c6699a95e0b13164666e2e0450fe3f74ef961ae5f3c2c88"
     },
     {
       "path": "jarvis_core/core/conversation_policy.py",
@@ -192,7 +202,7 @@
     },
     {
       "path": "jarvis_core/services/autonomy.py",
-      "sha256": "6d711b41e0d81ca16016f44f2fcc74b29954c8d69e4f94bc7e27a5c4d10e7ef6"
+      "sha256": "a0745e5fa4a26bd44abf7558e22c43f2971b39d2019a834e86b35214f874ed28"
     },
     {
       "path": "jarvis_core/services/av_devices.py",
@@ -284,7 +294,7 @@
     },
     {
       "path": "jarvis_core/services/personal_cognition.py",
-      "sha256": "c46d0987298560ef20ae2493b19b280c87011c2ab9fe87226906f7d3d1078eaa"
+      "sha256": "21504e5d2960d93b96b48fe6f4e21b7dd458dfa8cab7b389ff7e182522650abe"
     },
     {
       "path": "jarvis_core/services/presentation.py",
@@ -336,7 +346,7 @@
     },
     {
       "path": "jarvis_core/services/speech.py",
-      "sha256": "65908bf43f41bab7f078d2c9a6059c5724570b3e6012faa6e00a285a3442c750"
+      "sha256": "2ef379ff0f28aa4eff1583e71033af25d913a49c3e80d2bdf42d6fc8592f8468"
     },
     {
       "path": "jarvis_core/services/speech_text.py",
@@ -372,7 +382,7 @@
     },
     {
       "path": "jarvis_core/services/voice_engine_v2.py",
-      "sha256": "09c8e9934929f2caeae6be74bd60abd5bc8c22062ef7ac179e03cf3bd0fe503d"
+      "sha256": "b886d66596111ab240dd1136f3a40436a175258ebbfd38828a96b45b8812bc7c"
     },
     {
       "path": "jarvis_core/services/voice_pipeline.py",
@@ -487,12 +497,12 @@
       "sha256": "3c5428d87055a868b96b8919f3626215e1753b76e21b38c3bc04577a0246a90a"
     },
     {
-      "path": "README.md",
-      "sha256": "e65c39cdab6beed70c7909422e800fbf6df5791b32c6feac1174eb0d765ed4b2"
-    },
-    {
       "path": "repair_security_baseline.ps1",
       "sha256": "ec49ef57ac57a1c7ba2b28b587a5bca17b6e6d9448cadc2eba1d2e9432e6719b"
+    },
+    {
+      "path": "repair_startup_shortcut.ps1",
+      "sha256": "08b6060687f2ff62cc3365b8a92630681604345c92ad3508745344ea11395d80"
     },
     {
       "path": "requirements-cloud.txt",
@@ -524,11 +534,11 @@
     },
     {
       "path": "setup.ps1",
-      "sha256": "d25e9ea8bd49723231aeaacd9d7db11d7bdf8458f1303d3fa6d80b703d250091"
+      "sha256": "198ccb6be7b92160cbfdfc275005382888055cb04db8143b5c6405e4ce43cc4b"
     },
     {
       "path": "setup_appcontrol_trust.ps1",
-      "sha256": "eb7e3c9ebdbb714caac7989ab5c39cf69a4553e79c0e34aef7c60231d00e38c1"
+      "sha256": "c739b68a6e5831b2419a55c967b64c10f6444d7fb2ed9033fc1ccf54c6393cef"
     },
     {
       "path": "setup_cloud.ps1",
@@ -536,7 +546,7 @@
     },
     {
       "path": "setup_native_brain.ps1",
-      "sha256": "e4021dd4e371e745961d1a7c8fadd0a878f89161b22863890f81e4cca0383f00"
+      "sha256": "f5a11354866c7c38bb156a6a257853aefb8d59ecf38b61399a1fae760d2f4f53"
     },
     {
       "path": "setup_vision.ps1",
@@ -600,15 +610,19 @@
     },
     {
       "path": "tests/test_0278_consolidated_hotfix.py",
-      "sha256": "7a7e0aa2af3466df029817bc4c6326ccc0a461a5035bd26072ec682d912067d0"
+      "sha256": "ea11b72127c3ee98e1eabdf1834714cec140baf8d187899a898013cf9595767d"
     },
     {
       "path": "tests/test_0278_language_refinement_hotfix.py",
       "sha256": "e7f016ecf89fd219f8775287b5a3d1b551d2fba2bde1fcadb45ea0693ae26943"
     },
     {
+      "path": "tests/test_0278_performance_autonomy_hotfix_v11.py",
+      "sha256": "0fbbf3842d73190864b716d47b103c644e51dcef195ced6c2a2c507d65e7ceab"
+    },
+    {
       "path": "tests/test_0278_runtime_trust_optimization.py",
-      "sha256": "0693eb32fa4eb2b5d0bf4358f9ad8a4a17f5d0ab42fa5e1806018b9498622043"
+      "sha256": "b207e86a35e3739d979eab4853cab6e08316712f52e78da4f905c100467e36f7"
     },
     {
       "path": "tests/test_activity_trace_0239.py",
@@ -623,12 +637,8 @@
       "sha256": "9e48c9aec176353018238b588a1b6264111591de6a441f2151a17a1d41885843"
     },
     {
-      "path": "tests/test_appcontrol_observe_only_0278.py",
-      "sha256": "c054b0068174ed97e4a72bcddf603c90ed610d11b863db1f337b0d51032e90a9"
-    },
-    {
       "path": "tests/test_appcontrol_trust_policy_0277.py",
-      "sha256": "29057604cd0764fdfdaef35d636f77d8a07a9c9dec4ca50de1217cd05f9dffa3"
+      "sha256": "e5a251856f1aafb59304ca08cad7d37d519c6e07b69055f9486f72a66d1f3d74"
     },
     {
       "path": "tests/test_apps.py",
@@ -1092,7 +1102,7 @@
     },
     {
       "path": "tests/test_release_manifest_complete.py",
-      "sha256": "cb18bf4f82df3e2602e98862dba77f18410eac4c0f92af1417cb88f752b56ad6"
+      "sha256": "4c569d6de3ac5ceb5f778c585229858f6e0a47e62b7e38555d46d9b5c4b1a3f2"
     },
     {
       "path": "tests/test_release_updater_contract.py",
@@ -1440,7 +1450,7 @@
     },
     {
       "path": "update_core.ps1",
-      "sha256": "adbe154e5929e5d81a8c7e760f4611e002e078e387a3fd8a205555ec18d05053"
+      "sha256": "d7171f5c403f00af9149b7d42db4d33c589be6e2f60a5da63d6ee84973baf65c"
     },
     {
       "path": "verify_release.ps1",

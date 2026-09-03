@@ -11,31 +11,15 @@ from jarvis_core.services import windows_block_audit as wba
 
 class RuntimeTrustOptimization0278Tests(unittest.TestCase):
     def setUp(self):
-        self.trust = Path('setup_appcontrol_trust.ps1').read_text(encoding='utf-8-sig')
+        self.trust = Path("setup_appcontrol_trust.ps1").read_text(encoding="utf-8-sig")
 
-    def test_configci_hash_rules_are_batched_and_flattened(self):
-        self.assertIn("New-CIPolicyRule -Level Hash -DriverFilePath $runtimePaths", self.trust)
-        self.assertIn("Regras Hash normalizadas", self.trust)
-        self.assertIn("$rawRules | ForEach-Object", self.trust)
-        self.assertNotIn("$rules += @(New-CIPolicyRule -Level Hash -DriverFilePath $full)", self.trust)
-        self.assertIn("Parameters['DriverFilePath'].ParameterType", self.trust)
-        self.assertIn("Parameters['Rules'].ParameterType", self.trust)
+    def test_appcontrol_management_is_disabled(self):
+        self.assertIn("OBSERVE-ONLY", self.trust)
+        for token in ("New-CIPolicyRule", "ConvertFrom-CIPolicy", "Set-RuleOption", "CiTool.exe"):
+            self.assertNotIn(token, self.trust)
 
-    def test_plan_and_audit_reuse_existing_policy_artifacts_by_default(self):
-        plan = self.trust.index("if ($Mode -eq 'Plan')")
-        audit = self.trust.index("if ($Mode -eq 'Audit')")
-        status = self.trust.index("if ($Mode -eq 'Status')")
-        self.assertIn("$plan = if ($RebuildPlan) { Build-PolicyArtifacts } else { Load-Plan }", self.trust[plan:audit])
-        self.assertIn("$plan = if ($RebuildPlan) { Build-PolicyArtifacts } else { Load-Plan }", self.trust[audit:status])
-        self.assertNotIn("if ($Mode -eq 'Enforce')", self.trust)
-        self.assertIn("[switch]$RebuildPlan", self.trust)
-
-    def test_status_degrades_cleanly_without_citool_elevation(self):
-        status = self.trust[self.trust.index("if ($Mode -eq 'Status')"):]
-        self.assertIn("$policies = Try-Get-CiPolicies", status)
-        self.assertIn("UNKNOWN (CiTool requer elevacao", status)
-        self.assertIn("Probe-LlamaServer -TimeoutSeconds 20", status)
-        self.assertIn("timeout after", self.trust)
+    def test_diagnostics_remain_available(self):
+        self.assertIn("diagnose_app_control.ps1", self.trust)
 
     def test_startup_cache_accepts_only_clean_reports(self):
         clean = {

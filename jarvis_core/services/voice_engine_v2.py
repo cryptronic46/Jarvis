@@ -1188,6 +1188,8 @@ class VoiceEngineV2:
 
     def _run(self) -> None:
         retry = max(0.2, float(self.config.stream_recovery_seconds))
+        invalid_device_failures = 0
+        retry_now = retry
         while not self._stop.is_set():
             if self._paused.is_set():
                 with self._state_lock:
@@ -1224,6 +1226,8 @@ class VoiceEngineV2:
                     self._last_device_name = name
                     self._last_samplerate = source_rate
                 self._last_error = None
+                invalid_device_failures = 0
+                retry_now = retry
                 self.events.emit(
                     "VOICE_V2_STREAM_OPENED",
                     device=idx,
@@ -1340,6 +1344,21 @@ class VoiceEngineV2:
 
             except Exception as exc:
                 self._last_error = f"{type(exc).__name__}: {exc}"
+                invalid_device = "invalid device" in self._last_error.lower() or "-9996" in self._last_error
+                if invalid_device:
+                    invalid_device_failures += 1
+                    # PyAudio device indexes are session-local. Re-entering the
+                    # loop re-enumerates devices by configured name; back off
+                    # while a USB webcam/microphone is physically absent.
+                    retry_now = min(60.0, max(retry, retry * (2 ** min(invalid_device_failures, 8))))
+                    self.events.emit(
+                        "VOICE_V2_DEVICE_BACKOFF",
+                        error=self._last_error,
+                        failures=invalid_device_failures,
+                        retry_seconds=round(retry_now, 2),
+                    )
+                else:
+                    retry_now = retry
                 self.events.emit("VOICE_V2_STREAM_ERROR", error=self._last_error)
             finally:
                 with self._state_lock:
@@ -1356,7 +1375,7 @@ class VoiceEngineV2:
                 except Exception:
                     pass
             if not self._stop.is_set():
-                sleep(retry)
+                sleep(retry_now)
 
     # ------------------------------------------------------------------
     # Diagnostics

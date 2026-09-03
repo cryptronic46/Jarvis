@@ -1107,6 +1107,7 @@ def main() -> None:
                             f"stt={result.get('elapsed_ms')}ms "
                             f"command={command_ms}ms route={route}{cloud_cost}"
                         )
+                    events.emit("LLM_RESPONSE_READY", chars=len(answer), route=route, source="manual_voice")
                     speech.say(answer)
                 finally:
                     microphone.cleanup_capture(wav_path)
@@ -1188,6 +1189,7 @@ def main() -> None:
                     f"  [PERF  ] wake-command command={command_ms}ms "
                     f"route={route}{cloud_cost}"
                 )
+            events.emit("LLM_RESPONSE_READY", chars=len(answer), route=route, source="wake")
             speech.say(answer)
 
     def on_interrupt_probe_start() -> bool:
@@ -4197,8 +4199,10 @@ def main() -> None:
             # exactly one action is pending, so "Autorizo" cannot accidentally
             # widen or select the wrong scope.
             natural_approval = lower.strip(" .!?") in {
-                "autorizo", "podes fazer", "pode fazer", "tens a minha autorizacao",
-                "tem a minha autorizacao", "sim autorizo", "sim podes fazer",
+                "sim", "podes", "pode", "autoriza", "autorizo", "pesquisa",
+                "sim podes", "sim pode", "sim autoriza", "sim autorizo",
+                "podes fazer", "pode fazer", "tens a minha autorizacao",
+                "tem a minha autorizacao", "sim podes fazer",
             }
             if natural_approval:
                 pending_rows = autonomy.pending()
@@ -4206,7 +4210,26 @@ def main() -> None:
                     execute_owner_authorization(str(pending_rows[0].get("token") or ""))
                     continue
                 if len(pending_rows) > 1:
-                    print("JARVIS > Tenho várias ações pendentes. Indica /authorize TOKEN para eu não autorizar a ação errada.")
+                    # A generic yes must never select between unrelated scopes.
+                    learning_rows = [
+                        row for row in pending_rows
+                        if row.get("capability") == "external_learning"
+                    ]
+                    if lower.strip(" .!?") == "pesquisa" and len(learning_rows) == 1:
+                        execute_owner_authorization(str(learning_rows[0].get("token") or ""))
+                        continue
+                    print("JARVIS > Tenho várias ações pendentes. Diga qual delas quer autorizar.")
+                    continue
+
+            natural_denial = lower.strip(" .!?") in {
+                "nao", "não", "agora nao", "agora não", "nao autorizo",
+                "não autorizo", "recuso", "nego",
+            }
+            if natural_denial:
+                pending_rows = autonomy.pending()
+                if len(pending_rows) == 1:
+                    result = autonomy.deny(str(pending_rows[0].get("token") or ""))
+                    print("JARVIS >", json.dumps(result, ensure_ascii=False, indent=2))
                     continue
 
             # Natural typed/voice equivalents remain token-bound.
@@ -4279,6 +4302,7 @@ def main() -> None:
                         f"  [PERF  ] command={command_ms}ms "
                         f"route={route}{cloud_cost}"
                     )
+                events.emit("LLM_RESPONSE_READY", chars=len(answer), route=route, source="terminal")
                 speech.say(answer)
     finally:
         activity_trace.stop()

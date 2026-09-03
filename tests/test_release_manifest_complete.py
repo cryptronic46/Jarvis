@@ -50,6 +50,8 @@ CONTROLLED_TOP_LEVEL = {
     "acceptance_real_machine.ps1",
     "update_core.ps1",
     "verify_release.ps1",
+    "repair_startup_shortcut.ps1",
+    "HOTFIX_0.27.8_PERFORMANCE_AUTONOMY_V11.md",
 }
 
 RUNTIME_PARTS = {

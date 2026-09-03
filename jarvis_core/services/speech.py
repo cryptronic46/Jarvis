@@ -4,12 +4,13 @@ import asyncio
 import ctypes
 import hashlib
 import shutil
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from queue import Empty, Queue
 from tempfile import gettempdir
 from threading import Event as ThreadEvent, Lock, Thread
-from time import sleep
+from time import sleep, monotonic
 from uuid import uuid4
 from typing import Any
 
@@ -121,6 +122,7 @@ class SpeechService:
     def say(self, text: str) -> bool:
         if not self.config.enabled:
             return False
+        self.events.emit("TTS_REQUESTED", chars=len(text))
         chunks = prepare_for_speech_chunks(
             text,
             max_chars=self.config.max_chars,
@@ -304,27 +306,70 @@ class SpeechService:
                 )
                 self._queue.task_done()
 
-    def _speak_edge(self, text: str) -> None:
+    def _edge_segments(self, text: str) -> list[str]:
+        """Short first segment for low perceived latency; larger later pieces."""
+        value = str(text or "").strip()
+        if not value:
+            return []
+        sentences = [part.strip() for part in re.split(r"(?<=[.!?…])\s+", value) if part.strip()]
+        if not sentences:
+            sentences = [value]
+        out: list[str] = []
+        target = 240
+        current = ""
+        for sentence in sentences:
+            words = sentence.split()
+            pieces: list[str] = []
+            buf = ""
+            limit = target if not out and not current else 620
+            for word in words:
+                candidate = f"{buf} {word}".strip()
+                if buf and len(candidate) > limit:
+                    pieces.append(buf)
+                    buf = word
+                    limit = 620
+                else:
+                    buf = candidate
+            if buf:
+                pieces.append(buf)
+            for piece in pieces:
+                limit = target if not out and not current else 620
+                candidate = f"{current} {piece}".strip() if current else piece
+                if current and len(candidate) > limit:
+                    out.append(current)
+                    current = piece
+                else:
+                    current = candidate
+        if current:
+            out.append(current)
+        return out
+
+    def _edge_cache_path(self, text: str) -> Path | None:
+        if not self.config.cache_enabled:
+            return None
+        key_material = "|".join([
+            self.config.edge_voice,
+            self.config.rate,
+            self.config.pitch,
+            self.config.volume,
+            text,
+        ]).encode("utf-8")
+        return self._cache_dir / f"{hashlib.sha256(key_material).hexdigest()}.mp3"
+
+    def _synthesize_edge_segment(self, text: str, *, first: bool = False) -> tuple[Path, bool]:
         import edge_tts
-
-        cache_path = None
-        if self.config.cache_enabled:
-            key_material = "|".join([
-                self.config.edge_voice,
-                self.config.rate,
-                self.config.pitch,
-                self.config.volume,
-                text,
-            ]).encode("utf-8")
-            cache_key = hashlib.sha256(key_material).hexdigest()
-            cache_path = self._cache_dir / f"{cache_key}.mp3"
-
-            if cache_path.exists() and cache_path.stat().st_size > 0:
-                self.events.emit("TTS_CACHE_HIT", chars=len(text))
-                self._play_mp3_windows(cache_path)
-                return
+        cache_path = self._edge_cache_path(text)
+        if cache_path is not None and cache_path.exists() and cache_path.stat().st_size > 0:
+            self.events.emit("TTS_CACHE_HIT", chars=len(text))
+            if first:
+                self.events.emit("TTS_FIRST_CHUNK_READY", chars=len(text), cached=True, elapsed_ms=0)
+            else:
+                self.events.emit("TTS_NEXT_CHUNK_READY", chars=len(text), cached=True)
+            return cache_path, True
 
         temp = Path(gettempdir()) / f"jarvis_voice_{uuid4().hex}.mp3"
+        started = monotonic()
+        self.events.emit("TTS_SYNTH_STARTED", chars=len(text), first=first)
 
         async def synthesize():
             communicator = edge_tts.Communicate(
@@ -336,26 +381,77 @@ class SpeechService:
             )
             await communicator.save(str(temp))
 
+        asyncio.run(synthesize())
+        elapsed_ms = int((monotonic() - started) * 1000)
+        self.events.emit(
+            "TTS_FIRST_CHUNK_READY" if first else "TTS_NEXT_CHUNK_READY",
+            chars=len(text), cached=False, elapsed_ms=elapsed_ms,
+        )
+        return temp, False
+
+    def _cache_edge_segment_after_playback(self, path: Path, text: str, was_cached: bool) -> None:
+        if was_cached or self._cancel_current.is_set():
+            return
+        cache_path = self._edge_cache_path(text)
+        if cache_path is None:
+            return
         try:
-            asyncio.run(synthesize())
+            shutil.copyfile(path, cache_path)
+        except OSError:
+            return
+        # Pruning is intentionally outside the first-audio critical path.
+        try:
+            self._prune_cache()
+        except Exception:
+            pass
+
+    def _speak_edge(self, text: str) -> None:
+        segments = self._edge_segments(text)
+        if not segments:
+            return
+
+        # Synthesise only the short first segment before playback. While it is
+        # playing, prefetch the next segment in a background thread.
+        current_path, current_cached = self._synthesize_edge_segment(segments[0], first=True)
+        current_text = segments[0]
+
+        for index in range(len(segments)):
             if self._cancel_current.is_set():
-                return
+                break
 
-            play_path = temp
-            if cache_path is not None:
-                try:
-                    shutil.copyfile(temp, cache_path)
-                    self._prune_cache()
-                    play_path = cache_path
-                except OSError:
-                    play_path = temp
+            next_result: dict[str, Any] = {}
+            next_thread: Thread | None = None
+            if index + 1 < len(segments):
+                next_text = segments[index + 1]
 
-            self._play_mp3_windows(play_path)
-        finally:
+                def prepare_next(value: str = next_text) -> None:
+                    try:
+                        path, cached = self._synthesize_edge_segment(value, first=False)
+                        next_result.update(path=path, cached=cached, text=value)
+                    except Exception as exc:
+                        next_result.update(error=exc, text=value)
+
+                next_thread = Thread(target=prepare_next, name="jarvis-tts-prefetch", daemon=True)
+                next_thread.start()
+
             try:
-                temp.unlink(missing_ok=True)
-            except OSError:
-                pass
+                self._play_mp3_windows(current_path)
+            finally:
+                self._cache_edge_segment_after_playback(current_path, current_text, current_cached)
+                if not current_cached:
+                    try:
+                        current_path.unlink(missing_ok=True)
+                    except OSError:
+                        pass
+
+            if next_thread is None:
+                break
+            next_thread.join()
+            if next_result.get("error") is not None:
+                raise next_result["error"]
+            current_path = next_result["path"]
+            current_cached = bool(next_result["cached"])
+            current_text = str(next_result["text"])
 
     def _mci(self, command: str, return_chars: int = 0) -> str:
         if not hasattr(ctypes, "windll"):
@@ -385,6 +481,7 @@ class SpeechService:
                 self._active_alias = alias
             self._mci(f"play {alias}")
             self._playback_ready.set()
+            self.events.emit("PLAYBACK_STARTED", alias=alias, path=str(path))
 
             while not self._cancel_current.is_set():
                 mode = self._mci(f"status {alias} mode", 64).strip().lower()

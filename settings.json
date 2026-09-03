@@ -348,7 +348,7 @@
   "native_llama_start_timeout_seconds": 45.0,
   "native_llama_request_timeout_seconds": 180.0,
   "native_llama_state_path": "memory/native_llama_runtime.json",
-  "local_llm_allow_ollama_compat": true,
+  "local_llm_allow_ollama_compat": false,
   "local_llm_executor_state_path": "memory/local_llm_executor.json",
   "epistemic_learning_enabled": true,
   "epistemic_learning_rag_enabled": true,
@@ -364,5 +364,7 @@
   "vision_native_max_tokens": 700,
   "vision_native_start_timeout_seconds": 90.0,
   "vision_native_request_timeout_seconds": 180.0,
-  "vision_native_state_path": "memory/native_vision_runtime.json"
+  "vision_native_state_path": "memory/native_vision_runtime.json",
+  "autonomy_expired_cooldown_minutes": 180.0,
+  "autonomy_recurring_topic_cooldown_hours": 6.0
 }

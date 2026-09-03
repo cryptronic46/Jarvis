@@ -181,6 +181,8 @@ def explicit_standing_public_web_grant(text: str) -> bool:
         r"\b(?:tens|tem) a minha autorizacao para (?:usar|utilizar) (?:a )?(?:internet|web)\b",
         r"\bdou(?:-te| te)? autorizacao para (?:usar|utilizar) (?:a )?(?:internet|web)\b",
         r"\bautorizo(?:-te| te)? a (?:usar|utilizar) (?:a )?(?:internet|web)\b",
+        r"\bpodes (?:pesquisar|consultar|estudar) (?:na|pela|atraves da|através da) (?:internet|web)(?: quando precisares)?\b",
+        r"\bpodes (?:usar|utilizar) (?:a )?(?:internet|web) quando precisares\b",
     )
     return any(re.search(pattern, normalized, flags=re.IGNORECASE) for pattern in patterns)
 
@@ -570,6 +572,7 @@ class AutonomyGuardian:
             "pending": [],
             "grants": [],
             "denied": [],
+            "cooldowns": [],
             "standing_permissions": {},
             "created_at": _iso(),
             "updated_at": _iso(),
@@ -592,6 +595,7 @@ class AutonomyGuardian:
         state.setdefault("pending", [])
         state.setdefault("grants", [])
         state.setdefault("denied", [])
+        state.setdefault("cooldowns", [])
         state.setdefault("standing_permissions", {})
 
         # 0.26.5 migration: earlier releases audited the OWNER's explicit
@@ -767,6 +771,7 @@ class AutonomyGuardian:
         now = _now()
 
         pending = []
+        cooldowns = list(state.get("cooldowns") or [])
         for row in state.get(
             "pending"
         ) or []:
@@ -787,6 +792,20 @@ class AutonomyGuardian:
                     ),
                     kind="pending",
                 )
+                # Expiring a prompt must not immediately recreate the exact
+                # same request. Keep a narrow scope-hash cooldown.
+                wanted_hash = str(row.get("scope_hash") or "")
+                if wanted_hash:
+                    mins = max(1.0, float(getattr(
+                        self.settings, "autonomy_expired_cooldown_minutes", 180.0
+                    )))
+                    cooldowns.append({
+                        "scope_hash": wanted_hash,
+                        "capability": row.get("capability"),
+                        "reason": "expired",
+                        "created_at": _iso(),
+                        "until": _iso(now + timedelta(minutes=mins)),
+                    })
 
         grants = []
         for row in state.get(
@@ -836,9 +855,16 @@ class AutonomyGuardian:
             if when and now - when <= cooldown:
                 denied.append(row)
 
+        active_cooldowns = []
+        for row in cooldowns:
+            until = self._parse_dt(row.get("until"))
+            if until and until >= now:
+                active_cooldowns.append(row)
+
         state["pending"] = pending
         state["grants"] = grants
         state["denied"] = denied
+        state["cooldowns"] = active_cooldowns
         return state
 
     def _ttl(
@@ -881,6 +907,16 @@ class AutonomyGuardian:
                 "denied"
             ) or []
         )
+
+    def _active_cooldown(
+        self,
+        state: dict[str, Any],
+        wanted_hash: str,
+    ) -> dict[str, Any] | None:
+        for row in state.get("cooldowns") or []:
+            if row.get("scope_hash") == wanted_hash:
+                return row
+        return None
 
     def request(
         self,
@@ -961,11 +997,28 @@ class AutonomyGuardian:
                     "ok": True,
                     "allowed": False,
                     "pending": True,
+                    "reused_pending": True,
                     "token": existing.get(
                         "token"
                     ),
                     "message": self._message(
                         existing
+                    ),
+                }
+
+            cooldown = self._active_cooldown(state, wanted_hash)
+            if cooldown:
+                self._save(state)
+                return {
+                    "ok": True,
+                    "allowed": False,
+                    "pending": False,
+                    "cooldown": True,
+                    "cooldown_reason": cooldown.get("reason"),
+                    "cooldown_until": cooldown.get("until"),
+                    "message": (
+                        "Senhor, já lhe pedi autorização para esta pesquisa recentemente. "
+                        "Não vou repetir o pedido por agora."
                     ),
                 }
 
@@ -1059,13 +1112,12 @@ class AutonomyGuardian:
             row.get("reason")
             or "considerei que pode ser útil"
         )
-        token = row.get("token")
         return (
             f"Senhor, quero {description}. "
             f"Motivo: {reason}. "
             "Não vou avançar sem a sua autorização. "
-            f"Para autorizar apenas esta ação: /authorize {token}. "
-            f"Para recusar: /deny {token}."
+            "Pode responder simplesmente 'sim', 'podes' ou 'autoriza'. "
+            "Para recusar, diga 'não' ou 'agora não'."
         )
 
     def record_direct_authorization(

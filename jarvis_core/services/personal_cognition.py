@@ -869,15 +869,35 @@ class PersonalCognitionStore:
                 )
                 if topics and int(topics[0][1]) >= 4:
                     topic = topics[0][0]
-                    return {
-                        "reason": "recurring_topic",
-                        "priority": "reflective",
-                        "text": (
-                            f"Senhor, reparei que {topic} tem sido um tema recorrente nas nossas conversas. "
-                            "Posso organizar o que já fizemos e identificar o próximo avanço útil."
-                        ),
-                        "autonomy_learning_topic": topic,
-                    }
+                    # Do not nag the OWNER with the same recurring-topic
+                    # initiative every time the autonomy token expires.
+                    now = datetime.now().astimezone()
+                    repeated_recently = False
+                    for row in reversed(list(state.get("proactive_history") or [])):
+                        if row.get("reason") != "recurring_topic":
+                            continue
+                        row_topic = str(row.get("topic") or "").strip().lower()
+                        if not row_topic:
+                            row_topic = str(row.get("text") or "").lower()
+                            same_topic = str(topic).lower() in row_topic
+                        else:
+                            same_topic = row_topic == str(topic).strip().lower()
+                        if not same_topic:
+                            continue
+                        when = _parse_dt(row.get("timestamp"))
+                        if when is not None and (now - when).total_seconds() < 6 * 3600:
+                            repeated_recently = True
+                        break
+                    if not repeated_recently:
+                        return {
+                            "reason": "recurring_topic",
+                            "priority": "reflective",
+                            "text": (
+                                f"Senhor, reparei que {topic} tem sido um tema recorrente nas nossas conversas. "
+                                "Posso organizar o que já fizemos e identificar o próximo avanço útil."
+                            ),
+                            "autonomy_learning_topic": topic,
+                        }
             return None
 
     def record_proactive(self, candidate: dict[str, Any]) -> None:
@@ -890,6 +910,7 @@ class PersonalCognitionStore:
                 "reason": candidate.get("reason"),
                 "priority": candidate.get("priority"),
                 "text": candidate.get("text"),
+                "topic": candidate.get("autonomy_learning_topic"),
             })
             state["proactive_history"] = history[-50:]
             if candidate.get("consume_pending"):

@@ -1,9 +1,9 @@
 # JARVIS Core
 ## 0.27.8 — Epistemic Learning & Permission-Gated Expert Escalation
 
-> **Consolidated runtime/security hotfix:** this 0.27.8 build also carries forward the final 0.27.7 executor and Windows hardening that landed after the first 0.27.8 package was cut: `jarvis_local` executor abstraction, signed `0xC0E90002` handling, current Block Audit corroboration, pinned CUDA→Vulkan→local-compat fallback, and `setup_appcontrol_trust.ps1` for observe-only App Control diagnostics on Windows Pro. JARVIS-created enforcement is disabled in this hotfix. Epistemic Learning and the optional expert remain intact; expert access is still off by default and permission-gated.
+> **Consolidated runtime/security hotfix:** this 0.27.8 build also carries forward the final 0.27.7 executor and Windows hardening that landed after the first 0.27.8 package was cut: `jarvis_local` executor abstraction, signed `0xC0E90002` handling, current Block Audit corroboration, pinned CUDA→Vulkan→local-compat fallback, and `setup_appcontrol_trust.ps1` for exact-hash App Control trust on Windows Pro. Epistemic Learning and the optional expert remain intact; expert access is still off by default and permission-gated.
 
-**Windows Pro observe-only correction:** the live-machine incident showed that a JARVIS-derived App Control policy could block legitimate ASUS/Armoury Crate components. This hotfix removes the Enforce path. JARVIS may prepare/audit and diagnose Code Integrity, but cannot deploy a blocking App Control policy; `Disarm` removes legacy JARVIS policies without changing Microsoft Smart App Control state. Rapid restarts also reuse a short-lived clean Windows Block Audit cache when release/runtime metadata has not changed; the full `/security blocked files` audit remains uncached.
+**Final Windows Pro consolidation:** the live-machine App Control fixes are included in this package, not left as manual patches. ConfigCI hash rules are generated in one batched scan, returned `Rule[]` values are normalized before merge, Plan/Audit reuse a valid existing policy identity by default, Status degrades cleanly when `CiTool` needs elevation, and the llama trust probe has a timeout. Rapid restarts also reuse a short-lived clean Windows Block Audit cache when release/runtime metadata has not changed; the full `/security blocked files` audit remains uncached.
 
 0.27.8 keeps the JARVIS-owned `llama.cpp`/Qwen brain local-first and adds a controlled learning loop. When the local answer explicitly shows a real knowledge gap, JARVIS checks its persistent authorized-learning library. If the topic is unknown or stale, it asks the OWNER before performing bounded public-web research, synthesizes the research locally, validates the topic, stores provenance/freshness/confidence metadata, and retries the original request with request-scoped learned RAG.
 
@@ -1348,20 +1348,20 @@ Self-state repair checks are independent of the OWNER's persisted runtime memory
 The updater and setup now remove Windows Mark-of-the-Web automatically **only** for release-manifest files whose SHA-256 hashes validate. Use `-PreserveMarkOfTheWeb` on `update_core.ps1` only when you explicitly want to keep MOTW. `repair_security_baseline.ps1` derives the active release from the manifest instead of hardcoding a previous version.
 
 
-## 0.27.8 consolidated - JARVIS App Control observe-only
+## 0.27.8 consolidated - JARVIS App Control runtime trust
 
-JARVIS no longer owns an App Control enforcement path in this release. `setup_appcontrol_trust.ps1` may build an **Audit Mode** policy for diagnostics, but there is no `Enforce` mode and it never changes the Windows Smart App Control registry state. This prevents JARVIS from blocking legitimate applications while its security model is still being developed.
+When Windows Smart App Control blocks `runtime\llama.cpp\llama-server-impl.dll`, use `setup_appcontrol_trust.ps1` rather than disabling Windows security. The script derives a custom App Control for Business base policy from the Microsoft `SmartAppControl.xml` template and adds only exact hash rules for the verified JARVIS llama.cpp EXE/DLL payload.
 
-Safe flow (elevated Windows PowerShell when a policy operation is requested):
+Safe staged flow (elevated Windows PowerShell):
 
 ```powershell
 .\setup_appcontrol_trust.ps1 -Mode Prepare
 .\setup_appcontrol_trust.ps1 -Mode Audit
+.\setup_appcontrol_trust.ps1 -Mode Enforce -ConfirmMigration
 .\setup_appcontrol_trust.ps1 -Mode Status
-.\setup_appcontrol_trust.ps1 -Mode Disarm
 ```
 
-`Prepare` creates verified runtime inventory and audit-only artifacts without changing Windows policy. `Audit` can install only a policy containing `Enabled:Audit Mode`. `Disarm` removes non-system JARVIS App Control policies, including the legacy `JARVIS Smart App Control Derived*` and `JARVIS ASUS Compatibility*` policies, supplemental policies first. `Rollback` remains only as a backward-compatible alias for `Disarm`; it no longer restores or changes Smart App Control state. Historical `enforced_native_verified` state is ignored by setup/native-brain selection, so a stale state file cannot restore policy coupling.
+`Prepare` re-downloads only the pinned llama.cpp CUDA runtime, not the multi-GB Qwen model, so that a fresh per-file SHA-256 inventory is chained to the verified official archives. `Audit` does not turn Smart App Control off. `Enforce` is explicit because it replaces the consumer SAC base policy with the SAC-derived App Control policy. If the native runtime still cannot load, the script rolls back to the prior SAC state. Use `-Mode Rollback` for a later manual rollback.
 
 ### Grounded direct-web learning (0.27.8 acceptance v7)
 Time-sensitive learned facts are stored only after source-grounding checks. For current/latest version questions, JARVIS uses fetched source evidence rather than model memory. Pre-v7 freshness-sensitive direct-web records are quarantined and excluded from active recall while remaining available in the audit journal.
@@ -1384,7 +1384,3 @@ Conversational output is normalized conservatively toward European Portuguese on
 ### 0.27.8 acceptance hotfix v10.1 — Language Refinement
 
 JARVIS now has a dedicated local final-language refinement layer. It applies conservative pt-PT grammar/localisation to normal prose before display and before TTS, while leaving code and machine-readable tool/JSON payloads untouched. Personal Cognition continues to learn explicit OWNER interaction preferences; this final pass makes their output presentation more consistent without introducing a second model call or any external AI.
-
-### 0.27.8 acceptance hotfix v10.2 — App Control Observe-Only
-
-The JARVIS-owned App Control enforcement path has been retired after live Windows acceptance exposed legitimate ASUS/Armoury Crate blocking. This hotfix removes Enforce artifact generation/deployment, removes JARVIS writes to the Smart App Control registry state, adds a targeted `Disarm` cleanup mode for legacy JARVIS policies, and keeps local compatibility fallback available regardless of stale enforcement state. Future blocking requires a new, explicit implementation rather than being reachable from this release.

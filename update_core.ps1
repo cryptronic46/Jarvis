@@ -395,6 +395,8 @@ else {
         "AUDIT_0.27.8.md",
         "update_core.ps1",
         "verify_release.ps1",
+        "repair_startup_shortcut.ps1",
+        "HOTFIX_0.27.8_PERFORMANCE_AUTONOMY_V11.md",
         "release_manifest.json"
     )
 
