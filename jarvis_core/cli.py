@@ -71,6 +71,13 @@ from jarvis_core.services.cyber_knowledge import (
     CyberKnowledgeService,
     cyber_vault,
 )
+from jarvis_core.services.book_library import (
+    BookLibraryService,
+    configure_book_library,
+    format_book_library_search,
+    format_book_library_status,
+    format_book_library_sync,
+)
 from jarvis_core.services.system_cyber_audit import (
     analyze_system_cybersecurity,
     format_system_cyber_audit,
@@ -584,6 +591,10 @@ Comandos:
   /cyber knowledge sync atualizar fontes oficiais
   /cyber knowledge sync full incluir MITRE ATT&CK completo
   /cyber knowledge ingest FICHEIRO importar documento local
+  /books status          estado da biblioteca privada de PDFs
+  /books sync            indexar livros novos ou alterados
+  /books sync force      reconstruir todo o índice dos livros
+  /books search TEXTO    pesquisar passagens com livro e página
   /security scan    resumo filtrado da segurança do PC/rede
   /security scan full relatório completo mas legível
   /security scan raw  JSON técnico bruto da auditoria
@@ -704,6 +715,12 @@ def main() -> None:
     integrations = integration_registry()
     privacy = privacy_state()
     cyber_knowledge = cyber_vault()
+    book_library = configure_book_library(
+        settings.book_library_root,
+        settings.book_library_db_path,
+        chunk_chars=settings.book_library_chunk_chars,
+        chunk_overlap=settings.book_library_chunk_overlap,
+    )
     cognition = personal_cognition()
     self_engine = synthetic_self()
 
@@ -1683,11 +1700,23 @@ def main() -> None:
         interval_hours=settings.cyber_knowledge_sync_interval_hours,
         resource_guard=performance.should_defer_background,
     )
+    book_library_service = BookLibraryService(
+        events,
+        book_library,
+        enabled=(
+            settings.book_library_enabled
+            and settings.book_library_auto_sync
+        ),
+        startup_delay_seconds=settings.book_library_startup_delay_seconds,
+        interval_seconds=settings.book_library_sync_interval_seconds,
+        resource_guard=performance.should_defer_background,
+    )
     if settings.reminders_enabled:
         reminder_service.start()
     if settings.security_watch_enabled:
         security_watch_service.start()
     cyber_knowledge_service.start()
+    book_library_service.start()
     proactive_service.start()
     companion_service.start()
     if settings.skills_enabled:
@@ -4020,6 +4049,36 @@ def main() -> None:
                 print("JARVIS >", json.dumps(read_tool("analyze_camera_frame", args), ensure_ascii=False, indent=2))
                 continue
 
+            if lower in {"/books status", "/livros estado"}:
+                print(
+                    f"JARVIS >\n"
+                    f"{format_book_library_status(book_library.stats())}"
+                )
+                continue
+            if lower in {"/books sync", "/livros sincronizar"}:
+                print(
+                    f"JARVIS >\n"
+                    f"{format_book_library_sync(book_library.sync())}"
+                )
+                continue
+            if lower in {"/books sync force", "/livros sincronizar tudo"}:
+                print(
+                    f"JARVIS >\n"
+                    f"{format_book_library_sync(book_library.sync(force=True))}"
+                )
+                continue
+            if lower.startswith("/books search ") or lower.startswith("/livros pesquisar "):
+                prefix = (
+                    "/books search "
+                    if lower.startswith("/books search ")
+                    else "/livros pesquisar "
+                )
+                query = text[len(prefix):].strip()
+                print(
+                    f"JARVIS >\n"
+                    f"{format_book_library_search(book_library.search(query, limit=8))}"
+                )
+                continue
             if lower == "/guardian status":
                 print("JARVIS >", json.dumps(read_tool("get_system_guardian_status"), ensure_ascii=False, indent=2))
                 continue
@@ -4318,6 +4377,7 @@ def main() -> None:
         security_watch_service.stop()
         proactive_service.stop()
         companion_service.stop()
+        book_library_service.stop()
         cyber_knowledge_service.stop()
         wake.stop()
         speech.shutdown()

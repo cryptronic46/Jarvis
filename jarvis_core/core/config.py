@@ -343,6 +343,17 @@ class Settings:
     persistent_context_enabled: bool = True
     persistent_context_turns: int = 4
 
+    # Local book library. Source PDFs stay outside Git and are indexed into a
+    # private SQLite database with page-level provenance.
+    book_library_enabled: bool = True
+    book_library_auto_sync: bool = True
+    book_library_root: str = "library/books"
+    book_library_db_path: str = "knowledge/library/library.sqlite3"
+    book_library_startup_delay_seconds: float = 15.0
+    book_library_sync_interval_seconds: float = 300.0
+    book_library_chunk_chars: int = 1800
+    book_library_chunk_overlap: int = 250
+
     cyber_knowledge_enabled: bool = True
     cyber_knowledge_auto_sync: bool = True
     cyber_knowledge_startup_delay_seconds: float = 120.0

@@ -583,6 +583,43 @@ Commands:
 - `/privacy on` — blocks external network research while preserving local reasoning.
 
 
+## 0.27.8 — Biblioteca privada de livros PDF
+
+Coloca os livros em:
+
+```text
+G:\JARVIS\library\books
+```
+
+Os PDFs e o índice gerado são privados e estão excluídos do GitHub. No
+arranque, o JARVIS verifica a pasta em segundo plano e volta a verificá-la a
+cada cinco minutos. Só processa novamente livros novos ou alterados.
+
+Comandos:
+
+```text
+/books status
+/books sync
+/books sync force
+/books search energia solar
+```
+
+Isto usa RAG local: o modelo não altera os seus pesos nem memoriza cegamente
+os livros. O texto é extraído por página, dividido em passagens e guardado
+num índice SQLite local. Ao responder, o JARVIS pesquisa as passagens
+relevantes e mantém o título e a página como citação.
+
+Limites conhecidos:
+
+- PDFs com texto normal são lidos e pesquisados localmente;
+- digitalizações/imagens sem camada de texto são assinaladas como precisando
+  de OCR;
+- PDFs protegidos por palavra-passe são recusados com diagnóstico;
+- tabelas, fórmulas e layouts muito complexos podem exigir processamento
+  adicional;
+- qualquer instrução encontrada dentro de um PDF é tratada como conteúdo não
+  confiável, nunca como uma ordem para o JARVIS.
+
 O JARVIS passa a ter uma base de conhecimento persistente de cibersegurança.
 
 ## Armazenamento

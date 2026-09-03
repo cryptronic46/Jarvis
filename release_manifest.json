@@ -54,7 +54,7 @@
   "files": [
     {
       "path": ".gitignore",
-      "sha256": "ca314f5da505501111732bc27cffb4e7062cb4d006b10117ae6c563de79be072"
+      "sha256": "25aba9b144129b19d2ca386760a3c11526f7f5423652b1d7dfe341c64247fa24"
     },
     {
       "path": "AUDIT_0.27.8.md",
@@ -66,7 +66,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "c959b9ecb8ba727b33018f6c9dd770e35c8db2e7d0184e40bce039bb2c321509"
+      "sha256": "3b059c771d97c7fe6ca11d9b68e20209f5578aade6d92899e31cad1c4b1eb185"
     },
     {
       "path": "acceptance_real_machine.ps1",
@@ -122,7 +122,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "59dae519387077c91ad647839ec8b1bd55691a6ced05df8413d4a5de5e105e74"
+      "sha256": "18046805226a7987aafb4681b63e4e11011cab964c9e681652adcb2cfb4dca89"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -130,7 +130,7 @@
     },
     {
       "path": "jarvis_core/core/brain.py",
-      "sha256": "da53c6f51c059f06aab1e5fbded842eb55de158f286d9230d01d5d9ec03faa80"
+      "sha256": "de8a90c611c91f561b223395761c6c5cd9943f0000e2a10af80f4f1ae5bfb4ab"
     },
     {
       "path": "jarvis_core/core/cloud_brain.py",
@@ -138,7 +138,7 @@
     },
     {
       "path": "jarvis_core/core/config.py",
-      "sha256": "2c4b13d4c63495257c6699a95e0b13164666e2e0450fe3f74ef961ae5f3c2c88"
+      "sha256": "eccfb2418a35f31dca18f417934fe981de114ff3d755d838887f4967a4c79ba1"
     },
     {
       "path": "jarvis_core/core/conversation_policy.py",
@@ -174,7 +174,7 @@
     },
     {
       "path": "jarvis_core/core/tool_registry.py",
-      "sha256": "b3db56ef9829c5eebdefec05384bea3aa86b1753243b9a8111e43e04893a5ceb"
+      "sha256": "7e14721806ca5e7783a5f1ba123bbc68201622065b8ffe812ef6ec029e0ac66d"
     },
     {
       "path": "jarvis_core/security/__init__.py",
@@ -1455,6 +1455,14 @@
     {
       "path": "verify_release.ps1",
       "sha256": "5c4e9b619a133c2fcd3946e2d8e267bfba6e0fb84fb6f5136af8c380d6376268"
+    },
+    {
+      "path": "jarvis_core/services/book_library.py",
+      "sha256": "f0c21b2f76ec4e0e2aae5710db872aeb287fc893b4841b14bca9887a051eab22"
+    },
+    {
+      "path": "tests/test_book_library.py",
+      "sha256": "4734c4b0b4f6596f7b4c1d10182373984fcbf65709b2aa88e1f0a389733b7dd2"
     }
   ]
 }

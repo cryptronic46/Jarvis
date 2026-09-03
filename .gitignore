@@ -20,6 +20,7 @@ logs/
 memory/
 voice_profiles/
 knowledge/
+library/books/
 
 # Downloaded models, caches, and local runtimes
 models/

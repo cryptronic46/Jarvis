@@ -366,5 +366,13 @@
   "vision_native_request_timeout_seconds": 180.0,
   "vision_native_state_path": "memory/native_vision_runtime.json",
   "autonomy_expired_cooldown_minutes": 180.0,
-  "autonomy_recurring_topic_cooldown_hours": 6.0
+  "autonomy_recurring_topic_cooldown_hours": 6.0,
+  "book_library_enabled": true,
+  "book_library_auto_sync": true,
+  "book_library_root": "library/books",
+  "book_library_db_path": "knowledge/library/library.sqlite3",
+  "book_library_startup_delay_seconds": 15.0,
+  "book_library_sync_interval_seconds": 300.0,
+  "book_library_chunk_chars": 1800,
+  "book_library_chunk_overlap": 250
 }
