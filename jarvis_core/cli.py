@@ -131,14 +131,12 @@ from jarvis_core.tools.security_audit import (
 from jarvis_core.tools.windows_actions import AppRegistry
 
 
-BANNER_TEMPLATE = r"""
-      __   ___   ____  __     _____  ____
-     / /  / _ | / __ \/ /    / / _ \/ __/
- __ / /  / __ |/ /_/ / /__  / / ___/\ \
-/___/   /_/ |_/ .___/____/ /_/_/  /___/
-             /_/
-
-      CORE {version}  //  SKILLS + EYES + HANDS
+BANNER_TEMPLATE = """
+========================================
+              J A R V I S
+             CORE {version}
+        SKILLS | EYES | HANDS
+========================================
 """
 
 

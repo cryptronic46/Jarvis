@@ -132,7 +132,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "18046805226a7987aafb4681b63e4e11011cab964c9e681652adcb2cfb4dca89"
+      "sha256": "7b45d9730febe36857104b5833a07f0bdb39d1e35bed67b3d0cb39d1a2b81d67"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -1477,6 +1477,10 @@
     {
       "path": "tests/test_book_library.py",
       "sha256": "4734c4b0b4f6596f7b4c1d10182373984fcbf65709b2aa88e1f0a389733b7dd2"
+    },
+    {
+      "path": "tests/test_cli_banner.py",
+      "sha256": "7ca4b395f31fa786b2a171c7dc1334ffb1c2243690602f248f25f4d65cbd73b7"
     }
   ]
 }
