@@ -39,7 +39,7 @@ from jarvis_core.services.reminders import ReminderService
 from jarvis_core.services.security_watch import SecurityWatchService
 from jarvis_core.services.routines import routine_manager
 from jarvis_core.services.network_inventory import network_inventory
-from jarvis_core.services.file_index import file_index
+from jarvis_core.services.file_index import configure_file_index
 from jarvis_core.services.integrations import integration_registry
 from jarvis_core.services.privacy import privacy_state
 from jarvis_core.tools.pc_health import format_pc_health
@@ -709,7 +709,7 @@ def main() -> None:
     agenda = agenda_store()
     routines = routine_manager()
     inventory = network_inventory()
-    local_files = file_index()
+    local_files = configure_file_index(extra_roots=[settings.book_library_root])
     integrations = integration_registry()
     privacy = privacy_state()
     cyber_knowledge = cyber_vault()

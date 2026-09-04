@@ -132,7 +132,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "2780fe5990afad6f2013112579da3a1e13fdbb67f8529e626995971c4d21a12f"
+      "sha256": "58fc67468f212eeb8269b3bad5cdaf89d4f79d5383d78874f49fb31fac577fd2"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -248,7 +248,7 @@
     },
     {
       "path": "jarvis_core/services/file_index.py",
-      "sha256": "e70e10d702a575e209d583f87d6fc29bcd62e155dc74823ad079b6ea746c984c"
+      "sha256": "a4f28b5788af8df276bc5d8993ca225ee08864129b65150411830a360716fa09"
     },
     {
       "path": "jarvis_core/services/followup_intent.py",
@@ -856,7 +856,7 @@
     },
     {
       "path": "tests/test_file_index_security.py",
-      "sha256": "9fda228b546861e8a1de810dab45502358ea640c5cb003635139fb0a3999dcff"
+      "sha256": "e60511c8642b713bce12af86912da73a4354aae222a78bee450ce265fb5562e9"
     },
     {
       "path": "tests/test_followup_intent.py",

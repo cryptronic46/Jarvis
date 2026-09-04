@@ -14,8 +14,14 @@ ALLOWED_EXTENSIONS = {
 
 
 class LocalFileIndex:
-    def __init__(self, path: str | Path = "memory/file_index.json"):
+    def __init__(
+        self,
+        path: str | Path = "memory/file_index.json",
+        *,
+        extra_roots: list[str | Path] | tuple[str | Path, ...] = (),
+    ):
         self.path = Path(path)
+        self.extra_roots = tuple(Path(root) for root in extra_roots)
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
     def roots(self) -> list[Path]:
@@ -24,6 +30,7 @@ class LocalFileIndex:
         one_drive = os.environ.get("OneDrive")
         if one_drive:
             candidates.append(Path(one_drive))
+        candidates.extend(self.extra_roots)
         result = []
         seen = set()
         for root in candidates:
@@ -97,8 +104,38 @@ class LocalFileIndex:
         if not query:
             return {"ok": False, "error": "EMPTY_QUERY"}
         tokens = [x for x in query.lower().split() if x]
+        indexed_rows = list(self._load().get("files", []))
+        known_paths = {str(row.get("path") or "").casefold() for row in indexed_rows}
+        # The private JARVIS library is intentionally checked live. It is small
+        # and owner-managed, so newly copied PDFs become searchable immediately
+        # without rebuilding the much larger Desktop/Documents index.
+        for root in self.extra_roots:
+            if not root.exists():
+                continue
+            try:
+                candidates = root.rglob("*")
+            except Exception:
+                continue
+            for path in candidates:
+                try:
+                    if not path.is_file() or path.suffix.lower() not in ALLOWED_EXTENSIONS:
+                        continue
+                    key = str(path).casefold()
+                    if key in known_paths:
+                        continue
+                    stat = path.stat()
+                    indexed_rows.append({
+                        "name": path.name,
+                        "path": str(path),
+                        "extension": path.suffix.lower(),
+                        "size_bytes": stat.st_size,
+                        "modified": datetime.fromtimestamp(stat.st_mtime).astimezone().isoformat(timespec="seconds"),
+                    })
+                    known_paths.add(key)
+                except (PermissionError, OSError):
+                    continue
         scored = []
-        for row in self._load().get("files", []):
+        for row in indexed_rows:
             hay = (str(row.get("name") or "") + " " + str(row.get("path") or "")).lower()
             score = sum(1 for token in tokens if token in hay)
             if score:
@@ -162,6 +199,16 @@ class LocalFileIndex:
 
 
 _INDEX: LocalFileIndex | None = None
+
+
+def configure_file_index(
+    path: str | Path = "memory/file_index.json",
+    *,
+    extra_roots: list[str | Path] | tuple[str | Path, ...] = (),
+) -> LocalFileIndex:
+    global _INDEX
+    _INDEX = LocalFileIndex(path, extra_roots=extra_roots)
+    return _INDEX
 
 
 def file_index() -> LocalFileIndex:
