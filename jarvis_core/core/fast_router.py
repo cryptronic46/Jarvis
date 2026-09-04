@@ -545,13 +545,39 @@ class FastCommandRouter:
         if learning_exact is not None:
             return learning_exact
 
-        if self._last_local_file_results and any(phrase in normalized for phrase in (
+        local_paths_followup = any(phrase in normalized for phrase in (
             "mostra apenas os caminhos dos ficheiros que encontraste",
             "mostra so os caminhos dos ficheiros que encontraste",
             "apenas os caminhos dos ficheiros encontrados",
-        )):
+            "mostra os caminhos",
+        ))
+        if local_paths_followup and not self._last_local_file_results:
+            return self._hit(
+                "Não tenho resultados de uma pesquisa local anterior nesta sessão. Peça-me primeiro para procurar os ficheiros.",
+                "local_file_followup_paths_empty", "none",
+            )
+        if self._last_local_file_results and local_paths_followup:
             paths = [str(row.get("path") or "").strip() for row in self._last_local_file_results if str(row.get("path") or "").strip()]
             return self._hit("\n".join(paths), "local_file_followup_paths", "none")
+
+        open_first_followup = any(phrase in normalized for phrase in (
+            "abre o primeiro", "abre o primeiro ficheiro", "abre o primeiro documento",
+        ))
+        if open_first_followup and not self._last_local_file_results:
+            return self._hit(
+                "Não abri nenhuma aplicação nem ficheiro: não tenho resultados de uma pesquisa local anterior nesta sessão.",
+                "local_file_followup_open_first_empty", "none",
+            )
+        if open_first_followup and self._last_local_file_results:
+            path = str(self._last_local_file_results[0].get("path") or "")
+            data = self._tool("read_local_document", {"path": path, "max_chars": 20000})
+            if data.get("ok"):
+                self._last_local_document = data
+                body = str(data.get("text") or "").strip()
+                response = f"Abri {data.get('name') or path}.\n{body[:4000]}" + ("…" if len(body) > 4000 else "")
+            else:
+                response = data.get("message") or data.get("error") or "Não consegui abrir o primeiro documento da lista."
+            return self._hit(response, "local_file_followup_open_first", "read_local_document")
 
         if self._last_local_file_results and any(phrase in normalized for phrase in (
             "qual e o mais recente", "qual deles e o mais recente", "ficheiro mais recente",

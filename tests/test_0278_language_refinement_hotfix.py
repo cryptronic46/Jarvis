@@ -9,10 +9,16 @@ from jarvis_core.services.request_intent import (
     python_code_blocks_valid,
     python_code_response_needs_repair,
 )
+from jarvis_core.core import brain as brain_module
 from jarvis_core.services.speech_text import prepare_for_speech
 
 
 class LanguageRefinementHotfixTests(unittest.TestCase):
+    def test_brain_has_python_repair_validator_bound(self):
+        self.assertIs(
+            brain_module.python_code_response_needs_repair,
+            python_code_response_needs_repair,
+        )
     def test_ptpt_contraction_fixes_observed_self_state_phrase(self):
         text = "Neste momento, a minha intenção ativa está focada em a nossa conversa atual."
         self.assertEqual(

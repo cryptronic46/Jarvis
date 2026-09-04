@@ -27,6 +27,7 @@ from jarvis_core.services.performance import PerformancePlan
 from jarvis_core.services.request_intent import (
     classify_request_intent,
     intent_contract,
+    python_code_response_needs_repair,
     repair_capability_answer,
     repair_self_state_answer,
     sanitize_assistant_text,
@@ -2407,4 +2408,3 @@ class JarvisBrain:
         finally:
             if performance is not None:
                 performance.end_request()
-

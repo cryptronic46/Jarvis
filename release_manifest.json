@@ -140,7 +140,7 @@
     },
     {
       "path": "jarvis_core/core/brain.py",
-      "sha256": "43776d551c450e90a7b864e474f0ae15e33ff200ff965cd5a3565f1436f90493"
+      "sha256": "cbc515c1d05206f73a90e7538a2c956d90527dacad23fda3a27bfba804a19d39"
     },
     {
       "path": "jarvis_core/core/cloud_brain.py",
@@ -160,7 +160,7 @@
     },
     {
       "path": "jarvis_core/core/fast_router.py",
-      "sha256": "8eabb510d3228cef3dbf9c351987fb9d52f7ee475591db8452f8f9dd544ba7a4"
+      "sha256": "b85def832e15c052fbe3a089b4baae8b9be7a57c5f9bfe45e2f90d8e08a70081"
     },
     {
       "path": "jarvis_core/core/freshness.py",
@@ -624,7 +624,7 @@
     },
     {
       "path": "tests/test_0278_language_refinement_hotfix.py",
-      "sha256": "568f149e8d13f4374b82f013f7aef67ccbffb2ba846b0eb3f680278a7be90a0e"
+      "sha256": "edca00b1532a4f88bc55b6ef07411e25299145f9daa81ba68d5637347221e6b4"
     },
     {
       "path": "tests/test_0278_performance_autonomy_hotfix_v11.py",
@@ -852,7 +852,7 @@
     },
     {
       "path": "tests/test_fast_router.py",
-      "sha256": "6c4afaa7cb8c5ba7375feceb19622982724a98c8d9c52b8f373169c9ebf98822"
+      "sha256": "fd6a88dd4ea2316ee09830c0f5ee44b9bcbe09485e098a983f40619f2df73537"
     },
     {
       "path": "tests/test_file_index_security.py",

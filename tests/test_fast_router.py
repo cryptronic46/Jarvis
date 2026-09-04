@@ -164,6 +164,16 @@ class FastRouterTests(unittest.TestCase):
         self.assertIn("    resultado = a + b", result.response)
         self.assertIn("    return resultado", result.response)
 
+    def test_file_followups_without_previous_search_fail_closed(self):
+        paths = self.router.dispatch("mostra os caminhos")
+        self.assertTrue(paths.handled)
+        self.assertEqual(paths.route, "local_file_followup_paths_empty")
+
+        opened = self.router.dispatch("abre o primeiro")
+        self.assertTrue(opened.handled)
+        self.assertEqual(opened.route, "local_file_followup_open_first_empty")
+        self.assertFalse(any(name == "open_application" for name, _ in self.tools.calls))
+
     def test_explicit_pdf_file_lookup_uses_local_index_not_book_library(self):
         result = self.router.dispatch("Jarvis, procura ficheiros PDF relacionados com Python.")
         self.assertTrue(result.handled)
