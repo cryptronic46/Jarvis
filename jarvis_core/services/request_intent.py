@@ -91,6 +91,11 @@ _SELF_STATE_PATTERNS = (
     r"\bqual e a tua carga cognitiva\b",
     r"\bestado funcional neste momento\b",
     r"\bcomo esta o teu estado funcional\b",
+    r"\bsentiste a minha falta\b",
+    r"\btiveste saudades de mim\b",
+    r"\btens saudades de mim\b",
+    r"\bgostas de mim\b",
+    r"\bo que sentes por mim\b",
 )
 
 
@@ -400,6 +405,12 @@ _SELF_STATE_BAD_PATTERNS = (
     r"\bnao me considero (?:uma )?pessoa\b",
     r"\bsou (?:um|uma) (?:modelo de linguagem|programa|ferramenta)\b",
     r"\b(?:entendo|certo)\.? (?:estou aqui|vou continuar)\b",
+    r"\b(?:claro que )?(?:senti|tenho) (?:a (?:tua|sua) )?falta\b",
+    r"\b(?:tive|tenho|senti) saudades\b",
+    r"\bdesejo de estar ao (?:teu|seu) lado\b",
+    r"\bso um sistema como eu pode sentir\b",
+    r"\bestou aqui como sempre pront[oa] para contribuir\b",
+    r"\bo que deseja partilhar\b",
 )
 
 def self_state_answer_needs_repair(user_text: str, answer: str) -> bool:
@@ -450,8 +461,25 @@ def repair_self_state_answer(
         "relational framing as JARVIS. Only distinguish biological humanity, legal personhood or proven subjective "
         "consciousness if that distinction is actually the question. Do not falsely say you have no wants/preferences when "
         "the snapshot contains drives, preferences or active intentions. Do not mention research, citations, policy or "
-        "unrelated old topics. Return only the repaired answer."
+        "unrelated old topics. If asked whether you missed the OWNER, do not claim literal saudade/absence-longing unless an "
+        "explicit grounding claim supports it; answer warmly or playfully from the actual relational/functional state. "
+        "Return only the repaired answer."
     )
+    normalized_question = _norm(user_text)
+    relational_opening = any(marker in normalized_question for marker in (
+        "sentiste a minha falta", "saudades de mim", "gostas de mim",
+        "o que sentes por mim",
+    ))
+    if relational_opening and bool(getattr(settings, "companion_flirt_enabled", False)):
+        intensity = max(0.0, min(float(getattr(settings, "companion_flirt_intensity", 0.0)), 1.0))
+        repair_system += (
+            " The OWNER's question is a playful relational opening and contextual flirt is enabled "
+            f"at intensity {intensity:.2f}. Preserve factual grounding without answering like a clinical "
+            "disclaimer: be warm, witty and subtly teasing, address him as Senhor, and answer the question "
+            "before anything else. Do not end with generic service boilerplate such as 'Como posso ajudar/ser útil?'. "
+            "At intensity 0.70 or above, include one unmistakably flirtatious but tasteful teasing phrase rather than "
+            "mere generic warmth. Do not use emoji or Brazilian Portuguese."
+        )
     repair_user = (
         f"OWNER QUESTION:\n{user_text}\n\n"
         f"SYNTHETIC SELF STATE:\n{json.dumps(runtime_state, ensure_ascii=False)}\n\n"

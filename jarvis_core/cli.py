@@ -121,6 +121,7 @@ from jarvis_core.services.autonomy import (
     set_autonomy_guardian,
     parse_direct_external_learning_order,
     parse_learning_goal,
+    parse_local_teaching_statement,
 )
 from jarvis_core.tools.security_audit import (
     format_security_overview,
@@ -1973,6 +1974,36 @@ def main() -> None:
         """
         topic = str(intent.get("topic") or "").strip()
         if not topic:
+            return
+
+        local_teaching = parse_local_teaching_statement(source_text)
+        if local_teaching is not None:
+            statement = str(local_teaching.get("statement") or "").strip()
+            recorded = cognition.record_local_teaching(statement, source_text=source_text)
+            if recorded.get("ok"):
+                message = (
+                    "Senhor, aprendi essa informação na nossa conversa e guardei-a "
+                    "localmente, separada de fontes Web/PDF verificadas. Não usei a Internet."
+                )
+            else:
+                reason = str(recorded.get("reason_code") or "LOCAL_TEACHING_REJECTED")
+                message = (
+                    "Senhor, não guardei essa informação na aprendizagem conversacional "
+                    f"(motivo: {reason}). Não usei a Internet."
+                )
+            events.emit(
+                "LOCAL_CONVERSATION_TEACHING_RECORDED",
+                stored=bool(recorded.get("stored")),
+                reason_code=str(recorded.get("reason_code") or "OK"),
+                web_used=False,
+            )
+            persistent_context.record(
+                source_text,
+                message,
+                "LOCAL/local_conversation_teaching",
+            )
+            print(f"JARVIS > {message}")
+            speech.say(message)
             return
 
         recorded = cognition.record_jarvis_learning_goal(

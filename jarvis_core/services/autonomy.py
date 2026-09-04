@@ -587,6 +587,38 @@ def parse_learning_goal(
     }
 
 
+def parse_local_teaching_statement(text: str) -> dict[str, Any] | None:
+    """Extract knowledge explicitly taught in the current conversation.
+
+    This is deliberately narrower than parse_learning_goal: only wording that
+    contains the statement itself is accepted. URLs remain in the external
+    learning pipeline.
+    """
+    raw = str(text or "").strip()
+    if _extract_explicit_url(raw):
+        return None
+    raw = re.sub(r"(?i)^\s*jarvis\s*[,;:]?\s*", "", raw).strip()
+    patterns = (
+        r"(?is)^aprende\s+(?:isto|esta\s+informa[cç][aã]o)\s*[:,-]\s*(.+)$",
+        r"(?is)^aprende\s+que\s+(.+)$",
+        r"(?is)^(?:fica\s+a\s+saber|toma\s+nota)\s+que\s+(.+)$",
+    )
+    statement = ""
+    for pattern in patterns:
+        match = re.match(pattern, raw)
+        if match:
+            statement = re.sub(r"\s+", " ", match.group(1)).strip(" \t\r\n.;")
+            break
+    if len(statement) < 3:
+        return None
+    return {
+        "kind": "local_teaching",
+        "statement": statement[:1500],
+        "local_only": True,
+        "web_requested": False,
+    }
+
+
 class AutonomyGuardian:
     """
     Owner-authority gate for autonomous JARVIS actions.

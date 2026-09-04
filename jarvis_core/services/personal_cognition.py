@@ -222,6 +222,7 @@ class PersonalCognitionStore:
                 "jarvis_learning_goals": [],
                 "owner_learning_goals": [],
                 "jarvis_directives": [],
+                "local_teachings": [],
                 "discarded_legacy_goals": [],
                 "topic_counts": {},
                 "recent_topics": [],
@@ -474,6 +475,47 @@ class PersonalCognitionStore:
             model["last_updated"] = _iso()
             self._save_model(model)
             return {"ok": True, "stored": True, "topic": clean}
+
+    def record_local_teaching(self, statement: str, *, source_text: str = "") -> dict[str, Any]:
+        """Store explicit conversational knowledge apart from OWNER traits."""
+        clean, secret_redacted = _redact_secrets(statement)
+        clean = re.sub(r"\s+", " ", clean).strip(" ,;:.!?-")[:1500]
+        normalized = _norm(clean)
+        if not clean or secret_redacted or "[segredo redigido]" in normalized:
+            return {"ok": False, "stored": False, "reason_code": "SECRET_REJECTED"}
+        if any(_norm(marker) in normalized for marker in SENSITIVE_INFERENCE_MARKERS):
+            return {"ok": False, "stored": False, "reason_code": "SENSITIVE_PERSONAL_DATA_REJECTED"}
+        with self._lock:
+            model = self.model()
+            rows = list(model.get("local_teachings") or [])
+            wanted = _norm(clean)
+            for row in rows:
+                if _norm(row.get("statement") or "") == wanted:
+                    row["last_seen"] = _iso()
+                    model["local_teachings"] = rows[-80:]
+                    model["last_updated"] = _iso()
+                    self._save_model(model)
+                    return {"ok": True, "stored": False, "existing": True, "statement": clean}
+            rows.append({
+                "statement": clean,
+                "confidence": 1.0,
+                "source": "explicit-owner-conversation-teaching",
+                "verification": "owner_taught_unverified",
+                "source_text": str(source_text or "")[:1500],
+                "first_seen": _iso(),
+                "last_seen": _iso(),
+            })
+            model["local_teachings"] = rows[-80:]
+            model["last_updated"] = _iso()
+            self._save_model(model)
+            self._append_observation({
+                "timestamp": _iso(),
+                "category": "local_teaching",
+                "statement": clean,
+                "confidence": 1.0,
+                "source": "explicit-owner-conversation-teaching",
+            })
+            return {"ok": True, "stored": True, "statement": clean}
 
     def _save_model(self, data: dict[str, Any]) -> None:
         self.model_path.write_text(
@@ -803,6 +845,7 @@ class PersonalCognitionStore:
             "jarvis_learning_goals": len(model.get("jarvis_learning_goals") or []),
             "owner_learning_goals": len(model.get("owner_learning_goals") or []),
             "jarvis_directives": len(model.get("jarvis_directives") or []),
+            "local_teachings": len(model.get("local_teachings") or []),
             "discarded_legacy_goals": len(model.get("discarded_legacy_goals") or []),
             "recent_topics": model.get("recent_topics") or [],
             "last_interaction_at": state.get("last_interaction_at"),

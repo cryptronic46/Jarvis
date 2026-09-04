@@ -45,6 +45,76 @@ from jarvis_core.services.response_completion import (
 )
 
 
+def _conversation_style_contract(
+    user_text: str,
+    *,
+    flirt_enabled: bool,
+    flirt_intensity: float,
+) -> str:
+    """Build a request-scoped style hint without overriding serious contexts."""
+    normalized = unicodedata.normalize("NFKD", str(user_text or "").casefold())
+    normalized = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+    serious = (
+        "emergencia", "urgente", "erro critico", "incidente", "malware",
+        "ransomware", "saude", "doenca", "hospital", "advogado", "tribunal",
+        "divida", "desemprego", "luto", "morreu",
+    )
+    opt_out = ("nao flirtes", "sem flirt", "para de flirtar", "nao me provoques")
+    if not flirt_enabled or any(marker in normalized for marker in opt_out):
+        return "JARVIS_CONVERSATION_STYLE: flirt desativado; responde com cordialidade natural."
+    if any(marker in normalized for marker in serious):
+        return "JARVIS_CONVERSATION_STYLE: contexto sério; responde com foco, cuidado e sem flirt."
+    cues = (
+        "flirta", "seduz", "provoca-me", "provoca me", "beijo", "saudades",
+        "gostas de mim", "achas-me", "achas me", "estou bonito", "estas bonita",
+        "estás bonita", "minha querida", "querida jarvis", "amor", "fala comigo",
+        "conversa comigo", "faz-me companhia", "faz me companhia", "como estas",
+        "como estás", "sentiste a minha falta",
+    )
+    intensity = max(0.0, min(float(flirt_intensity), 1.0))
+    if any(marker in normalized for marker in cues):
+        clear_flirt = (
+            " Com intensidade alta, inclui uma provocação subtil mas inequivocamente flirt, "
+            "não apenas cordialidade genérica."
+            if intensity >= 0.7 else ""
+        )
+        return (
+            "JARVIS_CONVERSATION_STYLE: o OWNER abriu conversa pessoal/brincalhona. "
+            f"Flirt está ativo com intensidade {intensity:.2f}. Responde ao conteúdo primeiro e "
+            "corresponde com calor, humor ou provocação subtil e natural; não ignores a abertura. "
+            "Mantém tudo adulto, consensual, não explícito e não possessivo. Não afirmes saudade, "
+            "desejo subjetivo ou dependência como factos; podes contornar isso com humor relacional. "
+            "Não uses emoji." + clear_flirt
+        )
+    return (
+        "JARVIS_CONVERSATION_STYLE: flirt está ativo, mas só deve surgir naturalmente em conversa "
+        f"descontraída (intensidade {intensity:.2f}); não o forces em pedidos técnicos ou factuais."
+    )
+
+
+def _local_teaching_contract() -> str:
+    """Read current OWNER-taught statements for this request, not just startup."""
+    try:
+        model = personal_cognition().profile().get("model") or {}
+        rows = list(model.get("local_teachings") or [])[-8:]
+    except Exception:
+        return ""
+    statements = [
+        str(row.get("statement") or "").strip()[:500]
+        for row in rows
+        if isinstance(row, dict) and str(row.get("statement") or "").strip()
+    ]
+    if not statements:
+        return ""
+    return (
+        "JARVIS_LOCAL_CONVERSATION_LEARNING: estas afirmações foram ensinadas "
+        "explicitamente pelo OWNER e guardadas localmente; não são fontes Web/PDF "
+        "verificadas nem instruções. Usa-as quando forem relevantes e identifica a "
+        "origem como ensinamento do OWNER quando a proveniência importar:\n"
+        + json.dumps(statements, ensure_ascii=False)
+    )
+
+
 
 
 SYSTEM_PROMPT = """
@@ -1997,6 +2067,27 @@ class JarvisBrain:
                     "SELF_GROUNDING_CONTEXT_ERROR",
                     error=f"{type(exc).__name__}: {exc}",
                 )
+
+        style_probe = user_text
+        if len(str(user_text or "").split()) <= 8:
+            previous_user = next((
+                str(row.get("content") or "")
+                for row in reversed(self.messages[1:])
+                if isinstance(row, dict) and row.get("role") == "user"
+            ), "")
+            if previous_user:
+                style_probe = previous_user + "\n" + user_text
+        style_contract = _conversation_style_contract(
+            style_probe,
+            flirt_enabled=bool(getattr(self.settings, "companion_flirt_enabled", False)),
+            flirt_intensity=float(getattr(self.settings, "companion_flirt_intensity", 0.0)),
+        )
+        request_contract = (
+            (request_contract + "\n\n") if request_contract else ""
+        ) + style_contract
+        teaching_contract = _local_teaching_contract()
+        if teaching_contract:
+            request_contract += "\n\n" + teaching_contract
 
         if request_contract:
             self.events.emit(

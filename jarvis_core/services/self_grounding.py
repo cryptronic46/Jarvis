@@ -20,7 +20,7 @@ def _query_type(text: str) -> str:
         return "current_desire"
     if re.search(r"\b(preferes|preferencia|preferencias)\b", value):
         return "preference"
-    if re.search(r"\b(como te sentes|o que sentes|humor|teu estado|estado interno|como estas|curiosa|curiosidade|nivel de confianca|carga cognitiva|estado funcional)\b", value):
+    if re.search(r"\b(como te sentes|o que sentes|sentiste a minha falta|saudades de mim|gostas de mim|o que sentes por mim|humor|teu estado|estado interno|como estas|curiosa|curiosidade|nivel de confianca|carga cognitiva|estado funcional)\b", value):
         return "affect"
     if re.search(r"\b(o que te motiva|motivacao|motiva)\b", value):
         return "motivation"

@@ -132,7 +132,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "46d43aed23f94b04c51bd45beeeafd0a96f3266081c4a2b39843cec50fe87330"
+      "sha256": "9edb1084eb252a2b5a1a0cfbbfc6b240c457cafd3ed97d14102ee7231c362803"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -140,7 +140,7 @@
     },
     {
       "path": "jarvis_core/core/brain.py",
-      "sha256": "39e5a1bdc3338a2a01fe96c452db151c6f881c4c75933cdeebffaeb299a5a0ab"
+      "sha256": "0c5649873326de439cbbe5dd2f0c1074ad9ccc61911f0f13efee803f989aa555"
     },
     {
       "path": "jarvis_core/core/cloud_brain.py",
@@ -212,7 +212,7 @@
     },
     {
       "path": "jarvis_core/services/autonomy.py",
-      "sha256": "3cfbebb25ae14babdf56ded4a0d310a416c849b0a9258a7e84759f9769135941"
+      "sha256": "330567ba868317bfb8d63e831cc49013af71a7e5a5ea4c111a9c4b588e4c5f04"
     },
     {
       "path": "jarvis_core/services/av_devices.py",
@@ -272,7 +272,7 @@
     },
     {
       "path": "jarvis_core/services/language_refinement.py",
-      "sha256": "5902a03b4dd407d5fab62a3b16ee8f7a440936efeeb71b32b24da2813abecafb"
+      "sha256": "4ed1b16b55d4369f701d552b56f7e41a2aece0c7cb344e2c0a586e813d9f3fbb"
     },
     {
       "path": "jarvis_core/services/learning_gap.py",
@@ -304,7 +304,7 @@
     },
     {
       "path": "jarvis_core/services/personal_cognition.py",
-      "sha256": "6aaad58b928802a6e41f29d88a74217e9dfd9f568e1f7f95d9fc47f61d10a39a"
+      "sha256": "90e3f18a852b0446e5547c52a67a22ea0bba423052ca9548aec924203ed172a5"
     },
     {
       "path": "jarvis_core/services/presentation.py",
@@ -324,7 +324,7 @@
     },
     {
       "path": "jarvis_core/services/request_intent.py",
-      "sha256": "3aa617293e2ef14689785ef85ab5314bd6808da97089b44308b3fbd78f531e70"
+      "sha256": "0cfad0b615654549e3b7a50197b36e1d6900e6f399cb7e0267219314b330b5b3"
     },
     {
       "path": "jarvis_core/services/response_completion.py",
@@ -344,7 +344,7 @@
     },
     {
       "path": "jarvis_core/services/self_grounding.py",
-      "sha256": "3c8f52e248589bd4fa8bb01227f3339bf68ad9c1880ceb1401799199047aa9aa"
+      "sha256": "6be464d82056704f0a65b1fde4bd09fb501946ad013fc6d92a0cff9b3b17b6c1"
     },
     {
       "path": "jarvis_core/services/silence_latch.py",
@@ -1485,6 +1485,10 @@
     {
       "path": "tests/test_cli_banner.py",
       "sha256": "7ca4b395f31fa786b2a171c7dc1334ffb1c2243690602f248f25f4d65cbd73b7"
+    },
+    {
+      "path": "tests/test_conversation_learning_and_flirt.py",
+      "sha256": "f43cc5f53e7b66185b23eaa068d32364f29dac448d196fc1f4a6bd95a9b93d53"
     }
   ]
 }
