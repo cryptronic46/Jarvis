@@ -507,6 +507,67 @@ class BookLibrary:
         }
 
 
+    def referenced_pages(
+        self,
+        results: list[dict[str, Any]],
+        limit: int = 6,
+    ) -> list[dict[str, Any]]:
+        """Load pages explicitly referenced by matched passages in the same book."""
+        limit = max(0, min(int(limit), 12))
+        if not results or limit <= 0:
+            return []
+        wanted: list[tuple[str, int]] = []
+        existing = {
+            (str(row.get("path") or ""), int(row.get("page") or 0))
+            for row in results
+        }
+        for row in results:
+            path = str(row.get("path") or "")
+            excerpt = str(row.get("excerpt") or "")
+            for match in re.finditer(
+                r"\bp(?:ágina|agina|áginas|aginas)\s+([0-9][0-9,\se-]{0,50})",
+                excerpt,
+                flags=re.IGNORECASE,
+            ):
+                for raw_page in re.findall(r"\d{1,4}", match.group(1)):
+                    key = (path, int(raw_page))
+                    if key not in existing and key not in wanted:
+                        wanted.append(key)
+                    if len(wanted) >= limit:
+                        break
+                if len(wanted) >= limit:
+                    break
+            if len(wanted) >= limit:
+                break
+
+        expanded: list[dict[str, Any]] = []
+        with self._lock, self._db() as connection:
+            for path, page_number in wanted:
+                rows = list(connection.execute("""
+                    SELECT c.text,b.title,b.relative_path
+                    FROM chunks c
+                    JOIN books b ON b.id=c.book_id
+                    WHERE b.relative_path=? AND c.page_number=?
+                    ORDER BY c.chunk_index
+                """, (path, page_number)))
+                if not rows:
+                    continue
+                title = str(rows[0]["title"])
+                text = _clean_text("\n".join(
+                    str(item["text"])
+                    for item in rows
+                ))
+                expanded.append({
+                    "title": title,
+                    "path": path,
+                    "page": page_number,
+                    "citation": f"{title}, p. {page_number}",
+                    "excerpt": _excerpt(text, "", limit=1200),
+                    "score": 0.0,
+                    "referenced_by_match": True,
+                })
+        return expanded
+
 _LIBRARY: BookLibrary | None = None
 
 

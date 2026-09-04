@@ -130,7 +130,7 @@
     },
     {
       "path": "jarvis_core/core/brain.py",
-      "sha256": "de8a90c611c91f561b223395761c6c5cd9943f0000e2a10af80f4f1ae5bfb4ab"
+      "sha256": "0fb95ad016885df3cd7e7d37f6544942e537623bd3f329e3a36a7a5a4fdd9737"
     },
     {
       "path": "jarvis_core/core/cloud_brain.py",
@@ -318,7 +318,7 @@
     },
     {
       "path": "jarvis_core/services/response_completion.py",
-      "sha256": "6c31e7199c8565df39551ac63525de54ee4670d9db3d7bf609450233187df510"
+      "sha256": "528428ded52040cd31b3bd0a706f8c3f99fb8a4ce3f30c58988e0d16e33eb1f5"
     },
     {
       "path": "jarvis_core/services/routines.py",
@@ -1458,7 +1458,11 @@
     },
     {
       "path": "jarvis_core/services/book_library.py",
-      "sha256": "f0c21b2f76ec4e0e2aae5710db872aeb287fc893b4841b14bca9887a051eab22"
+      "sha256": "f573325f9079173e3215ec8258baf385ba87661e0a3843db1f84d60493992916"
+    },
+    {
+      "path": "tests/test_book_grounding_hotfix.py",
+      "sha256": "1db978c79383f61a7dc15e98697935e7ad7f7bac3a5adef5774a46ee94d60e1c"
     },
     {
       "path": "tests/test_book_library.py",

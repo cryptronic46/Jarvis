@@ -84,6 +84,11 @@ _META_CONTINUATION_MARKERS = (
     "estou à disposicao",
     "vamos prosseguir",
     "basta me dizer",
+    "do ponto onde parou",
+    "sem comentar este pedido",
+    "pedido de continuação",
+    "pedido de continuacao",
+    "conclui a resposta naturalmente",
 )
 
 def _norm_simple(value: str) -> str:
@@ -95,6 +100,25 @@ def continuation_is_meta(text: str) -> bool:
     """Detect a model answering the hidden continuation instruction instead of continuing content."""
     normalized = _norm_simple(text)
     return any(_norm_simple(marker) in normalized for marker in _META_CONTINUATION_MARKERS)
+
+def strip_internal_continuation(text: str) -> str:
+    """Remove a leaked hidden continuation instruction and its partial lead-in."""
+    value = str(text or "").strip()
+    normalized = _norm_simple(value)
+    positions = [
+        normalized.find(_norm_simple(marker))
+        for marker in (
+            "CONTINUAÇÃO TÉCNICA",
+            "do ponto onde parou, sem reiniciar",
+            "sem comentar este pedido de continuação",
+            "conclui a resposta naturalmente",
+        )
+    ]
+    positions = [position for position in positions if position >= 0]
+    if not positions:
+        return value
+    prefix = value[:min(positions)].rstrip(" ,;:-")
+    return trim_to_last_complete_sentence(prefix) or prefix
 
 def trim_to_last_complete_sentence(text: str) -> str:
     """Return the longest natural-sentence prefix, useful when a retry still hits a hard token limit."""
