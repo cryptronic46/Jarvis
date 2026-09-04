@@ -18,6 +18,22 @@ class FileIndexSecurityTests(unittest.TestCase):
             self.assertEqual(result["results"][0]["path"], str(pdf))
             self.assertTrue(idx._allowed_path(pdf))
 
+    def test_search_is_accent_insensitive_and_rejects_partial_noise(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            library = base / "library" / "books"
+            library.mkdir(parents=True)
+            index_path = base / "index.json"
+            index_path.write_text('{"files":[]}', encoding="utf-8")
+            exact = library / "Acordo Ortográfico Português.pdf"
+            noise = library / "Acordo de Representação.pdf"
+            exact.write_bytes(b"%PDF-1.4")
+            noise.write_bytes(b"%PDF-1.4")
+            idx = LocalFileIndex(index_path, extra_roots=[library])
+
+            result = idx.search("acordo ortografico")
+            self.assertEqual([row["path"] for row in result["results"]], [str(exact)])
+
     def test_read_rejects_outside_roots(self):
         with tempfile.TemporaryDirectory() as tmp:
             idx=LocalFileIndex(Path(tmp)/'index.json')

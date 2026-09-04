@@ -6,6 +6,8 @@ from hashlib import sha256
 from pathlib import Path
 from threading import Event, RLock, Thread
 from typing import Any
+
+from jarvis_core.services.pdf_ocr import extract_pdf_pages_ocr
 import re
 import sqlite3
 
@@ -191,10 +193,22 @@ class BookLibrary:
         metadata = reader.metadata or {}
         title = _clean_text(str(metadata.get("/Title") or path.stem))
         pages: list[tuple[int, str]] = []
+        missing_pages: list[int] = []
         for number, page in enumerate(reader.pages, start=1):
             text = _clean_text(page.extract_text() or "")
             if text:
                 pages.append((number, text))
+            else:
+                missing_pages.append(number - 1)
+        if missing_pages:
+            ocr = extract_pdf_pages_ocr(path, missing_pages, max_chars=250000)
+            if ocr.get("ok"):
+                pages.extend(
+                    (int(number), _clean_text(text))
+                    for number, text in (ocr.get("pages") or [])
+                    if _clean_text(text)
+                )
+                pages.sort(key=lambda item: item[0])
         return {
             "title": title or path.stem,
             "page_count": len(reader.pages),

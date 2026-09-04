@@ -6,4 +6,7 @@ sounddevice==0.5.6
 numpy==2.3.5
 faster-whisper==1.2.1
 pypdf==6.16.2
+cryptography==50.0.1
+pypdfium2==5.13.0
+rapidocr-onnxruntime==1.2.3
 jsonschema==4.26.0

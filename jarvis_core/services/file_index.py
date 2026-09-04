@@ -5,12 +5,20 @@ from datetime import datetime
 from typing import Any
 import json
 import os
+import unicodedata
+
+from jarvis_core.services.pdf_ocr import extract_pdf_pages_ocr
 
 
 ALLOWED_EXTENSIONS = {
     ".txt", ".md", ".pdf", ".csv", ".json", ".log",
     ".docx", ".xlsx", ".pptx", ".py",
 }
+
+
+def _search_key(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", str(value or "").casefold())
+    return "".join(char for char in normalized if not unicodedata.combining(char))
 
 
 class LocalFileIndex:
@@ -103,7 +111,7 @@ class LocalFileIndex:
         query = str(query).strip()
         if not query:
             return {"ok": False, "error": "EMPTY_QUERY"}
-        tokens = [x for x in query.lower().split() if x]
+        tokens = [x for x in _search_key(query).split() if x]
         indexed_rows = list(self._load().get("files", []))
         known_paths = {str(row.get("path") or "").casefold() for row in indexed_rows}
         # The private JARVIS library is intentionally checked live. It is small
@@ -136,9 +144,10 @@ class LocalFileIndex:
                     continue
         scored = []
         for row in indexed_rows:
-            hay = (str(row.get("name") or "") + " " + str(row.get("path") or "")).lower()
+            hay = _search_key(str(row.get("name") or "") + " " + str(row.get("path") or ""))
             score = sum(1 for token in tokens if token in hay)
-            if score:
+            minimum_score = 1 if len(tokens) == 1 else max(2, (len(tokens) * 7 + 9) // 10)
+            if score >= minimum_score:
                 scored.append((score, row))
         scored.sort(key=lambda item: (item[0], item[1].get("modified") or ""), reverse=True)
         return {
@@ -175,15 +184,37 @@ class LocalFileIndex:
                     return {"ok": False, "error": "PYPDF_NOT_INSTALLED", "message": "Executa setup.ps1."}
                 chunks = []
                 total = 0
-                for page in PdfReader(str(target)).pages:
+                reader = PdfReader(str(target))
+                missing_pages = []
+                for page_index, page in enumerate(reader.pages):
                     text = page.extract_text() or ""
                     chunks.append(text)
                     total += len(text)
+                    if not text.strip():
+                        missing_pages.append(page_index)
                     if total >= max_chars:
                         break
                 content = "\n".join(chunks)
+                extraction = "text"
+                if len(content.strip()) < 50 and missing_pages:
+                    ocr = extract_pdf_pages_ocr(target, missing_pages, max_chars=max_chars)
+                    if not ocr.get("ok"):
+                        return {
+                            "ok": False,
+                            "error": ocr.get("error") or "PDF_OCR_FAILED",
+                            "message": ocr.get("message") or "Não consegui executar OCR local neste PDF.",
+                        }
+                    content = "\n\n".join(text for _, text in ocr.get("pages") or [])
+                    extraction = "ocr"
+                    if not content.strip():
+                        return {
+                            "ok": False,
+                            "error": "PDF_TEXT_NOT_EXTRACTABLE",
+                            "message": "O PDF não contém texto extraível e o OCR local não reconheceu conteúdo.",
+                        }
             else:
                 content = target.read_text(encoding="utf-8", errors="replace")
+                extraction = "text"
         except Exception as exc:
             return {"ok": False, "error": type(exc).__name__, "message": str(exc)}
 
@@ -195,6 +226,7 @@ class LocalFileIndex:
             "text": content[:cap],
             "truncated": len(content) > cap,
             "local_only": True,
+            "extraction": extraction,
         }
 
 

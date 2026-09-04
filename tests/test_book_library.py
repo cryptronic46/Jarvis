@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from jarvis_core.services.book_library import BookLibrary
 
@@ -57,7 +58,11 @@ class BookLibraryTests(unittest.TestCase):
             "A fotossintese converte energia luminosa em energia quimica.",
         )
 
-        result = self.library.sync()
+        with patch(
+            "jarvis_core.services.book_library.extract_pdf_pages_ocr",
+            return_value={"ok": True, "pages": []},
+        ):
+            result = self.library.sync()
         self.assertTrue(result["ok"])
         self.assertEqual(result["indexed"], 1)
 
@@ -109,6 +114,23 @@ class BookLibraryTests(unittest.TestCase):
         self.assertEqual(result["needs_ocr"], 1)
         self.assertEqual(result["stats"]["needs_ocr"], 1)
         self.assertEqual(result["stats"]["indexed"], 0)
+
+    def test_image_only_pdf_is_indexed_when_local_ocr_extracts_text(self):
+        from pypdf import PdfWriter
+
+        pdf = self.books / "Digitalizacao OCR.pdf"
+        writer = PdfWriter()
+        writer.add_blank_page(width=612, height=792)
+        with pdf.open("wb") as handle:
+            writer.write(handle)
+
+        with patch(
+            "jarvis_core.services.book_library.extract_pdf_pages_ocr",
+            return_value={"ok": True, "pages": [(1, "Acordo ortografico da lingua portuguesa")]},
+        ):
+            result = self.library.sync()
+        self.assertEqual(result["indexed"], 1)
+        self.assertEqual(self.library.search("acordo ortografico")["count"], 1)
 
     def test_empty_query_is_rejected(self):
         result = self.library.search("   ")

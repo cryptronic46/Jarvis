@@ -248,7 +248,7 @@
     },
     {
       "path": "jarvis_core/services/file_index.py",
-      "sha256": "a4f28b5788af8df276bc5d8993ca225ee08864129b65150411830a360716fa09"
+      "sha256": "f4a382e8b2fb417479c465e55bb255534a851a2f96bacd7bae9c9062dc967f29"
     },
     {
       "path": "jarvis_core/services/followup_intent.py",
@@ -536,7 +536,7 @@
     },
     {
       "path": "requirements.txt",
-      "sha256": "fd473737d84805799e62c1d07265539f7ee312a5e509a65b847fbe98d7789e32"
+      "sha256": "6603d0d4cc8ae8310442168e930f097b3b19f2692644ca2003f0756fffa6741e"
     },
     {
       "path": "run.ps1",
@@ -856,7 +856,7 @@
     },
     {
       "path": "tests/test_file_index_security.py",
-      "sha256": "e60511c8642b713bce12af86912da73a4354aae222a78bee450ce265fb5562e9"
+      "sha256": "f464692b6ac86f93809ce24324d81683efc10871cad22ba27549406294443c5f"
     },
     {
       "path": "tests/test_followup_intent.py",
@@ -1468,7 +1468,7 @@
     },
     {
       "path": "jarvis_core/services/book_library.py",
-      "sha256": "f573325f9079173e3215ec8258baf385ba87661e0a3843db1f84d60493992916"
+      "sha256": "43969d93f0addef22da47749c458761b618a281e6b9c0ae4c0c1c57b83f5612a"
     },
     {
       "path": "tests/test_book_grounding_hotfix.py",
@@ -1476,7 +1476,11 @@
     },
     {
       "path": "tests/test_book_library.py",
-      "sha256": "4734c4b0b4f6596f7b4c1d10182373984fcbf65709b2aa88e1f0a389733b7dd2"
+      "sha256": "b463bedf3590fc8d087c06676c619b6cf6570034dfaf878de1721da6df0cd5ea"
+    },
+    {
+      "path": "jarvis_core/services/pdf_ocr.py",
+      "sha256": "77f33876d6b86c6f26c4b51a361facba62035476a9c2f40d08c95b10cafb66be"
     },
     {
       "path": "tests/test_cli_banner.py",
