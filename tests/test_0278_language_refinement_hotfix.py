@@ -53,6 +53,13 @@ class LanguageRefinementHotfixTests(unittest.TestCase):
         )
         self.assertEqual(out.count("A confiança não é veracidade."), 1)
 
+    def test_brain_requires_valid_unescaped_indented_python(self):
+        from pathlib import Path
+        prompt = Path("jarvis_core/core/brain.py").read_text(encoding="utf-8")
+        self.assertIn("four literal spaces", prompt)
+        self.assertIn("unescaped ```python fenced block", prompt)
+        self.assertIn("never escape underscores", prompt)
+
     def test_refiner_is_local_and_applies_to_written_and_speech(self):
         status = refinement_status()
         self.assertTrue(status["enabled"])

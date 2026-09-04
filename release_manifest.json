@@ -140,7 +140,7 @@
     },
     {
       "path": "jarvis_core/core/brain.py",
-      "sha256": "a50625c497e2c20e0ff6c10a4a9e68a8403347277215aaa476769898051de36c"
+      "sha256": "a2fabb08fbb368c50b3fc70d1d5afd17bcf7f4490327279e983ed12e91383006"
     },
     {
       "path": "jarvis_core/core/cloud_brain.py",
@@ -624,7 +624,7 @@
     },
     {
       "path": "tests/test_0278_language_refinement_hotfix.py",
-      "sha256": "5409137fa6a9a0054e43b37d5114c67ef1424ebadec62ff83ba5970096588b88"
+      "sha256": "2ded5e383f981c62749fd8b07057a61922a9346e0ff8f15a5140a733e7885287"
     },
     {
       "path": "tests/test_0278_performance_autonomy_hotfix_v11.py",
