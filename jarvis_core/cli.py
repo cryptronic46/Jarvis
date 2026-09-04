@@ -140,6 +140,15 @@ BANNER_TEMPLATE = """
 """
 
 
+def local_pdf_library_learning_requested(text: str) -> bool:
+    value = str(text or "").casefold()
+    asks_to_learn = bool(re.search(r"\b(?:aprende|aprender|estuda|estudar|indexa|indexar)\b", value))
+    targets_pdfs = bool(re.search(r"\bpdfs?\b", value))
+    targets_collection = bool(re.search(r"\b(?:todos|todas|documentos|livros|biblioteca)\b", value))
+    external_source = bool(re.search(r"https?://|\b(?:web|internet|online)\b", value))
+    return asks_to_learn and targets_pdfs and targets_collection and not external_source
+
+
 VISIBLE_EVENTS = {
     "INPUT_RECEIVED":"INPUT",
     "THINKING_STARTED":"CORE",
@@ -1977,7 +1986,7 @@ def main() -> None:
             )
         else:
             learning_followup_state["topic"] = topic
-            learning_followup_state["created_at"] = time()
+            learning_followup_state["created_at"] = monotonic()
             message = (
                 f"Senhor, registei {topic} como um objetivo de aprendizagem meu. "
                 "Não usei a Internet e uma permissão Web anterior não autoriza "
@@ -2239,13 +2248,20 @@ def main() -> None:
                 else:
                     silence_latch.release(source="explicit_terminal_input")
 
+            if local_pdf_library_learning_requested(text):
+                result = read_tool("sync_book_library", {"force": False})
+                message = format_book_library_sync(result)
+                print(f"JARVIS >\n{message}")
+                speech.say(message)
+                continue
+
             direct_learning = parse_direct_external_learning_order(
                 text
             )
             if (
                 direct_learning is None
                 and learning_followup_state.get("topic")
-                and time() - float(learning_followup_state.get("created_at") or 0.0) <= 300.0
+                and monotonic() - float(learning_followup_state.get("created_at") or 0.0) <= 300.0
             ):
                 url_match = re.search(r"(?i)https?://[^\s<>\"']+", text)
                 url_only = bool(url_match) and not re.search(r"(?i)\b(?:aprende|estuda|pesquisa|consulta|visita|investiga)\b", text)

@@ -132,7 +132,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "58fc67468f212eeb8269b3bad5cdaf89d4f79d5383d78874f49fb31fac577fd2"
+      "sha256": "06bbea1811640e19fb9b1e04a22ca4a9a833bc57c5854a09f71b423c02a87ca6"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -828,7 +828,7 @@
     },
     {
       "path": "tests/test_direct_url_learning_cli_contract.py",
-      "sha256": "6dc6378a7ef7f80f389baa50e3c41bb030f377011065f93d2356536e3c3fd950"
+      "sha256": "734f49160165d07256e0f0af427f63dd358501861d15a3ac28172514c08cef6f"
     },
     {
       "path": "tests/test_environment_tools.py",

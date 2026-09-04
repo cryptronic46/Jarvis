@@ -1,17 +1,37 @@
 import unittest
+
+from jarvis_core.cli import local_pdf_library_learning_requested
 from pathlib import Path
 
 
 class DirectUrlLearningCliContractTests(unittest.TestCase):
+    def test_all_local_pdfs_are_not_misrouted_to_external_learning(self):
+        self.assertTrue(
+            local_pdf_library_learning_requested(
+                "Jarvis, aprende todos os documentos PDF"
+            )
+        )
+        self.assertFalse(
+            local_pdf_library_learning_requested(
+                "Jarvis, aprende Python através da Internet"
+            )
+        )
+
     @classmethod
     def setUpClass(cls):
         cls.text = Path("jarvis_core/cli.py").read_text(encoding="utf-8")
 
     def test_direct_url_intent_is_intercepted_before_normal_model_routing(self):
         loop = self.text.index("while True:")
+        local_pdfs = self.text.index("if local_pdf_library_learning_requested(text):", loop)
         direct = self.text.index("parse_direct_external_learning_order(", loop)
         generic = self.text.index("process_request(", direct)
+        self.assertLess(local_pdfs, direct)
         self.assertLess(direct, generic)
+
+    def test_learning_followup_clock_uses_imported_monotonic(self):
+        self.assertNotIn('learning_followup_state["created_at"] = time()', self.text)
+        self.assertIn('learning_followup_state["created_at"] = monotonic()', self.text)
 
     def test_direct_url_uses_bounded_research_url_path(self):
         start = self.text.index("def execute_direct_external_learning(")
