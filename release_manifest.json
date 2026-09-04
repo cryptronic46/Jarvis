@@ -130,7 +130,7 @@
     },
     {
       "path": "jarvis_core/core/brain.py",
-      "sha256": "0fb95ad016885df3cd7e7d37f6544942e537623bd3f329e3a36a7a5a4fdd9737"
+      "sha256": "c49f458a273cdc94c8dea333a590e2d0a06cb9c32af1acb95740204ba1e86eca"
     },
     {
       "path": "jarvis_core/core/cloud_brain.py",
@@ -1462,7 +1462,7 @@
     },
     {
       "path": "tests/test_book_grounding_hotfix.py",
-      "sha256": "1db978c79383f61a7dc15e98697935e7ad7f7bac3a5adef5774a46ee94d60e1c"
+      "sha256": "d1d946249bb0cf57d615a211d9bdd47ed46c9d158ed132fb6e3bbe6594666635"
     },
     {
       "path": "tests/test_book_library.py",

@@ -2025,6 +2025,18 @@ class JarvisBrain:
         }
 
         try:
+            # A direct book match that only points to other pages has a fully
+            # deterministic, source-faithful response. Calling the LLM here
+            # cannot add evidence; it only adds latency and may hallucinate a
+            # rule before `_ground_book_answer` replaces it.
+            if book_retrieval.get("navigation_only"):
+                content = self._ground_book_answer("", book_retrieval)
+                self.messages.append({"role": "assistant", "content": content})
+                self.events.emit(
+                    "BOOK_LIBRARY_DETERMINISTIC_RESPONSE",
+                    results=book_retrieval.get("results", 0),
+                )
+                return content
             while rounds < max(1, int(plan.max_tool_rounds)):
                 rounds += 1
 

@@ -225,6 +225,15 @@ class BookGroundingHotfixTests(unittest.TestCase):
             )
         )
 
+    def test_navigation_only_book_response_bypasses_the_model(self):
+        source = Path("jarvis_core/core/brain.py").read_text(encoding="utf-8")
+        shortcut = source.index("BOOK_LIBRARY_DETERMINISTIC_RESPONSE")
+        model_request = source.index("response = self.client.chat(**kwargs)")
+        self.assertLess(shortcut, model_request)
+        self.assertIn(
+            'if book_retrieval.get("navigation_only"):',
+            source,
+        )
     def test_book_retrieval_precedes_model_and_gets_larger_budget(self):
         source = Path("jarvis_core/core/brain.py").read_text(encoding="utf-8")
         retrieval = source.index(
