@@ -259,10 +259,22 @@ def _topic_for_explicit_url(text: str, url: str) -> str:
         if host.endswith("kali.org") and path.startswith("/tools"):
             return "ferramentas Kali Linux"
         if host:
-            label = host.split(".")[0].replace("-", " ").strip()
-            return _clean_topic(f"conteúdo técnico do site {label or host}")
+            # A bare owner-selected URL needs a meaningful topic.  The old
+            # generic label (for example, "conteúdo técnico do site docs" for
+            # docs.python.org) made valid Python summaries fail storage
+            # relevance merely because they did not repeat "docs".
+            ignored_labels = {"www", "docs", "doc", "help", "support", "blog", "dt", "mec"}
+            labels = [
+                label.replace("-", " ").strip()
+                for label in host.split(".")
+                if label and label not in ignored_labels
+            ]
+            # This is only a topic label for the exact owner-selected URL;
+            # source and synthesis validation remain unchanged.
+            label = labels[-2] if len(labels) >= 2 and labels[-1] in {"org", "com", "net", "edu", "gov", "pt", "uk"} else (labels[-1] if labels else host)
+            return _clean_topic(label or host)
 
-    return topic or _clean_topic(f"conteúdo do site {host}")
+    return topic or _clean_topic(host)
 
 
 def _clean_topic(value: str) -> str:

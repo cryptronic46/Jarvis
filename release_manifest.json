@@ -212,7 +212,7 @@
     },
     {
       "path": "jarvis_core/services/autonomy.py",
-      "sha256": "a0745e5fa4a26bd44abf7558e22c43f2971b39d2019a834e86b35214f874ed28"
+      "sha256": "378275badd611856ff0445a3b897ea81b6d385b51f9e4a9eb27d849f37b5a52f"
     },
     {
       "path": "jarvis_core/services/av_devices.py",
@@ -824,7 +824,7 @@
     },
     {
       "path": "tests/test_direct_url_learning.py",
-      "sha256": "cb02b38dd9e816caa7f108e4c8cbe4fb0d54ff33e104d719589866188974fb9e"
+      "sha256": "d53b9911ce04bc94558fad86675f1892e6310f2882874fb5f96f010c4c58255a"
     },
     {
       "path": "tests/test_direct_url_learning_cli_contract.py",

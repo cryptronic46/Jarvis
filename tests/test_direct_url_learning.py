@@ -33,6 +33,18 @@ class DirectUrlLearningTests(unittest.TestCase):
             )
         )
 
+    def test_bare_official_documentation_urls_use_a_meaningful_topic(self):
+        cases = {
+            "https://docs.python.org/3/download.html?utm_source=chatgpt.com": "python",
+            "https://www.postgresql.org/docs/?utm_source=chatgpt.com": "postgresql",
+            "https://wstg.owasp.org/v4.2/": "owasp",
+        }
+        for url, expected in cases.items():
+            with self.subTest(url=url):
+                result = parse_direct_external_learning_order(f"Jarvis, aprende isto {url}")
+                self.assertIsNotNone(result)
+                self.assertEqual(result["topic"], expected)
+
     def test_same_site_children_are_bounded_to_root_path(self):
         urls = LocalResearchEngine._same_site_child_urls(
             "https://www.kali.org/tools/",
