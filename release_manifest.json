@@ -138,7 +138,7 @@
     },
     {
       "path": "jarvis_core/core/config.py",
-      "sha256": "eccfb2418a35f31dca18f417934fe981de114ff3d755d838887f4967a4c79ba1"
+      "sha256": "0cb4d30aacc3f80aaa9b8cbccb1e2894aa0c3e881798c700d7ed9e6b39842b4c"
     },
     {
       "path": "jarvis_core/core/conversation_policy.py",
@@ -1194,7 +1194,7 @@
     },
     {
       "path": "tests/test_settings_schema_migration.py",
-      "sha256": "acabcd57be5ba4743ba2a98b32304e1ac1dd9b4150d8024fdc28e608e7da5583"
+      "sha256": "02584eb4ad1a66dc590509e7e8dee87afe993ee40ca4a1f6c20cefec542b69bf"
     },
     {
       "path": "tests/test_setup_contract.py",

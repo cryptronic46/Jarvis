@@ -6,6 +6,18 @@ import json
 import os
 
 
+def _repair_utf8_mojibake(value: object) -> str | None:
+    """Repair common UTF-8-as-Latin-1 settings corruption safely."""
+    text = value if isinstance(value, str) else None
+    if not text or not any(marker in text for marker in ("Ã", "Â")):
+        return None
+    try:
+        repaired = text.encode("latin-1").decode("utf-8")
+    except UnicodeError:
+        return None
+    return repaired if repaired != text else None
+
+
 @dataclass(slots=True)
 class Settings:
     assistant_name: str = "JARVIS"
@@ -501,6 +513,13 @@ class Settings:
                     data[field_name] = new_value
                     voice_migrated.append(field_name)
 
+        encoding_migrated: list[str] = []
+        for field_name in ("wake_stt_initial_prompt", "wake_stt_hotwords"):
+            repaired = _repair_utf8_mojibake(data.get(field_name))
+            if repaired is not None:
+                data[field_name] = repaired
+                encoding_migrated.append(field_name)
+
         accuracy_migrated: list[str] = []
         # 0.23.4 webcam STT migration. Only exact shipped 0.23.3 defaults are
         # upgraded so OWNER-tuned values remain untouched.
@@ -671,7 +690,7 @@ class Settings:
                 data[field_name] = value
                 forced.append(field_name)
 
-        if had_utf8_bom or added or forced or voice_migrated or vision_migrated or resource_migrated or accuracy_migrated or speed_migrated or wake_hardening_migrated or voice_latency_migrated or voice_turn_migrated or storage_migrated or mic_binding_migrated or not p.exists():
+        if had_utf8_bom or added or forced or voice_migrated or vision_migrated or resource_migrated or encoding_migrated or accuracy_migrated or speed_migrated or wake_hardening_migrated or voice_latency_migrated or voice_turn_migrated or storage_migrated or mic_binding_migrated or not p.exists():
             p.write_text(
                 json.dumps(data, ensure_ascii=False, indent=2) + "\n",
                 encoding="utf-8",
@@ -690,6 +709,8 @@ class Settings:
             "vision_migrated_count": len(vision_migrated),
             "resource_migrated": resource_migrated,
             "resource_migrated_count": len(resource_migrated),
+            "encoding_migrated": encoding_migrated,
+            "encoding_migrated_count": len(encoding_migrated),
             "accuracy_migrated": accuracy_migrated,
             "accuracy_migrated_count": len(accuracy_migrated),
             "speed_migrated": speed_migrated,

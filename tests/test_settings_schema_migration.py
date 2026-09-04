@@ -85,6 +85,26 @@ class SettingsSchemaMigrationTests(unittest.TestCase):
             self.assertEqual(data["speech_rate"], "+2%")
             self.assertEqual(data["speech_pitch"], "+1Hz")
 
+    def test_mojibake_stt_guidance_is_repaired_without_touching_other_values(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "settings.json"
+            path.write_text(
+                json.dumps({
+                    "user_name": "Owner",
+                    "wake_stt_initial_prompt": "TranscriÃ§Ã£o fiel em portuguÃªs.",
+                    "wake_stt_hotwords": "Jarvis Ã¡udio grÃ¡fica",
+                }),
+                encoding="utf-8",
+            )
+            result = Settings.ensure_file_schema(path)
+            data = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(data["user_name"], "Owner")
+            self.assertEqual(
+                data["wake_stt_initial_prompt"],
+                "Transcrição fiel em português.",
+            )
+            self.assertEqual(data["wake_stt_hotwords"], "Jarvis áudio gráfica")
+            self.assertEqual(result["encoding_migrated_count"], 2)
     def test_current_release_settings_has_complete_schema(self):
         data = json.loads(
             Path("settings.json").read_text(
