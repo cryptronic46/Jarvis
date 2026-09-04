@@ -545,7 +545,12 @@ class FastCommandRouter:
         if learning_exact is not None:
             return learning_exact
 
-        local_paths_followup = any(phrase in normalized for phrase in (
+        local_pdf_lookup = (
+            "pdf" in normalized
+            and any(word in normalized.split() for word in ("ficheiro", "ficheiros", "arquivo", "arquivos"))
+            and any(word in normalized.split() for word in ("procura", "procurar", "encontra", "encontrar", "buscar"))
+        )
+        local_paths_followup = not local_pdf_lookup and any(phrase in normalized for phrase in (
             "mostra apenas os caminhos dos ficheiros que encontraste",
             "mostra so os caminhos dos ficheiros que encontraste",
             "apenas os caminhos dos ficheiros encontrados",
@@ -560,7 +565,7 @@ class FastCommandRouter:
             paths = [str(row.get("path") or "").strip() for row in self._last_local_file_results if str(row.get("path") or "").strip()]
             return self._hit("\n".join(paths), "local_file_followup_paths", "none")
 
-        open_first_followup = any(phrase in normalized for phrase in (
+        open_first_followup = not local_pdf_lookup and any(phrase in normalized for phrase in (
             "abre o primeiro", "abre o primeiro ficheiro", "abre o primeiro documento",
         ))
         if open_first_followup and not self._last_local_file_results:
@@ -616,15 +621,17 @@ class FastCommandRouter:
         # Explicit PDF file lookups use the safe local file index.  A PDF can
         # also be a book, but that is a different request: search_book_library
         # searches book passages, while this route searches file names/paths.
-        local_pdf_lookup = (
-            "pdf" in normalized
-            and any(word in normalized.split() for word in ("ficheiro", "ficheiros", "arquivo", "arquivos"))
-            and any(word in normalized.split() for word in ("procura", "procurar", "encontra", "encontrar", "buscar"))
-        )
         if local_pdf_lookup:
+            compound_show_paths = "mostra os caminhos" in normalized
+            compound_open_first = "abre o primeiro" in normalized
             name_match = re.search(r"\bcom\s+(.+?)\s+no\s+nome\b", normalized)
             query_match = re.search(r"\b(?:relacionad[oa]s?\s+com|sobre|de)\s+(.+)$", normalized)
             query = name_match.group(1).strip() if name_match else (query_match.group(1).strip() if query_match else "pdf")
+            query = re.split(
+                r"\s+(?:(?:e\s+)?mostra\s+os\s+caminhos|(?:e\s+)?abre\s+o\s+primeiro)\b",
+                query,
+                maxsplit=1,
+            )[0].strip(" .?!") or "pdf"
             data = self._tool("search_local_files", {"query": query, "limit": 20})
             rows = [
                 row for row in list(data.get("results") or [])
@@ -641,7 +648,18 @@ class FastCommandRouter:
             else:
                 names = [str(row.get("path") or row.get("name") or "").strip() for row in rows[:10]]
                 response = f"Encontrei {len(rows)} ficheiro(s) PDF local(is) relacionado(s) com {query}: " + "; ".join(names) + "."
-            return self._hit(response, "local_pdf_file_search", "search_local_files")
+                if compound_open_first:
+                    path = str(rows[0].get("path") or "")
+                    opened = self._tool("read_local_document", {"path": path, "max_chars": 20000})
+                    if opened.get("ok"):
+                        self._last_local_document = opened
+                        body = str(opened.get("text") or "").strip()
+                        response += f"\n\nAbri {opened.get('name') or path}.\n{body[:4000]}" + ("…" if len(body) > 4000 else "")
+                    else:
+                        response += "\n\n" + str(opened.get("message") or opened.get("error") or "Não consegui abrir o primeiro documento.")
+            route = "local_pdf_file_search_chain" if (compound_show_paths or compound_open_first) else "local_pdf_file_search"
+            tool = "search_local_files+read_local_document" if compound_open_first and rows else "search_local_files"
+            return self._hit(response, route, tool)
 
         create_plan_match = re.search(r"(?i)\b(?:cria|criar|faz|planeia)\s+(?:um\s+)?plano\s+(?:para|de)\s+(.+)$", text)
         if create_plan_match and "mostra" not in normalized:

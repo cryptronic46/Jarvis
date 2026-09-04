@@ -160,7 +160,7 @@
     },
     {
       "path": "jarvis_core/core/fast_router.py",
-      "sha256": "b85def832e15c052fbe3a089b4baae8b9be7a57c5f9bfe45e2f90d8e08a70081"
+      "sha256": "b9c5471e783c5be3c2a8a6346a9ebbd91cd7be118dc8608b3cac97067ac76704"
     },
     {
       "path": "jarvis_core/core/freshness.py",
@@ -852,7 +852,7 @@
     },
     {
       "path": "tests/test_fast_router.py",
-      "sha256": "fd6a88dd4ea2316ee09830c0f5ee44b9bcbe09485e098a983f40619f2df73537"
+      "sha256": "53bcd4ae87d67880c4b004b3598dbff3aa83f77dd47534689f3c31f0c71adadc"
     },
     {
       "path": "tests/test_file_index_security.py",

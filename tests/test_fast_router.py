@@ -70,6 +70,13 @@ class FakeTools:
                 {"name": "Python Notes.pdf", "path": "C:/Users/tiago/Documents/Python Notes.pdf", "extension": ".pdf"},
                 {"name": "python.py", "path": "C:/Users/tiago/Documents/python.py", "extension": ".py"},
             ]})
+        if name == "read_local_document":
+            return json.dumps({
+                "ok": True,
+                "name": "Python Notes.pdf",
+                "path": args["path"],
+                "text": "Conteúdo Python verificado.",
+            })
 
         return json.dumps({"ok": False, "error": "UNKNOWN"})
 
@@ -173,6 +180,20 @@ class FastRouterTests(unittest.TestCase):
         self.assertTrue(opened.handled)
         self.assertEqual(opened.route, "local_file_followup_open_first_empty")
         self.assertFalse(any(name == "open_application" for name, _ in self.tools.calls))
+
+    def test_pdf_search_show_paths_and_open_first_in_one_turn(self):
+        result = self.router.dispatch(
+            "Jarvis, procura ficheiros PDF relacionados com Python. mostra os caminhos e abre o primeiro"
+        )
+        self.assertTrue(result.handled)
+        self.assertEqual(result.route, "local_pdf_file_search_chain")
+        self.assertEqual(
+            [name for name, _ in self.tools.calls],
+            ["search_local_files", "read_local_document"],
+        )
+        self.assertEqual(self.tools.calls[0][1]["query"], "python")
+        self.assertIn("C:/Users/tiago/Documents/Python Notes.pdf", result.response)
+        self.assertIn("Conteúdo Python verificado.", result.response)
 
     def test_explicit_pdf_file_lookup_uses_local_index_not_book_library(self):
         result = self.router.dispatch("Jarvis, procura ficheiros PDF relacionados com Python.")
