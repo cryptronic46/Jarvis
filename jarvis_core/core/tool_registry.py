@@ -1179,6 +1179,16 @@ class ToolRegistry:
             )
             return [self._tools[name].schema for name in selected]
 
+        pure_code_request = (
+            has("codigo", "código", "python", "try except", "try/except", "funcao", "função")
+            and has("explica", "corrige", "mostra", "escreve", "gera", "adiciona", "altera", "testa")
+            and not has(
+                "no ficheiro", "num ficheiro", "abre o ficheiro", "le o ficheiro", "lê o ficheiro",
+                "guarda no ficheiro", "edita o ficheiro", "caminho do ficheiro", "ficheiro em c:", "ficheiro em g:",
+            )
+        )
+        if pure_code_request:
+            return []
         negative_network_constraint = bool(re.search(
             r"\bnao\s+(?:uses?|utilizes?|executes?|chames?|invoques?|corras?)\b.{0,60}\b(?:rede|network)\b",
             text,

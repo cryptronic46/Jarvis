@@ -7,6 +7,7 @@ import platform
 import re
 import shutil
 import subprocess
+import time
 from typing import Any
 
 import psutil
@@ -216,22 +217,32 @@ class AppRegistry:
         launch = item.get("launch") or {}
         kind = launch.get("type", "path")
 
+        existing = self.running(app_name)
+        if existing:
+            return {"ok": True, "app": app_id, "name": item.get("name", app_id), "already_running": True, "effect_verified": True, "running_processes": existing}
+
         try:
             if kind == "uri":
                 target = str(launch.get("target", ""))
                 os.startfile(target)
-                return {"ok": True, "app": app_id, "name": item.get("name", app_id), "launch_method": "uri", "target": target}
+                time.sleep(0.15)
+                running = self.running(app_name)
+                return {"ok": True, "app": app_id, "name": item.get("name", app_id), "launch_method": "uri", "target": target, "effect_verified": bool(running), "running_processes": running}
 
             target, method, attempts = self._discover_executable(item)
             if target:
                 os.startfile(target)
-                return {"ok": True, "app": app_id, "name": item.get("name", app_id), "launch_method": method, "target": target}
+                time.sleep(0.15)
+                running = self.running(app_name)
+                return {"ok": True, "app": app_id, "name": item.get("name", app_id), "launch_method": method, "target": target, "effect_verified": bool(running), "running_processes": running}
 
             if kind == "command":
                 command = str(launch.get("command", ""))
                 args = [self._expand(str(x)) for x in launch.get("args", [])]
                 subprocess.Popen([command, *args], creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-                return {"ok": True, "app": app_id, "name": item.get("name", app_id), "launch_method": "fixed_command"}
+                time.sleep(0.15)
+                running = self.running(app_name)
+                return {"ok": True, "app": app_id, "name": item.get("name", app_id), "launch_method": "fixed_command", "effect_verified": bool(running), "running_processes": running}
 
             return {
                 "ok": False,

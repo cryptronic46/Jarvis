@@ -937,6 +937,7 @@ def main() -> None:
 
     wake_holder = {"service": None}
     wake_followup_state = {"pending": False}
+    learning_followup_state = {"topic": "", "created_at": 0.0}
 
     def read_tool(name: str, arguments: dict | None = None):
         raw = tools.execute(name, arguments or {})
@@ -1854,8 +1855,12 @@ def main() -> None:
             print(
                 ("JARVIS > Permissão persistente de pesquisa pública ativa. " if using_standing else "JARVIS > Autorização direta reconhecida. ")
                 + f"Vou estudar o URL indicado sobre {topic} numa sessão limitada e segura. "
-                "Posso seguir apenas um número limitado de páginas filhas do mesmo site; "
-                "não executo downloads nem comandos. Esta autorização vale apenas para esta sessão."
+                + (
+                    "A permissão persistente mantém-se ativa; esta execução limita-se ao conteúdo público do pedido atual. "
+                    if using_standing
+                    else "Esta autorização direta vale apenas para esta execução. "
+                )
+                + "Não executo downloads arbitrários, comandos, ações autenticadas ou acesso a alvos locais/privados."
             )
             result = research_engine.research_url(
                 source_url,
@@ -1867,7 +1872,11 @@ def main() -> None:
             print(
                 ("JARVIS > Permissão persistente de pesquisa pública ativa. " if using_standing else "JARVIS > Autorização direta reconhecida. ")
                 + f"Vou fazer uma sessão de pesquisa sobre {topic}. "
-                + ("A pesquisa é apenas leitura pública; não executo downloads ou ações externas." if using_standing else "Esta autorização vale apenas para esta sessão.")
+                + (
+                    "A permissão persistente mantém-se ativa; a execução atual é apenas leitura pública."
+                    if using_standing
+                    else "Esta autorização direta vale apenas para esta execução de leitura pública."
+                )
             )
             result = research_engine.research(
                 query,
@@ -1880,9 +1889,10 @@ def main() -> None:
                 f"JARVIS > {result.text}"
             )
             if using_standing:
+                reason_code = str(result.error or "UNKNOWN")
                 print(
-                    "JARVIS > A permissão persistente continua válida; uma falha técnica de pesquisa "
-                    "não cria uma nova autorização pendente."
+                    "JARVIS > A permissão persistente continua válida. "
+                    f"Esta execução terminou sem aprendizagem (motivo: {reason_code}) e não criou uma nova autorização pendente."
                 )
             else:
                 queue_external_learning_retry(
@@ -1966,6 +1976,8 @@ def main() -> None:
                 "mas não consegui registá-lo localmente. Não usei a Internet."
             )
         else:
+            learning_followup_state["topic"] = topic
+            learning_followup_state["created_at"] = time()
             message = (
                 f"Senhor, registei {topic} como um objetivo de aprendizagem meu. "
                 "Não usei a Internet e uma permissão Web anterior não autoriza "
@@ -2230,11 +2242,34 @@ def main() -> None:
             direct_learning = parse_direct_external_learning_order(
                 text
             )
+            if (
+                direct_learning is None
+                and learning_followup_state.get("topic")
+                and time() - float(learning_followup_state.get("created_at") or 0.0) <= 300.0
+            ):
+                url_match = re.search(r"(?i)https?://[^\s<>\"']+", text)
+                url_only = bool(url_match) and not re.search(r"(?i)\b(?:aprende|estuda|pesquisa|consulta|visita|investiga)\b", text)
+                if url_only:
+                    source_url = url_match.group(0).rstrip(").,;!?]}")
+                    topic = str(learning_followup_state.get("topic") or "").strip()
+                    direct_learning = {
+                        "kind": "direct_external_learning",
+                        "topic": topic,
+                        "query": f"Estuda a fonte indicada para o objetivo de aprendizagem sobre {topic}.",
+                        "deep": True,
+                        "scope": "single_research_session",
+                        "direct_user_authority": True,
+                        "source_url": source_url,
+                        "followup_bound": True,
+                    }
             if direct_learning is not None:
                 execute_direct_external_learning(
                     direct_learning,
                     source_text=text,
                 )
+                if direct_learning.get("followup_bound"):
+                    learning_followup_state["topic"] = ""
+                    learning_followup_state["created_at"] = 0.0
                 continue
 
             learning_goal = parse_learning_goal(
@@ -2279,7 +2314,7 @@ def main() -> None:
                 print("JARVIS >", json.dumps(activity_trace.last(), ensure_ascii=False, indent=2))
                 continue
 
-            if lower in {"/quit","/exit","sair"}:
+            if lower in {"/quit", "/qquit", "/exit", "sair"}:
                 print("JARVIS > Núcleo desligado.")
                 break
             if lower == "/help":
@@ -4252,6 +4287,59 @@ def main() -> None:
                 )
                 continue
 
+            # Natural decisions also apply to the local SecurityPolicy queue.
+            # They are consumed only when the choice is unambiguous across both
+            # permission systems; a scoped sentence must name the pending action.
+            decision_text = lower.strip(" .!?")
+            local_approval = decision_text in {
+                "sim", "podes", "pode", "autoriza", "autorizo",
+                "sim podes", "sim pode", "sim autoriza", "sim autorizo",
+                "podes fazer", "pode fazer", "tens a minha autorização",
+                "tens a minha autorizacao", "tem a minha autorização",
+                "tem a minha autorizacao", "sim podes fazer",
+            } or bool(re.match(r"^(?:sim[,;]?\s*)?autorizo\b", decision_text))
+            local_denial = decision_text in {
+                "não", "nao", "agora não", "agora nao", "não autorizo",
+                "nao autorizo", "recuso", "nego",
+            } or bool(re.match(r"^(?:não|nao)\s+autorizo\b", decision_text))
+            security_pending_rows = security.pending()
+            autonomy_pending_rows = autonomy.pending()
+            if (local_approval or local_denial) and security_pending_rows:
+                total_pending = len(security_pending_rows) + len(autonomy_pending_rows)
+                if total_pending != 1:
+                    print("JARVIS > Tenho várias ações pendentes. Diga qual delas quer autorizar ou recusar.")
+                    continue
+                pending_action = security_pending_rows[0]
+                scoped_terms = {
+                    "close_application": ("fecha", "fechar", "encerra", "bloco de notas", "notepad"),
+                    "desktop_type_text": ("escreve", "escrever", "texto"),
+                    "desktop_hotkey": ("atalho", "tecla", "premir", "pressionar"),
+                    "desktop_click": ("clica", "clicar", "clique"),
+                    "lock_workstation": ("bloqueia", "tranca", "computador", "pc"),
+                }
+                extra_scope = decision_text not in {
+                    "sim", "podes", "pode", "autoriza", "autorizo",
+                    "sim podes", "sim pode", "sim autoriza", "sim autorizo",
+                    "podes fazer", "pode fazer", "não", "nao", "agora não",
+                    "agora nao", "não autorizo", "nao autorizo", "recuso", "nego",
+                }
+                expected = scoped_terms.get(pending_action.tool_name, ())
+                if extra_scope and expected and not any(term in decision_text for term in expected):
+                    print("JARVIS > A autorização não corresponde à ação local pendente; não executei nada.")
+                    continue
+                if local_denial:
+                    security.clear_pending(pending_action.token)
+                    print("JARVIS > A ação local pendente foi recusada e removida.")
+                    continue
+                result = tools.confirm(pending_action.token)
+                planner = skill_context.services.get("task_planner")
+                if planner is not None:
+                    try:
+                        planner.record_confirmation(pending_action.token, result)
+                    except Exception:
+                        pass
+                print("JARVIS >", json.dumps(result, ensure_ascii=False, indent=2))
+                continue
             # Natural OWNER approval without a token is accepted only when
             # exactly one action is pending, so "Autorizo" cannot accidentally
             # widen or select the wrong scope.
@@ -4291,7 +4379,7 @@ def main() -> None:
 
             # Natural typed/voice equivalents remain token-bound.
             auth_match = re.fullmatch(
-                r"(?:jarvis[ ,]+)?autorizo\\s+([a-f0-9]{6})[.!]?",
+                r"(?:jarvis[ ,]+)?autorizo\s+([a-f0-9]{6})[.!]?",
                 lower,
             )
             if auth_match:
@@ -4301,7 +4389,7 @@ def main() -> None:
                 continue
 
             deny_match = re.fullmatch(
-                r"(?:jarvis[ ,]+)?(?:nego|recuso|nao autorizo|não autorizo)\\s+([a-f0-9]{6})[.!]?",
+                r"(?:jarvis[ ,]+)?(?:nego|recuso|nao autorizo|não autorizo)\s+([a-f0-9]{6})[.!]?",
                 lower,
             )
             if deny_match:

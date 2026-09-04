@@ -8,6 +8,7 @@ persona; this layer only performs conservative pt-PT and presentation repairs
 before a response is shown or spoken.
 """
 
+import html
 import json
 import re
 from typing import Callable
@@ -21,6 +22,13 @@ _TOOL_CALL_RE = re.compile(r"<tool_call>.*?</tool_call>", re.IGNORECASE | re.DOT
 # list narrow: semantic rewriting belongs to the local brain, not to this guard.
 _PTPT_REPLACEMENTS: tuple[tuple[str, str], ...] = (
     (r"\balgo else\b", "mais alguma coisa"),
+    (r"\barquivos\b", "ficheiros"),
+    (r"\barquivo\b", "ficheiro"),
+    (r"\bgerenciador\b", "gestor"),
+    (r"\bretorna\b", "devolve"),
+    (r"\bestou tudo funcionando corretamente\b", "está tudo a funcionar corretamente"),
+    (r"\bestou funcionando\b", "estou a funcionar"),
+    (r"\boperando\b", "a funcionar"),
     (r"\bsistema operacional\b", "sistema operativo"),
     (r"\busuários\b", "utilizadores"),
     (r"\busuário\b", "utilizador"),
@@ -146,6 +154,11 @@ def refine_assistant_text(text: str, *, user_text: str = "") -> str:
         return value
 
     value, protected = _protect_code(value)
+
+    # Decode/rendering repair is applied only after code has been protected.
+    value = html.unescape(value)
+    value = value.replace(r"\*", "*").replace(r"\_", "_").replace(r"\`", "`")
+    value = re.sub(r"(?<!\*)\*{3,}(?!\*)", "**", value)
 
     for pattern, replacement in _PTPT_REPLACEMENTS:
         value = re.sub(

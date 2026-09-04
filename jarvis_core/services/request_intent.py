@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import re
 import unicodedata
 import json
@@ -311,6 +312,29 @@ def _ptpt_localize_plain_text(value: str) -> str:
     """Backward-compatible wrapper around the final language refiner."""
     return refine_assistant_text(value)
 
+
+def python_code_blocks_valid(text: str) -> bool:
+    """Validate every explicitly fenced Python block with Python's parser."""
+    blocks = re.findall(r"```(?:python|py)\s*\n(.*?)```", str(text or ""), flags=re.IGNORECASE | re.DOTALL)
+    if not blocks:
+        return False
+    for block in blocks:
+        candidate = block.replace("\\_", "_")
+        try:
+            ast.parse(candidate)
+        except (SyntaxError, ValueError, TypeError):
+            return False
+    return True
+
+
+def python_code_response_needs_repair(user_text: str, answer: str) -> bool:
+    normalized_user = _norm(user_text)
+    explicit_code = (
+        ("python" in normalized_user or "codigo" in normalized_user)
+        and any(marker in normalized_user for marker in ("mostra", "gera", "corrige", "escreve", "codigo completo", "bloco"))
+    )
+    has_python_fence = bool(re.search(r"```(?:python|py)\b", str(answer or ""), flags=re.IGNORECASE))
+    return (explicit_code or has_python_fence) and not python_code_blocks_valid(answer)
 
 def sanitize_assistant_text(text: str, *, user_text: str = "") -> str:
     """Apply output policy and conservative European-Portuguese localization."""

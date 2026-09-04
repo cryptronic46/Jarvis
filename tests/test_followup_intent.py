@@ -27,6 +27,14 @@ class FollowupIntentTests(unittest.TestCase):
         self.assertIn("perform the action now", result.contract)
         self.assertIn("Do not jump to an older topic", result.contract)
 
+    def test_provenance_questions_are_never_accept_previous(self):
+        row = self._row("O que aprendeste sobre TCP?", "Aprendi TCP a partir do RFC 9293.")
+        for text in ("de onde aprendeste isso?", "de onde aprendeste isso?~", "qual era a fonte?", "onde viste isso?"):
+            with self.subTest(text=text):
+                result = resolve_followup(text, [row])
+                self.assertTrue(result.resolved)
+                self.assertEqual(result.kind, "PROVENANCE_PREVIOUS")
+                self.assertNotEqual(result.kind, "ACCEPT_PREVIOUS")
     def test_plain_yes_resolves_only_against_immediate_offer(self):
         row = self._row("Queres detalhes?", "Posso mostrar os detalhes. Queres que eu continue?")
         result = resolve_followup("Sim", [row])

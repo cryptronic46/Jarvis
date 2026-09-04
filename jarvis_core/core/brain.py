@@ -1788,6 +1788,37 @@ class JarvisBrain:
             self.events.emit("CONVERSATION_RECALL_ANSWER_REPAIR_FAILED", error=f"{type(exc).__name__}: {exc}")
         return deterministic_recall_answer(result)
 
+    def _repair_python_code_answer(
+        self, *, user_text: str, draft: str, plan: PerformancePlan
+    ) -> str:
+        if not python_code_response_needs_repair(user_text, draft):
+            return str(draft or "")
+        self.events.emit("PYTHON_CODE_REPAIR_STARTED")
+        try:
+            response = self.client.chat(
+                model=self.settings.model,
+                messages=[
+                    {"role": "system", "content": (
+                        "És a JARVIS. Repara a resposta para conter código Python sintaticamente válido. "
+                        "Preserva a intenção do OWNER, usa quatro espaços por nível, não escapes underscores, "
+                        "e coloca o programa completo num único bloco ```python. Não acrescentes explicações "
+                        "quando o pedido exigir apenas código."
+                    )},
+                    {"role": "user", "content": f"PEDIDO:\n{user_text}\n\nRASCUNHO INVÁLIDO:\n{draft}"},
+                ],
+                think=False,
+                keep_alive=plan.keep_alive,
+                options={"num_ctx": min(int(plan.num_ctx), 4096), "num_predict": 900, "temperature": 0.05},
+            )
+            self.mark_model_loaded(self.settings.model)
+            repaired = sanitize_assistant_text(getattr(response.message, "content", "") or "", user_text=user_text)
+            if repaired and not python_code_response_needs_repair(user_text, repaired):
+                self.events.emit("PYTHON_CODE_REPAIR_FINISHED", ok=True)
+                return repaired
+        except Exception as exc:
+            self.events.emit("PYTHON_CODE_REPAIR_FAILED", error=f"{type(exc).__name__}: {exc}")
+        self.events.emit("PYTHON_CODE_REPAIR_FINISHED", ok=False)
+        return "Não consegui gerar um bloco Python sintaticamente válido; não vou apresentar código inválido como executável."
     @staticmethod
     def _compact_tool_result(tool_name: str, raw: str, max_chars: int = 4200) -> str:
         """Bound tool output before it enters the 8k local-model context."""
@@ -2184,6 +2215,7 @@ class JarvisBrain:
                         content,
                         user_text=user_text,
                     )
+                    content = self._repair_python_code_answer(user_text=user_text, draft=content, plan=plan)
                     content = self._ground_book_answer(
                         content,
                         book_retrieval,
@@ -2344,6 +2376,7 @@ class JarvisBrain:
                         options={"num_ctx": int(plan.num_ctx), "num_predict": model_num_predict, "temperature": self.settings.llm_temperature},
                     )
                     content = sanitize_assistant_text(getattr(final_response.message, "content", "") or "", user_text=user_text).strip()
+                    content = self._repair_python_code_answer(user_text=user_text, draft=content, plan=plan)
                     content = self._ground_book_answer(content, book_retrieval)
                     if content:
                         self.messages.append({"role": "assistant", "content": content})

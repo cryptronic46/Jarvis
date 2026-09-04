@@ -26,6 +26,22 @@ class ResearchRelevanceGuardTests(unittest.TestCase):
     def make_engine(self):
         return LocalResearchEngine(Settings(), DummyEvents(), DummyBrain())
 
+    def test_direct_json_source_is_parsed_as_bounded_evidence(self):
+        engine = self.make_engine()
+        engine._get = lambda *args, **kwargs: (b'{"vulnerabilities":[{"cveID":"CVE-2026-0001"}]}', "application/json", "https://example.test/feed.json")
+        source, links = engine._fetch_with_links(ResearchSource(title="Feed", url="https://example.test/feed.json"), max_chars=200)
+        self.assertIn("CVE-2026-0001", source.text)
+        self.assertEqual(links, [])
+
+    def test_remote_pdf_extension_is_accepted_with_generic_mime(self):
+        from io import BytesIO
+        from pypdf import PdfWriter
+        stream = BytesIO(); writer = PdfWriter(); writer.add_blank_page(width=100, height=100); writer.write(stream)
+        engine = self.make_engine()
+        engine._get = lambda *args, **kwargs: (stream.getvalue(), "application/octet-stream", "https://example.test/guide.pdf")
+        source, links = engine._fetch_with_links(ResearchSource(title="Guide", url="https://example.test/guide.pdf"), max_chars=200)
+        self.assertEqual(source.url, "https://example.test/guide.pdf")
+        self.assertEqual(links, [])
     def test_cybersecurity_spelling_variants_share_one_anchor(self):
         engine = self.make_engine()
         for text in (

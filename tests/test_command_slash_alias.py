@@ -30,5 +30,9 @@ class CommandSlashAliasTests(unittest.TestCase):
         self.assertTrue(found_rewrite)
 
 
+    def test_qquit_typo_is_a_safe_quit_alias(self):
+        source = Path("jarvis_core/cli.py").read_text(encoding="utf-8")
+        self.assertIn('"/qquit"', source)
+
 if __name__ == "__main__":
     unittest.main()

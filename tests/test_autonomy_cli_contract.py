@@ -51,5 +51,13 @@ class AutonomyCliContractTests(unittest.TestCase):
         )
 
 
+    def test_natural_local_decisions_consume_only_unambiguous_security_pending(self):
+        text = Path("jarvis_core/cli.py").read_text(encoding="utf-8")
+        self.assertIn("security_pending_rows = security.pending()", text)
+        self.assertIn("total_pending != 1", text)
+        self.assertIn("result = tools.confirm(pending_action.token)", text)
+        self.assertIn("security.clear_pending(pending_action.token)", text)
+        self.assertIn("A autorização não corresponde à ação local pendente", text)
+
 if __name__ == "__main__":
     unittest.main()

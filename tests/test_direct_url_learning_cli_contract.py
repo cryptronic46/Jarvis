@@ -19,7 +19,7 @@ class DirectUrlLearningCliContractTests(unittest.TestCase):
         block = self.text[start:end]
         self.assertIn("source_url", block)
         self.assertIn("research_engine.research_url(", block)
-        self.assertIn("não executo downloads nem comandos", block)
+        self.assertIn("Não executo downloads arbitrários, comandos", block)
 
 
 if __name__ == "__main__":

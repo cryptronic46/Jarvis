@@ -20,6 +20,12 @@ class DirectLearningExecutionContractTests(unittest.TestCase):
         self.assertIn('"remaining_uses": 0', block)
         self.assertNotIn('state["grants"].append', block)
 
+    def test_isolated_url_can_bind_only_to_explicit_recent_learning_goal(self):
+        self.assertIn('learning_followup_state = {"topic": "", "created_at": 0.0}', self.cli)
+        self.assertIn('learning_followup_state["topic"] = topic', self.cli)
+        self.assertIn('<= 300.0', self.cli)
+        self.assertIn('"followup_bound": True', self.cli)
+        self.assertIn('learning_followup_state["topic"] = ""', self.cli)
     def test_direct_learning_runs_direct_web_local_synthesis_and_stores_result(self):
         start = self.cli.index("def execute_direct_external_learning(")
         end = self.cli.index("def request_external_learning_for_goal(", start)
@@ -27,7 +33,7 @@ class DirectLearningExecutionContractTests(unittest.TestCase):
         self.assertIn("research_engine.research(", block)
         self.assertIn("authorized_learning().add(", block)
         self.assertIn('source_type="authorized_direct_web_local_model_summary_v2"', block)
-        self.assertIn("Esta autorização vale apenas para esta sessão", block)
+        self.assertIn("Esta autorização direta vale apenas para esta execução", block)
         self.assertNotIn("cloud_brain.ask(", block)
 
 

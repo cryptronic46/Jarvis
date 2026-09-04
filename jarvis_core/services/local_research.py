@@ -8,6 +8,7 @@ from typing import Any
 from urllib.parse import parse_qs, quote, quote_plus, unquote, urljoin, urlparse
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 from urllib.error import HTTPError, URLError
+from io import BytesIO
 import json
 import re
 import socket
@@ -755,21 +756,45 @@ class LocalResearchEngine:
             max_bytes=int(getattr(self.settings, "local_research_fetch_max_bytes", 524288)),
             timeout=float(getattr(self.settings, "local_research_timeout_seconds", 8.0)),
         )
-        allowed = ("text/", "application/xhtml+xml", "application/xml")
-        if content_type and not content_type.startswith(allowed):
+        allowed = ("text/", "application/xhtml+xml", "application/xml", "application/json", "application/pdf")
+        if content_type and not content_type.startswith(allowed) and not final_url.casefold().endswith(".pdf"):
             raise ValueError("NON_TEXT_CONTENT_BLOCKED")
-        decoded = raw.decode("utf-8", errors="replace")
         links: list[str] = []
         char_limit = int(max_chars or getattr(self.settings, "local_research_source_max_chars", 5000))
-        if "html" in content_type or "<html" in decoded[:500].lower():
-            parser = _ReadableHTML()
-            parser.feed(decoded)
-            text = parser.text(char_limit)
-            title = parser.title or source.title
-            links = [urljoin(final_url, href) for href in parser.links]
+        if "pdf" in content_type or final_url.casefold().endswith(".pdf"):
+            try:
+                from pypdf import PdfReader
+                chunks: list[str] = []
+                total = 0
+                for page in PdfReader(BytesIO(raw)).pages:
+                    page_text = str(page.extract_text() or "").strip()
+                    if page_text:
+                        chunks.append(page_text)
+                        total += len(page_text)
+                    if total >= char_limit:
+                        break
+                text = "\n".join(chunks)[:char_limit]
+                title = source.title
+            except Exception as exc:
+                raise ValueError(f"PDF_PARSE_FAILED:{type(exc).__name__}") from exc
         else:
-            text = re.sub(r"\s+", " ", decoded).strip()[:char_limit]
-            title = source.title
+            decoded = raw.decode("utf-8", errors="replace")
+            if "json" in content_type:
+                try:
+                    payload = json.loads(decoded)
+                    text = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))[:char_limit]
+                    title = source.title
+                except json.JSONDecodeError as exc:
+                    raise ValueError("JSON_PARSE_FAILED") from exc
+            elif "html" in content_type or "<html" in decoded[:500].lower():
+                parser = _ReadableHTML()
+                parser.feed(decoded)
+                text = parser.text(char_limit)
+                title = parser.title or source.title
+                links = [urljoin(final_url, href) for href in parser.links]
+            else:
+                text = re.sub(r"\s+", " ", decoded).strip()[:char_limit]
+                title = source.title
         return (
             ResearchSource(
                 title=title[:300],
@@ -868,13 +893,18 @@ class LocalResearchEngine:
                 max_chars=root_page_chars,
             )
         except Exception as exc:
+            status = int(exc.code) if isinstance(exc, HTTPError) else None
             return ResearchAnswer(
                 ok=False,
-                text=f"Não consegui ler a página autorizada em segurança: {type(exc).__name__}.",
+                text=(
+                    f"Não consegui ler a página autorizada: o servidor respondeu HTTP {status}."
+                    if status is not None
+                    else f"Não consegui ler a página autorizada em segurança: {type(exc).__name__}."
+                ),
                 elapsed_ms=round((monotonic() - started) * 1000),
                 query=query,
                 error="DIRECT_URL_FETCH_FAILED",
-                message=type(exc).__name__,
+                message=(f"HTTP status={status}; retryable={status in {429, 500, 502, 503, 504}}" if status is not None else type(exc).__name__),
             )
 
         if not self._owner_selected_root_acceptable(topic, root_source, safe_root):

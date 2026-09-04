@@ -132,7 +132,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "7b45d9730febe36857104b5833a07f0bdb39d1e35bed67b3d0cb39d1a2b81d67"
+      "sha256": "2780fe5990afad6f2013112579da3a1e13fdbb67f8529e626995971c4d21a12f"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -140,7 +140,7 @@
     },
     {
       "path": "jarvis_core/core/brain.py",
-      "sha256": "a2fabb08fbb368c50b3fc70d1d5afd17bcf7f4490327279e983ed12e91383006"
+      "sha256": "43776d551c450e90a7b864e474f0ae15e33ff200ff965cd5a3565f1436f90493"
     },
     {
       "path": "jarvis_core/core/cloud_brain.py",
@@ -160,7 +160,7 @@
     },
     {
       "path": "jarvis_core/core/fast_router.py",
-      "sha256": "21ba8eca0b15d446addbd3fc7647285e3b763cf9ab76ac3c48bc40785ae334ec"
+      "sha256": "8eabb510d3228cef3dbf9c351987fb9d52f7ee475591db8452f8f9dd544ba7a4"
     },
     {
       "path": "jarvis_core/core/freshness.py",
@@ -184,7 +184,7 @@
     },
     {
       "path": "jarvis_core/core/tool_registry.py",
-      "sha256": "7e14721806ca5e7783a5f1ba123bbc68201622065b8ffe812ef6ec029e0ac66d"
+      "sha256": "c00a1f16012d979cc56b6670285d068b763047300698e35460d739a0f483d845"
     },
     {
       "path": "jarvis_core/security/__init__.py",
@@ -212,7 +212,7 @@
     },
     {
       "path": "jarvis_core/services/autonomy.py",
-      "sha256": "378275badd611856ff0445a3b897ea81b6d385b51f9e4a9eb27d849f37b5a52f"
+      "sha256": "3cfbebb25ae14babdf56ded4a0d310a416c849b0a9258a7e84759f9769135941"
     },
     {
       "path": "jarvis_core/services/av_devices.py",
@@ -252,7 +252,7 @@
     },
     {
       "path": "jarvis_core/services/followup_intent.py",
-      "sha256": "009c967e58fe545f040696eb261cd515962c1ba0ebbfe8fd01119005534f9eb8"
+      "sha256": "a39252d87d04bae863ed9df3642b427878cd3757536ea0ff4b0a9277379d11dc"
     },
     {
       "path": "jarvis_core/services/full_validation.py",
@@ -272,7 +272,7 @@
     },
     {
       "path": "jarvis_core/services/language_refinement.py",
-      "sha256": "da6030d916e5407c0ce514ca5c4f3d3f970de58143778b5b5825dd229b94799f"
+      "sha256": "5902a03b4dd407d5fab62a3b16ee8f7a440936efeeb71b32b24da2813abecafb"
     },
     {
       "path": "jarvis_core/services/learning_gap.py",
@@ -288,7 +288,7 @@
     },
     {
       "path": "jarvis_core/services/local_research.py",
-      "sha256": "1ab64642ad0186a64b4255d9f1071c2135780af22b6a44ad7eceb30e064ab343"
+      "sha256": "404d27a90ccafaa53fccd159e0a5a37f65cb729fdfaab4e3f9707abb1ebfe6de"
     },
     {
       "path": "jarvis_core/services/network_inventory.py",
@@ -324,7 +324,7 @@
     },
     {
       "path": "jarvis_core/services/request_intent.py",
-      "sha256": "1eecd862f7423cc3dc8da7a480b1c0ef273f4d1eb27fc2a21af05a55287e2ac0"
+      "sha256": "3aa617293e2ef14689785ef85ab5314bd6808da97089b44308b3fbd78f531e70"
     },
     {
       "path": "jarvis_core/services/response_completion.py",
@@ -496,7 +496,7 @@
     },
     {
       "path": "jarvis_core/tools/windows_actions.py",
-      "sha256": "aaebb15cbfbf11631bf5b4cb450c59c6fe9dff2cb179907330689fb24d6f761a"
+      "sha256": "a49cca65eaa405a281d3bb40c2e3125728bad08a0ca223c75041973285c83586"
     },
     {
       "path": "migrate_state.ps1",
@@ -588,11 +588,11 @@
     },
     {
       "path": "tests/test_0278_acceptance_hotfix.py",
-      "sha256": "a194af9f490fe70235420fafddf8443ea49efe90829f820a6a25f23e9d0b7aa3"
+      "sha256": "6460e36279ae2a43c08c16aeb19953c584e3f994520e6b9ff83813455967a73f"
     },
     {
       "path": "tests/test_0278_acceptance_hotfix_v10.py",
-      "sha256": "a5e7b3b5b331c7c9ea350e354e18764d6d41e599ac6a85830a3dd501f0590879"
+      "sha256": "71a49083643120dba22623596207f34e68c084f954b2660cac6c193e3706ed67"
     },
     {
       "path": "tests/test_0278_acceptance_hotfix_v3.py",
@@ -624,7 +624,7 @@
     },
     {
       "path": "tests/test_0278_language_refinement_hotfix.py",
-      "sha256": "2ded5e383f981c62749fd8b07057a61922a9346e0ff8f15a5140a733e7885287"
+      "sha256": "568f149e8d13f4374b82f013f7aef67ccbffb2ba846b0eb3f680278a7be90a0e"
     },
     {
       "path": "tests/test_0278_performance_autonomy_hotfix_v11.py",
@@ -652,7 +652,7 @@
     },
     {
       "path": "tests/test_apps.py",
-      "sha256": "25ae3894d29f58a5e4a73d0e21d08dc7140830942b751b71b1a3236ceaa6fadc"
+      "sha256": "a2196d47fefca0ec839bbffe736f4cc0b36635107fe30ece9f61f1354fcb8772"
     },
     {
       "path": "tests/test_audio_contract.py",
@@ -664,7 +664,7 @@
     },
     {
       "path": "tests/test_authorized_learning_retrieval.py",
-      "sha256": "e560f7ac2ff586634254b7a512d2e9d8b8745d6539e3c7fec96ed534dae6c9ee"
+      "sha256": "1e6b1635e768f389f4495c9ff7b747da00af72d1332071377662ec6f2eab23c0"
     },
     {
       "path": "tests/test_autonomy_authority_contract.py",
@@ -672,7 +672,7 @@
     },
     {
       "path": "tests/test_autonomy_cli_contract.py",
-      "sha256": "e5e07a2f0279f92e33de394ca859cfab8551ed8c36cc6ed88cd45cbd873d3f34"
+      "sha256": "91bbc6abbd69915503639a5c881489fc556f3f66af9c78bb0eaba2d370e1d195"
     },
     {
       "path": "tests/test_autonomy_guardian.py",
@@ -720,7 +720,7 @@
     },
     {
       "path": "tests/test_command_slash_alias.py",
-      "sha256": "f2b90b5ecff654784ccc9d435504b0a3d8ce426152644793a9c4affb07df8d90"
+      "sha256": "aa09307443aaba3a1908a56d3bd1feeed37d0d9426beb1fa5cbc0882b2451c1a"
     },
     {
       "path": "tests/test_companion_brain_planner.py",
@@ -820,7 +820,7 @@
     },
     {
       "path": "tests/test_direct_learning_execution_contract.py",
-      "sha256": "8edaa0d9a9f30ea22807a3dbee4553e8f94b838de7b6e814a3ad06d66f0f81a0"
+      "sha256": "aa2514779f40de76b6802750c3a2e3b9181de233de33d9566a1259e93ecbcdbe"
     },
     {
       "path": "tests/test_direct_url_learning.py",
@@ -828,7 +828,7 @@
     },
     {
       "path": "tests/test_direct_url_learning_cli_contract.py",
-      "sha256": "a84dfc4a7c48faed7f7f8b57564ed38174150a6fb0a8fdcb7b2358fc5c6cc970"
+      "sha256": "6dc6378a7ef7f80f389baa50e3c41bb030f377011065f93d2356536e3c3fd950"
     },
     {
       "path": "tests/test_environment_tools.py",
@@ -860,7 +860,7 @@
     },
     {
       "path": "tests/test_followup_intent.py",
-      "sha256": "cb2718315dbbd414da074a8eee819aa4a31156cf41d8a67af4acceb736448951"
+      "sha256": "0174803e3e949ea07494f8a53434b7a24ca839013e64190eab03399dae7bd7ca"
     },
     {
       "path": "tests/test_followup_tool_routing_contract.py",
@@ -1128,7 +1128,7 @@
     },
     {
       "path": "tests/test_research_relevance_guard.py",
-      "sha256": "9c1546d18ea1342d8a10f0d968d9329998a68118be8279d34c4ff0de1ad7c436"
+      "sha256": "557e05d02ee9a050a6ed9f9e1eaa49325a87f15e4b8d871913f068f817986a6a"
     },
     {
       "path": "tests/test_response_completion.py",

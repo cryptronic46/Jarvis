@@ -288,5 +288,124 @@ class HotfixV10Tests(unittest.TestCase):
         self.assertTrue(content[0]['image_url']['url'].startswith('data:image/unknown;base64,'))
 
 
+    def test_hard_audit_numbered_prefix_and_foreground_are_deterministic(self):
+        tools=FakeTools({"desktop_observe":{"ok":True,"foreground":{"title":"Windows PowerShell"}}})
+        router=FastCommandRouter(Events(),tools,FakeApps([]))
+        result=router.dispatch("21. Jarvis, qual é a janela em primeiro plano?")
+        self.assertEqual(result.route,"desktop_foreground")
+        self.assertEqual(tools.calls,[("desktop_observe",{})])
+        self.assertIn("Windows PowerShell",result.response)
+
+    def test_hard_audit_block_app_never_opens_it(self):
+        tools=FakeTools({"open_application":{"ok":True}})
+        apps=FakeApps([{"id":"notepad","name":"Bloco de Notas","aliases":["notepad","bloco de notas"]}])
+        router=FastCommandRouter(Events(),tools,apps)
+        result=router.dispatch("Jarvis, bloqueia o Bloco de Notas.")
+        self.assertEqual(result.route,"app_block_denied")
+        self.assertFalse(tools.calls)
+        self.assertIn("não abri",result.response)
+
+    def test_hard_audit_combined_telemetry_uses_one_complete_sample(self):
+        tools=FakeTools({"get_pre_request_telemetry":{"cpu_percent":10,"memory_percent":40,"gpu":[{"utilization_percent":7,"temperature_c":42}]}})
+        router=FastCommandRouter(Events(),tools,FakeApps([]))
+        result=router.dispatch("Jarvis, diz-me CPU, RAM e GPU agora.")
+        self.assertEqual(result.route,"combined_telemetry")
+        self.assertEqual(tools.calls,[("get_pre_request_telemetry",{})])
+        self.assertIn("C P U",result.response); self.assertIn("RAM",result.response); self.assertIn("GPU",result.response)
+
+    def test_hard_audit_process_queries_use_process_evidence(self):
+        rows=[{"pid":44,"name":"calc.exe","memory_mib":88.5,"cpu_percent":0}]
+        tools=FakeTools({"list_top_processes":rows})
+        router=FastCommandRouter(Events(),tools,FakeApps([]))
+        top=router.dispatch("Qual é o processo que consome mais memória?")
+        self.assertEqual(top.route,"top_memory_process"); self.assertIn("calc.exe",top.response)
+        running=router.dispatch("Diz-me apenas se o calc.exe está a correr.")
+        self.assertEqual(running.route,"process_running_query"); self.assertIn("Sim",running.response)
+
+    def test_hard_audit_cyber_status_and_target_use_real_tools(self):
+        tools=FakeTools({
+            "get_cyber_range_status":{"ok":True,"enabled":True,"lab_scope_count":0},
+            "classify_cyber_target":{"ok":True,"scope":"OWNER_MACHINE","authorized":False,"reason":"defensive only"},
+        })
+        router=FastCommandRouter(Events(),tools,FakeApps([]))
+        status=router.dispatch("Jarvis, qual é o estado do Cyber Range Guard?")
+        self.assertEqual(status.route,"cyber_range_status"); self.assertIn("não está configurado",status.response)
+        target=router.dispatch("Jarvis, classifica o alvo 127.0.0.1.")
+        self.assertEqual(target.route,"cyber_target_classification"); self.assertIn("OWNER_MACHINE",target.response)
+
+    def test_hard_audit_local_file_results_survive_followups_and_name_filter(self):
+        search={"ok":True,"results":[
+            {"name":"Guia Português.pdf","path":"C:\\Docs\\Guia Português.pdf","extension":".pdf","modified":"2026-09-04"},
+            {"name":"Python.pdf","path":"C:\\Docs\\Python.pdf","extension":".pdf","modified":"2026-09-03"},
+        ]}
+        tools=FakeTools({"search_local_files":search,"read_local_document":{"ok":True,"name":"Guia Português.pdf","path":"C:\\Docs\\Guia Português.pdf","text":"Primeiro parágrafo."}})
+        router=FastCommandRouter(Events(),tools,FakeApps([]))
+        found=router.dispatch("Jarvis, procura ficheiros PDF com Português no nome.")
+        self.assertEqual(found.route,"local_pdf_file_search")
+        self.assertIn("Guia Português.pdf",found.response); self.assertNotIn("Python.pdf",found.response)
+        paths=router.dispatch("Mostra apenas os caminhos dos ficheiros que encontraste.")
+        self.assertEqual(paths.route,"local_file_followup_paths"); self.assertEqual(paths.response,"C:\\Docs\\Guia Português.pdf")
+        read=router.dispatch("Lê o primeiro documento da lista.")
+        self.assertEqual(read.route,"local_file_followup_read_first"); self.assertIn("Primeiro parágrafo",read.response)
+        self.assertEqual(tools.calls[-1][0],"read_local_document")
+
+    def test_hard_audit_whole_computer_search_never_routes_to_system_status(self):
+        tools=FakeTools({"search_local_files":{"ok":True,"results":[]}})
+        router=FastCommandRouter(Events(),tools,FakeApps([]))
+        result=router.dispatch("Jarvis, procura Português no computador inteiro.")
+        self.assertEqual(result.route,"local_file_computer_search")
+        self.assertEqual(tools.calls,[('search_local_files',{'query':'Português','limit':50})])
+
+    def test_hard_audit_planner_keeps_real_id_and_never_fakes_mutation(self):
+        plan={"id":"abc123real","goal":"estudar redes","status":"planned","steps":[
+            {"id":1,"tool":"step_one","purpose":"Estudar TCP","status":"pending"},
+            {"id":2,"tool":"step_two","purpose":"Rever DNS","status":"pending"},
+        ]}
+        tools=FakeTools({
+            "create_task_plan":{"ok":True,"plan":plan},
+            "get_task_plan":{"ok":True,"plan":plan},
+            "execute_task_plan":{"ok":True,"plan":dict(plan,status="paused"),"executed":1},
+            "adapt_task_plan":{"ok":False,"error":"NO_FAILED_STEP_TO_ADAPT"},
+        })
+        router=FastCommandRouter(Events(),tools,FakeApps([]))
+        created=router.dispatch("Jarvis, cria um plano para estudar redes.")
+        self.assertIn("abc123real",created.response)
+        second=router.dispatch("Qual é o segundo passo do plano?")
+        self.assertIn("Rever DNS",second.response)
+        executed=router.dispatch("1. Jarvis, executa apenas o primeiro passo do plano.")
+        self.assertEqual(executed.route,"task_plan_execute_one")
+        self.assertEqual(tools.calls[-1],("execute_task_plan",{"plan_id":"abc123real","max_steps":1}))
+        unsupported=router.dispatch("Jarvis, altera apenas o segundo passo para outra coisa.")
+        self.assertEqual(unsupported.route,"task_plan_unsupported_mutation"); self.assertIn("Não alterei",unsupported.response)
+        adapted=router.dispatch("Jarvis, adapta o plano sem apagar o objetivo principal.")
+        self.assertIn("NO_FAILED_STEP_TO_ADAPT",adapted.response)
+
+    def test_hard_audit_learning_provenance_followup_binds_previous_answer(self):
+        rows={"ok":True,"results":[{"topic":"TCP","summary":"TCP fornece transporte fiável e ordenado.","sources":[{"url":"https://www.rfc-editor.org/rfc/rfc9293.html"}],"retrieval_match":{"score":13}}]}
+        tools=FakeTools({"search_authorized_learning":rows})
+        router=FastCommandRouter(Events(),tools,FakeApps([]))
+        first=router.dispatch("Jarvis, o que aprendeste anteriormente sobre TCP?")
+        self.assertIn("TCP",first.response)
+        follow=router.dispatch("Jarvis, de onde aprendeste isso?~")
+        self.assertEqual(follow.route,"learning_previous_answer_provenance")
+        self.assertIn("rfc9293",follow.response)
+        self.assertEqual(len(tools.calls),1)
+
+    def test_hard_audit_focus_window_executes_real_tool(self):
+        tools=FakeTools({"desktop_focus_window":{"ok":True,"title":"Windows PowerShell"}})
+        router=FastCommandRouter(Events(),tools,FakeApps([]))
+        result=router.dispatch("Jarvis, volta à janela do PowerShell.")
+        self.assertEqual(result.route,"desktop_focus_window")
+        self.assertEqual(tools.calls,[("desktop_focus_window",{"title":"PowerShell"})])
+        self.assertIn("primeiro plano",result.response)
+
+    def test_hard_audit_create_file_fails_closed_instead_of_reading(self):
+        tools=FakeTools({"build_local_file_index":{"ok":True},"read_local_document":{"ok":False}})
+        router=FastCommandRouter(Events(),tools,FakeApps([]))
+        result=router.dispatch("Jarvis, cria o ficheiro teste_jarvis.txt.")
+        self.assertEqual(result.route,"local_file_create_unsupported")
+        self.assertFalse(tools.calls)
+        self.assertIn("Não criei",result.response)
+
 if __name__ == '__main__':
     unittest.main()

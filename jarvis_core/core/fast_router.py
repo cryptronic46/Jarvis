@@ -132,6 +132,10 @@ class FastCommandRouter:
         self.events = events
         self.tools = tools
         self.apps = apps
+        self._last_local_file_results: list[dict[str, Any]] = []
+        self._last_local_document: dict[str, Any] | None = None
+        self._last_task_plan_id: str | None = None
+        self._last_learning_provenance: dict[str, Any] | None = None
 
     def _hit(self, response: str, route: str, tool: str) -> FastRouteResult:
         self.events.emit("FAST_PATH_HIT", route=route, tool=tool)
@@ -140,6 +144,17 @@ class FastCommandRouter:
     def _tool(self, name: str, args: dict[str, Any] | None = None) -> dict[str, Any]:
         return _parse_tool_result(self.tools.execute(name, args or {}))
 
+    @staticmethod
+    def _format_app_open_result(app_name: str, data: dict[str, Any]) -> str:
+        if not data.get("ok"):
+            return data.get("message") or f"Não consegui abrir {app_name}: {data.get('error', 'erro desconhecido')}."
+        if data.get("already_running"):
+            return f"{app_name} já estava em execução; não abri outra instância."
+        if "effect_verified" not in data:
+            return f"{app_name} aberto."
+        if data.get("effect_verified"):
+            return f"{app_name} aberto e confirmado em execução."
+        return f"Enviei o pedido para abrir {app_name}, mas ainda não consegui confirmar o processo."
     def _app_match(self, normalized: str, raw_text: str = ""):
         # Application names may contain semantic punctuation (Notepad++). Do not
         # collapse that punctuation and accidentally alias a different app.
@@ -435,6 +450,10 @@ class FastCommandRouter:
         return self._hit("\n".join(lines), "learning_exact_search", "search_authorized_learning")
 
     def dispatch(self, text: str, *, voice_origin: bool = False) -> FastRouteResult:
+        text = re.sub(
+            r"^\s*(?:\[\s*\d+\s*\]|(?:teste|test|t)\s*\d+|(?:quest[aã]o\s*)?\d+)\s*[\].:)\-]*\s*",
+            "", str(text or ""), flags=re.IGNORECASE,
+        )
         normalized = _normalize(text)
         if not normalized:
             return FastRouteResult(False)
@@ -526,6 +545,48 @@ class FastCommandRouter:
         if learning_exact is not None:
             return learning_exact
 
+        if self._last_local_file_results and any(phrase in normalized for phrase in (
+            "mostra apenas os caminhos dos ficheiros que encontraste",
+            "mostra so os caminhos dos ficheiros que encontraste",
+            "apenas os caminhos dos ficheiros encontrados",
+        )):
+            paths = [str(row.get("path") or "").strip() for row in self._last_local_file_results if str(row.get("path") or "").strip()]
+            return self._hit("\n".join(paths), "local_file_followup_paths", "none")
+
+        if self._last_local_file_results and any(phrase in normalized for phrase in (
+            "qual e o mais recente", "qual deles e o mais recente", "ficheiro mais recente",
+        )):
+            row = max(self._last_local_file_results, key=lambda item: str(item.get("modified") or ""))
+            return self._hit(f"O mais recente é {row.get('path') or row.get('name')}, modificado em {row.get('modified') or 'data não disponível'}.", "local_file_followup_recent", "none")
+
+        if self._last_local_file_results and any(phrase in normalized for phrase in (
+            "le o primeiro documento da lista", "le o primeiro ficheiro da lista",
+            "abre e le o primeiro documento", "ler o primeiro documento",
+        )):
+            path = str(self._last_local_file_results[0].get("path") or "")
+            data = self._tool("read_local_document", {"path": path, "max_chars": 20000})
+            if data.get("ok"):
+                self._last_local_document = data
+                body = str(data.get("text") or "").strip()
+                response = f"Li {data.get('name') or path}.\n{body[:4000]}" + ("…" if len(body) > 4000 else "")
+            else:
+                response = data.get("message") or data.get("error") or "Não consegui ler o primeiro documento da lista."
+            return self._hit(response, "local_file_followup_read_first", "read_local_document")
+
+        whole_computer_match = re.search(r"(?i)\bprocura\s+(.+?)\s+no\s+computador\s+inteiro\b", text)
+        if whole_computer_match:
+            query = whole_computer_match.group(1).strip(" .?!\"")
+            data = self._tool("search_local_files", {"query": query, "limit": 50})
+            rows = list(data.get("results") or []) if data.get("ok") else []
+            self._last_local_file_results = rows
+            paths = [str(row.get("path") or row.get("name") or "") for row in rows[:20]]
+            response = (f"Encontrei {len(rows)} ficheiro(s) relacionado(s) com {query}: " + "; ".join(paths) + ".") if rows else f"Não encontrei ficheiros locais relacionados com {query}."
+            return self._hit(response, "local_file_computer_search", "search_local_files")
+        if words.intersection({"cria", "criar", "crie"}) and words.intersection({"ficheiro", "arquivo"}):
+            return self._hit(
+                "Não criei nenhum ficheiro. Este Core não tem uma ferramenta de escrita local registada; por segurança, não vou fingir a criação nem transformar o pedido numa leitura.",
+                "local_file_create_unsupported", "none",
+            )
         # Explicit PDF file lookups use the safe local file index.  A PDF can
         # also be a book, but that is a different request: search_book_library
         # searches book passages, while this route searches file names/paths.
@@ -535,13 +596,18 @@ class FastCommandRouter:
             and any(word in normalized.split() for word in ("procura", "procurar", "encontra", "encontrar", "buscar"))
         )
         if local_pdf_lookup:
+            name_match = re.search(r"\bcom\s+(.+?)\s+no\s+nome\b", normalized)
             query_match = re.search(r"\b(?:relacionad[oa]s?\s+com|sobre|de)\s+(.+)$", normalized)
-            query = query_match.group(1).strip() if query_match else "pdf"
+            query = name_match.group(1).strip() if name_match else (query_match.group(1).strip() if query_match else "pdf")
             data = self._tool("search_local_files", {"query": query, "limit": 20})
             rows = [
                 row for row in list(data.get("results") or [])
                 if str(row.get("extension") or "").casefold() == ".pdf"
             ]
+            if name_match:
+                wanted = _normalize(query)
+                rows = [row for row in rows if wanted in _normalize(str(row.get("name") or row.get("path") or ""))]
+            self._last_local_file_results = rows
             if not data.get("ok"):
                 response = data.get("message") or "Não consegui consultar o índice local de ficheiros."
             elif not rows:
@@ -551,6 +617,60 @@ class FastCommandRouter:
                 response = f"Encontrei {len(rows)} ficheiro(s) PDF local(is) relacionado(s) com {query}: " + "; ".join(names) + "."
             return self._hit(response, "local_pdf_file_search", "search_local_files")
 
+        create_plan_match = re.search(r"(?i)\b(?:cria|criar|faz|planeia)\s+(?:um\s+)?plano\s+(?:para|de)\s+(.+)$", text)
+        if create_plan_match and "mostra" not in normalized:
+            goal = create_plan_match.group(1).strip(" .?!")
+            data = self._tool("create_task_plan", {"goal": goal})
+            plan = data.get("plan") or {}
+            if data.get("ok") and plan.get("id"):
+                self._last_task_plan_id = str(plan.get("id"))
+                steps = list(plan.get("steps") or [])
+                response = f"Plano {self._last_task_plan_id} criado com {len(steps)} passo(s) para: {plan.get('goal') or goal}."
+            else:
+                response = data.get("message") or data.get("error") or "Não consegui criar um plano válido."
+            return self._hit(response, "task_plan_create", "create_task_plan")
+
+        if self._last_task_plan_id and any(phrase in normalized for phrase in (
+            "mostra o plano atualizado completo", "mostra o plano completo", "mostra o plano",
+            "qual e o segundo passo do plano", "qual o segundo passo do plano",
+            "qual e agora o proximo passo pendente", "qual o proximo passo pendente",
+        )):
+            data = self._tool("get_task_plan", {"plan_id": self._last_task_plan_id})
+            plan = data.get("plan") or {}
+            steps = list(plan.get("steps") or [])
+            if not data.get("ok"):
+                response = data.get("message") or data.get("error") or "Não consegui ler o plano atual."
+            elif "segundo passo" in normalized:
+                response = (f"O segundo passo é: {steps[1].get('purpose') or steps[1].get('tool')}." if len(steps) >= 2 else "O plano atual não tem um segundo passo.")
+            elif "proximo passo" in normalized:
+                pending = next((row for row in steps if row.get("status") not in {"completed", "failed", "superseded"}), None)
+                response = (f"O próximo passo pendente é o {pending.get('id')}: {pending.get('purpose') or pending.get('tool')}." if pending else "Não há passos pendentes neste plano.")
+            else:
+                lines = [f"Plano {plan.get('id')} — {plan.get('goal')} [{plan.get('status')}]" ]
+                lines.extend(f"{row.get('id')}. {row.get('purpose') or row.get('tool')} [{row.get('status')}]" for row in steps)
+                response = "\n".join(lines)
+            return self._hit(response, "task_plan_read_current", "get_task_plan")
+
+        if self._last_task_plan_id and any(phrase in normalized for phrase in (
+            "executa apenas o primeiro passo do plano", "executa o primeiro passo do plano",
+        )):
+            data = self._tool("execute_task_plan", {"plan_id": self._last_task_plan_id, "max_steps": 1})
+            plan = data.get("plan") or {}
+            response = (f"Executei um passo real do plano {self._last_task_plan_id}; estado atual: {plan.get('status')}." if data.get("ok") else data.get("message") or data.get("error") or "Não consegui executar o primeiro passo.")
+            return self._hit(response, "task_plan_execute_one", "execute_task_plan")
+
+        if self._last_task_plan_id and any(phrase in normalized for phrase in (
+            "altera apenas o segundo passo", "marca o primeiro passo como concluido", "marca o primeiro passo concluido",
+        )):
+            return self._hit(
+                "Não alterei o plano. O Planner atual não expõe uma operação segura para editar ou marcar manualmente um passo; só regista conclusão após execução real.",
+                "task_plan_unsupported_mutation", "none",
+            )
+
+        if self._last_task_plan_id and "adapta o plano" in normalized:
+            data = self._tool("adapt_task_plan", {"plan_id": self._last_task_plan_id})
+            response = (f"O plano {self._last_task_plan_id} foi adaptado com base em evidência real de falha." if data.get("ok") else f"Não adaptei o plano: {data.get('error') or data.get('message') or 'falha desconhecida'}.")
+            return self._hit(response, "task_plan_adapt_current", "adapt_task_plan")
         if "confianca" in normalized and any(marker in normalized for marker in (
             "registo", "registro", "aprendizagem", "fonte", "informacao aprendida", "relevancia",
         )):
@@ -882,6 +1002,20 @@ class FastCommandRouter:
                 response = f"{partner} é a tua mulher; a relação guardada é {relation}."
                 return self._hit(response, "memory_partner_forward", "recall_memory_graph")
 
+        if any(phrase in normalized for phrase in (
+            "de onde aprendeste isso", "qual e a fonte disso", "qual e a fonte",
+            "onde viste isso", "onde aprendeste isso",
+        )):
+            provenance = self._last_learning_provenance or {}
+            sources = list(provenance.get("sources") or [])
+            urls = [str(row.get("url") or "").strip() for row in sources if isinstance(row, dict) and str(row.get("url") or "").strip()]
+            if provenance and urls:
+                response = f"A resposta anterior sobre {provenance.get('topic')} veio destes registos verificados: " + "; ".join(urls) + "."
+            elif provenance:
+                response = f"A resposta anterior estava associada ao registo verificado sobre {provenance.get('topic')}, mas esse registo não contém URL de fonte."
+            else:
+                response = "Não tenho proveniência verificada associada à resposta imediatamente anterior; não vou inventar nem mudar de tópico."
+            return self._hit(response, "learning_previous_answer_provenance", "none")
         # Questions about what JARVIS has learned are grounded in the local
         # authorized-learning journal.  Do not let the base model relabel
         # pretraining/general knowledge as a learning event.
@@ -894,12 +1028,14 @@ class FastCommandRouter:
             data = self._tool("search_authorized_learning", {"query": query, "limit": 3})
             rows = list(data.get("results") or []) if data.get("ok") else []
             if not rows:
+                self._last_learning_provenance = None
                 response = (
                     "Não tenho uma aprendizagem Web verificada guardada que corresponda a esse pedido. "
                     "O que eu já sabia pelo meu modelo local não conta como algo que aprendi nesta sessão."
                 )
             elif query:
                 row = rows[0]
+                self._last_learning_provenance = {"topic": row.get("topic"), "sources": list(row.get("sources") or []), "retrieval_match": row.get("retrieval_match")}
                 summary = re.sub(r"\s+", " ", str(row.get("summary") or "")).strip()
                 if len(summary) > 900:
                     summary = summary[:897].rstrip() + "..."
@@ -933,6 +1069,16 @@ class FastCommandRouter:
             return self._hit(response, "desktop_agent_status", "desktop_agent_status")
 
         if any(phrase in normalized for phrase in (
+            "janela em primeiro plano", "janela esta em primeiro plano",
+            "qual e a janela ativa", "qual a janela ativa", "aplicacao em primeiro plano",
+        )):
+            data = self._tool("desktop_observe")
+            foreground = data.get("foreground") or {}
+            title = str(foreground.get("title") or "").strip()
+            response = (f"A janela ativa é {title}." if data.get("ok") and title else data.get("message") or data.get("error") or "Não consegui confirmar qual é a janela ativa.")
+            return self._hit(response, "desktop_foreground", "desktop_observe")
+
+        if any(phrase in normalized for phrase in (
             "lista as janelas", "lista todas as janelas", "listar janelas",
             "janelas que estao abertas", "janelas abertas", "todas as janelas abertas",
         )):
@@ -961,6 +1107,15 @@ class FastCommandRouter:
                 response = data.get("message") or data.get("error") or "Não consegui observar o ambiente de trabalho."
             return self._hit(response, "desktop_cursor_observe", "desktop_observe")
 
+        focus_match = re.search(
+            r"(?i)\b(?:volta|voltar|traz|trazer|foca|focar|muda)\s+(?:para|a|à)?\s*(?:a\s+)?janela\s+(?:do|da|de)\s+([^.!?]+)",
+            text,
+        )
+        if focus_match:
+            title = focus_match.group(1).strip()
+            data = self._tool("desktop_focus_window", {"title": title})
+            response = (f"A janela {data.get('title') or title} ficou em primeiro plano." if data.get("ok") else data.get("message") or data.get("error") or f"Não consegui focar a janela {title}.")
+            return self._hit(response, "desktop_focus_window", "desktop_focus_window")
         move_match = re.search(
             r"(?i)\b(?:move|mova|coloca|coloque)\s+(?:o\s+)?cursor(?:\s+do\s+rato)?[^0-9]{0,40}x\s*=?\s*(\d+)\s+(?:e\s+)?y\s*=?\s*(\d+)",
             text,
@@ -1104,6 +1259,28 @@ class FastCommandRouter:
                 response = str(facts[0].get("fact") or "").strip()
                 if response:
                     return self._hit(response, "memory_recall_natural", "recall_user_memory")
+
+        if any(phrase in normalized for phrase in (
+            "estado do cyber range", "estado do cyber range guard", "cyber range status",
+            "kali lab esta preparado", "kali lab esta pronto",
+        )):
+            data = self._tool("get_cyber_range_status")
+            scopes = int(data.get("lab_scope_count") or 0)
+            enabled = bool(data.get("enabled"))
+            response = (f"Cyber Range Guard: {'ativo' if enabled else 'inativo'}; {scopes} âmbito(s) LAB autorizado(s)." if data.get("ok") else data.get("message") or data.get("error") or "Não consegui confirmar o estado do Cyber Range.")
+            if data.get("ok") and scopes == 0:
+                response += " O Kali LAB não está configurado nem pronto para testes."
+            return self._hit(response, "cyber_range_status", "get_cyber_range_status")
+
+        target_match = re.search(r"(?<!\w)((?:\d{1,3}\.){3}\d{1,3}|::1)(?!\w)", text)
+        if target_match and any(word in normalized for word in ("classifica", "classificar", "alvo", "target", "ambito", "scope")):
+            target = target_match.group(1)
+            data = self._tool("classify_cyber_target", {"target": target})
+            if data.get("ok"):
+                response = f"O alvo {target} foi classificado como {data.get('scope')}; autorizado para teste LAB={bool(data.get('authorized'))}. {data.get('reason') or ''}".strip()
+            else:
+                response = data.get("message") or data.get("error") or "Não consegui classificar o alvo."
+            return self._hit(response, "cyber_target_classification", "classify_cyber_target")
 
         deep_network_phrases = (
             "investiga os listeners",
@@ -1386,6 +1563,12 @@ class FastCommandRouter:
         # Applications.
         app = self._app_match(normalized, raw_text=text)
 
+        if app and words.intersection({"bloqueia", "bloquear", "impede", "proibe", "proibir"}):
+            return self._hit(
+                "Não executei essa ação. A JARVIS não possui capacidade de bloqueio ou enforcement de aplicações por design; não abri nem alterei a aplicação.",
+                "app_block_denied", "none",
+            )
+
         if any(marker in normalized for marker in ("lista as aplicacoes disponiveis", "aplicacoes disponiveis", "lista aplicacoes disponiveis")):
             data = self._tool("list_available_apps")
             rows = list(data.get("value") or data.get("apps") or []) if data.get("ok") else []
@@ -1408,12 +1591,7 @@ class FastCommandRouter:
             voice_open_repair = first_word in self.VOICE_OPEN_ASR_WORDS
         if app and (words.intersection(self.OPEN_WORDS) or voice_open_repair):
             data = self._tool("open_application", {"app_name": app["id"]})
-            response = (
-                f"{app['name']} aberto."
-                if data.get("ok")
-                else data.get("message") or
-                f"Não consegui abrir {app['name']}: {data.get('error', 'erro desconhecido')}."
-            )
+            response = self._format_app_open_result(app["name"], data)
             route = "voice_app_open_repair" if voice_open_repair else "app_open"
             return self._hit(response, route, "open_application")
 
@@ -1430,12 +1608,7 @@ class FastCommandRouter:
             }
             if fragment in {x for x in app_values if x} and len(normalized.split()) <= 4:
                 data = self._tool("open_application", {"app_name": app["id"]})
-                response = (
-                    f"{app['name']} aberto."
-                    if data.get("ok")
-                    else data.get("message") or
-                    f"Não consegui abrir {app['name']}: {data.get('error', 'erro desconhecido')}."
-                )
+                response = self._format_app_open_result(app["name"], data)
                 return self._hit(response, "voice_app_fragment_open", "open_application")
 
         if app and words.intersection(self.CLOSE_WORDS):
@@ -1556,6 +1729,29 @@ class FastCommandRouter:
                 return f"{label}: {block.get('first')}% → {block.get('last')}% (média {block.get('avg')}%, min {block.get('min')}%, máx {block.get('max')}%)"
             parts = [x for x in (fmt("CPU", data.get("cpu_percent")), fmt("RAM", data.get("memory_percent")), fmt("GPU", data.get("gpu_utilization_percent"))) if x]
             return self._hit("; ".join(parts) + "." if parts else "Tenho histórico, mas faltam métricas utilizáveis.", "telemetry_trend", "get_recent_telemetry")
+
+        if all(metric in words for metric in ("cpu", "ram", "gpu")):
+            data = self._tool("get_pre_request_telemetry")
+            return self._hit(self._format_system(data), "combined_telemetry", "get_pre_request_telemetry")
+
+        if ("processo" in words or "processos" in words) and "memoria" in words and words.intersection({"mais", "maior", "consome", "consumir", "utiliza"}):
+            data = self._tool("list_top_processes", {"limit": 1})
+            rows = list(data.get("value") or data.get("processes") or [])
+            if rows:
+                row = rows[0]
+                response = f"O processo que mais memória consome é {row.get('name')} (PID {row.get('pid')}), com {row.get('memory_mib')} MiB."
+            else:
+                response = data.get("message") or data.get("error") or "Não consegui obter a lista de processos."
+            return self._hit(response, "top_memory_process", "list_top_processes")
+
+        process_match = re.search(r"\b([a-z0-9_.+-]+\.exe)\b", text, flags=re.IGNORECASE)
+        if process_match and words.intersection({"corre", "correr", "execucao", "ativo", "aberto"}):
+            wanted = process_match.group(1).casefold()
+            data = self._tool("list_top_processes", {"limit": 25})
+            rows = list(data.get("value") or data.get("processes") or [])
+            matches = [row for row in rows if str(row.get("name") or "").casefold() == wanted]
+            response = (f"Sim. {wanted} está a correr." if matches else f"Não encontrei {wanted} entre os processos observados.")
+            return self._hit(response, "process_running_query", "list_top_processes")
 
         # Current GPU telemetry.
         if (

@@ -190,6 +190,13 @@ class AcceptanceHotfix0278Tests(unittest.TestCase):
         self.assertIn("get_system_status", names)
         self.assertFalse(any(name.startswith("desktop_") for name in names))
 
+    def test_pure_code_request_does_not_expose_file_or_app_tools(self):
+        registry = ToolRegistry(_Events(), _Security(), _Telemetry(), _Apps())
+        schemas = registry.schemas_for_query(
+            "Explica este código Python e adiciona tratamento de erro se o ficheiro não existir.",
+            max_tools=20,
+        )
+        self.assertEqual(schemas, [])
     def test_fast_system_summary_uses_one_telemetry_call_and_includes_gpu(self):
         tools = _Tools({"get_pre_request_telemetry": {
             "cpu_percent": 13.9, "memory_percent": 43.6, "memory_used_gib": 13.82,

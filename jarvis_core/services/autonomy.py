@@ -9,6 +9,7 @@ from typing import Any
 import json
 import re
 import unicodedata
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 
 CAPABILITIES = {
@@ -198,16 +199,43 @@ LEARNING_GOAL_MARKERS = (
 _URL_PATTERN = re.compile(r"(?i)https?://[^\s<>\"']+")
 
 
+_TRACKING_QUERY_KEYS = frozenset({
+    "fbclid", "gclid", "dclid", "msclkid", "mc_cid", "mc_eid",
+    "ref", "ref_src", "source",
+})
+
+
+def canonicalize_public_url(url: str, *, preserve_trailing_slash: bool = False) -> str:
+    """Return a stable identity URL while preserving functional query keys."""
+    raw = str(url or "").strip().rstrip(").,;!?]}")
+    parsed = urlparse(raw)
+    if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname:
+        return raw[:1200]
+    query = [
+        (key, value)
+        for key, value in parse_qsl(parsed.query, keep_blank_values=True)
+        if not key.casefold().startswith("utm_")
+        and key.casefold() not in _TRACKING_QUERY_KEYS
+    ]
+    path = parsed.path or "/"
+    if path != "/" and not preserve_trailing_slash:
+        path = path.rstrip("/") or "/"
+    host = (parsed.hostname or "").lower().rstrip(".")
+    if parsed.port:
+        host = f"{host}:{parsed.port}"
+    return urlunparse((parsed.scheme.lower(), host, path, "", urlencode(query, doseq=True), ""))[:1200]
+
+
 def _extract_explicit_url(text: str) -> str:
     match = _URL_PATTERN.search(str(text or ""))
     if not match:
         return ""
-    return match.group(0).rstrip(").,;!?]}")[:1200]
+    return canonicalize_public_url(match.group(0), preserve_trailing_slash=True)
 
 
 def _topic_for_explicit_url(text: str, url: str) -> str:
     raw = str(text or "")
-    without_url = raw.replace(url, " ")
+    without_url = _URL_PATTERN.sub(" ", raw)
     without_url = re.sub(
         r"(?i)[,;]?\s*(?:tens|tem)\s+a\s+minha\s+autoriza(?:ç|c)[aã]o.*$",
         "",
@@ -223,6 +251,7 @@ def _topic_for_explicit_url(text: str, url: str) -> str:
         r"(?i)aprende(?:r)?\s+(?:tudo\s+)?sobre\s+(.+)$",
         r"(?i)estuda(?:r)?\s+(?:tudo\s+)?sobre\s+(.+)$",
         r"(?i)investiga(?:r)?\s+(?:tudo\s+)?sobre\s+(.+)$",
+        r"(?i)(?:aprende|aprender|estuda|estudar)\s+(.+?)(?:\s+atrav[eé]s\s+(?:deste|desta|do|da)\s+(?:guia|site|p[aá]gina|feed|url)[^:]*)?\s*:?$",
     )
     topic = ""
     # Natural direct-URL question: "Estuda <url> e diz-me qual é a versão ...".
@@ -256,6 +285,22 @@ def _topic_for_explicit_url(text: str, url: str) -> str:
         host, path = "", "/"
 
     if normalized_topic in {_norm(item) for item in vague}:
+        known = (
+            (host == "beej.us" and path.startswith("/guide/bgc"), "programação em C"),
+            (host == "beej.us" and path.startswith("/guide/bgnet"), "programação de redes e sockets"),
+            (host.endswith("debian-handbook.info"), "Debian Administrator Handbook"),
+            (host.endswith("richardhammack.github.io") and "bookofproof" in path.casefold(), "Book of Proof"),
+            (host.endswith("rust-lang.org") and path.startswith("/book"), "Rust Book"),
+            (host == "go.dev" and path.startswith("/ref/spec"), "especificação da linguagem Go"),
+            (host.endswith("rfc-editor.org") and "rfc9293" in path.casefold(), "RFC 9293 TCP"),
+            (host.endswith("rfc-editor.org") and "rfc8200" in path.casefold(), "RFC 8200 IPv6"),
+            (host.endswith("rfc-editor.org") and "rfc8446" in path.casefold(), "RFC 8446 TLS 1.3"),
+            (host.endswith("openlogicproject.org"), "Open Logic Project"),
+            (host.endswith("cisa.gov") and "known_exploited_vulnerabilities" in path.casefold(), "CISA Known Exploited Vulnerabilities"),
+        )
+        for applies, resolved_topic in known:
+            if applies:
+                return resolved_topic
         if host.endswith("kali.org") and path.startswith("/tools"):
             return "ferramentas Kali Linux"
         if host:
@@ -271,7 +316,7 @@ def _topic_for_explicit_url(text: str, url: str) -> str:
             ]
             # This is only a topic label for the exact owner-selected URL;
             # source and synthesis validation remain unchanged.
-            label = labels[-2] if len(labels) >= 2 and labels[-1] in {"org", "com", "net", "edu", "gov", "pt", "uk"} else (labels[-1] if labels else host)
+            label = labels[-2] if len(labels) >= 2 and labels[-1] in {"org", "com", "net", "edu", "gov", "pt", "uk", "us", "info", "io", "dev"} else (labels[-1] if labels else host)
             return _clean_topic(label or host)
 
     return topic or _clean_topic(host)
@@ -1648,6 +1693,18 @@ class AuthorizedLearningStore:
         source_type: str = "authorized_web_research_model_summary",
     ) -> dict[str, Any]:
         normalized_source_type = str(source_type or "authorized_web_research_model_summary")[:120]
+        normalized_summary = _norm(summary)
+        insufficient_markers = (
+            "evidencia insuficiente", "conteudo insuficiente", "informacao insuficiente",
+            "nao ha conteudo factual suficiente", "nao contem conteudo factual suficiente",
+            "nao foi possivel extrair conteudo", "a iniciar a aplicacao",
+        )
+        if str(summary or "").count("```") % 2:
+            return {
+                "ok": False, "stored": False, "topic": str(topic or "")[:300],
+                "error": "LEARNING_TRUNCATED", "reason_code": "TRUNCATED",
+                "message": "A síntese terminou com um bloco incompleto; a aprendizagem não foi guardada.",
+            }
         if (
             normalized_source_type in self.RELEVANCE_VALIDATED_SOURCE_TYPES
             and not self._summary_matches_topic(topic, summary)
@@ -1663,12 +1720,36 @@ class AuthorizedLearningStore:
                 ),
             }
 
+        if normalized_source_type in self.RELEVANCE_VALIDATED_SOURCE_TYPES and (
+            len(str(summary or "").strip()) < 30
+            or any(marker in normalized_summary for marker in insufficient_markers)
+        ):
+            return {
+                "ok": False, "stored": False, "topic": str(topic or "")[:300],
+                "error": "LEARNING_INSUFFICIENT_EVIDENCE",
+                "reason_code": "INSUFFICIENT_EVIDENCE",
+                "message": "A fonte não forneceu conteúdo substantivo suficiente; a aprendizagem não foi guardada.",
+            }
+
         learned_at = _iso()
         try:
             from jarvis_core.services.learning_gap import deterministic_confidence_from_sources
             confidence = deterministic_confidence_from_sources(sources)
         except Exception:
             confidence = 0.55
+
+        normalized_sources = [
+            {
+                "title": str(item.get("title") or "")[:300],
+                "url": str(item.get("url") or "")[:1000],
+                "canonical_url": canonicalize_public_url(str(item.get("url") or "")),
+                "source_id": sha256(canonicalize_public_url(str(item.get("url") or "")).encode("utf-8")).hexdigest() if item.get("url") else "",
+                "provider": str(item.get("provider") or "")[:80],
+            }
+            for item in (sources or [])[:12]
+            if isinstance(item, dict)
+        ]
+        source_identity = str((normalized_sources[0] if normalized_sources else {}).get("source_id") or "")
 
         row = {
             "timestamp": learned_at,
@@ -1692,15 +1773,8 @@ class AuthorizedLearningStore:
                 if normalized_source_type == self.GROUNDED_DIRECT_WEB_SOURCE_TYPE
                 else "legacy_or_unverified"
             ),
-            "sources": [
-                {
-                    "title": str(item.get("title") or "")[:300],
-                    "url": str(item.get("url") or "")[:1000],
-                    "provider": str(item.get("provider") or "")[:80],
-                }
-                for item in (sources or [])[:12]
-                if isinstance(item, dict)
-            ],
+            "sources": normalized_sources,
+            "source_identity": source_identity,
             "authority": (
                 "explicit_owner_authorization"
             ),
@@ -1722,6 +1796,18 @@ class AuthorizedLearningStore:
         }
 
         with self._lock:
+            if source_identity:
+                for existing in self._read_raw_rows():
+                    if (
+                        str(existing.get("source_identity") or "") == source_identity
+                        and _norm(str(existing.get("topic") or "")) == _norm(str(topic or ""))
+                    ):
+                        return {
+                            "ok": True, "stored": True, "duplicate": True,
+                            "topic": str(existing.get("topic") or topic)[:300],
+                            "path": str(self.path),
+                            "reason_code": "ALREADY_STORED",
+                        }
             with self.path.open(
                 "a",
                 encoding="utf-8",
@@ -1808,30 +1894,39 @@ class AuthorizedLearningStore:
                 for item in list(row.get("sources") or [])
                 if isinstance(item, dict)
             )
-            haystack_terms = _learning_terms(
-                " ".join([
-                    str(row.get("topic") or ""),
-                    str(row.get("query") or ""),
-                    str(row.get("summary") or ""),
-                    source_text,
-                ])
-            )
+            full_text = " ".join([
+                str(row.get("topic") or ""),
+                str(row.get("query") or ""),
+                str(row.get("summary") or ""),
+                source_text,
+            ])
+            haystack_terms = _learning_terms(full_text)
+            topic_terms = _learning_terms(str(row.get("topic") or ""))
+            central_terms = _learning_terms(" ".join([
+                str(row.get("topic") or ""),
+                str(row.get("query") or ""),
+                source_text,
+            ]))
             matched_terms = terms.intersection(haystack_terms)
-            score = len(matched_terms)
+            topic_matches = terms.intersection(topic_terms)
+            central_matches = terms.intersection(central_terms)
+            coverage = len(matched_terms) / max(1, len(terms))
+            # A single incidental word in a long summary is not verified-topic
+            # evidence. Require a central match, or strong multi-term coverage.
+            if not central_matches and (len(terms) <= 2 or coverage < 0.67):
+                continue
+            score = len(matched_terms) + (4 * len(central_matches)) + (8 * len(topic_matches))
             if score:
                 enriched = dict(row)
                 enriched["retrieval_match"] = {
-                    "mode": "semantic_terms",
+                    "mode": "topic_weighted_terms",
+                    "score": score,
+                    "coverage": round(coverage, 3),
                     "matched_terms": sorted(matched_terms),
+                    "central_terms": sorted(central_matches),
+                    "topic_terms": sorted(topic_matches),
                     "query_terms": sorted(terms),
-                    "literal_query_match": _norm(str(query or "")) in _norm(
-                        " ".join([
-                            str(row.get("topic") or ""),
-                            str(row.get("query") or ""),
-                            str(row.get("summary") or ""),
-                            source_text,
-                        ])
-                    ),
+                    "literal_query_match": _norm(str(query or "")) in _norm(full_text),
                 }
                 scored.append(
                     (
@@ -1841,12 +1936,7 @@ class AuthorizedLearningStore:
                     )
                 )
 
-        scored.sort(
-            key=lambda item: (
-                -item[0],
-                item[1],
-            )
-        )
+        scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
         rows = [
             item[2]
             for item in scored[:bounded_limit]

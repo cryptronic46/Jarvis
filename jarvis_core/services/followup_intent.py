@@ -114,6 +114,10 @@ def resolve_followup(
         return FollowupResolution(False, current_text=current, reason="capability_question")
 
     words = normalized.split()
+    is_provenance_question = any(phrase in normalized for phrase in (
+        "de onde aprendeste isso", "qual era a fonte", "qual e a fonte",
+        "onde viste isso", "onde aprendeste isso",
+    ))
     is_affirmative = normalized in _AFFIRMATIVE
     is_negative = (
         normalized in _NEGATIVE
@@ -123,7 +127,7 @@ def resolve_followup(
     has_reference = _has_reference_marker(normalized)
     is_correction = _is_correction_followup(normalized)
     if (len(words) > 12 and not is_correction) or not (
-        is_affirmative or is_negative or has_reference or is_correction
+        is_affirmative or is_negative or has_reference or is_correction or is_provenance_question
     ):
         return FollowupResolution(False, current_text=current, reason="not_short_followup")
 
@@ -151,10 +155,17 @@ def resolve_followup(
     # such as "faz isso" or "continua" already carry their own linkage signal.
     if (is_affirmative or is_negative) and not is_correction and not has_reference and not looks_like_offer:
         return FollowupResolution(False, current_text=current, reason="previous_turn_not_actionable")
-    if not is_correction and not looks_like_offer and not has_reference:
+    if not is_correction and not is_provenance_question and not looks_like_offer and not has_reference:
         return FollowupResolution(False, current_text=current, reason="no_linkage_signal")
 
-    if is_correction:
+    if is_provenance_question:
+        kind = "PROVENANCE_PREVIOUS"
+        instruction = (
+            "The OWNER asks for the provenance of the immediately previous answer. "
+            "Use only provenance attached to that answer; do not start a broad search, "
+            "switch topics or classify this as acceptance. If no provenance is attached, say so explicitly."
+        )
+    elif is_correction:
         kind = "REPAIR_PREVIOUS"
         instruction = (
             "The OWNER is rejecting the immediately previous JARVIS answer, not changing topic. "

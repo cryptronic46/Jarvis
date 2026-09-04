@@ -4,7 +4,11 @@ from jarvis_core.services.language_refinement import (
     refine_assistant_text,
     refinement_status,
 )
-from jarvis_core.services.request_intent import sanitize_assistant_text
+from jarvis_core.services.request_intent import (
+    sanitize_assistant_text,
+    python_code_blocks_valid,
+    python_code_response_needs_repair,
+)
 from jarvis_core.services.speech_text import prepare_for_speech
 
 
@@ -37,6 +41,16 @@ class LanguageRefinementHotfixTests(unittest.TestCase):
         raw = '{"text":"Minha função usa a tela","locale":"pt-BR"}'
         self.assertEqual(refine_assistant_text(raw), raw)
 
+    def test_html_entities_and_escaped_markdown_are_repaired_only_in_prose(self):
+        raw = r"Definição da função&#x20;****`contar_linhas` e \*\*resultado\*\*.\n```python\ntexto = '&#x20;****'\n```"
+        out = refine_assistant_text(raw)
+        self.assertIn("Definição da função **`contar_linhas`", out)
+        self.assertIn("**resultado**", out)
+        self.assertIn("texto = '&#x20;****'", out)
+
+    def test_observed_brazilian_terms_are_localized(self):
+        out = refine_assistant_text("O gerenciador retorna arquivos. Estou tudo funcionando corretamente.")
+        self.assertEqual(out, "O gestor devolve ficheiros. Está tudo a funcionar corretamente.")
     def test_code_is_preserved_verbatim(self):
         raw = "Use `registro = usuario` e depois explico: o usuário vê a tela."
         out = refine_assistant_text(raw)
@@ -47,6 +61,17 @@ class LanguageRefinementHotfixTests(unittest.TestCase):
         raw = "```python\ndef add_task(task):\n    with open('tasks.txt') as file:\n        file.write(task)\n```"
         self.assertEqual(sanitize_assistant_text(raw), raw)
 
+    def test_python_validator_rejects_broken_indentation_and_syntax(self):
+        broken = "```python\ndef soma(a, b):\nresultado = a + b\nreturn resultado\n```"
+        self.assertFalse(python_code_blocks_valid(broken))
+        self.assertTrue(python_code_response_needs_repair("Mostra código Python completo.", broken))
+        valid = "```python\ndef soma(a, b):\n    resultado = a + b\n    return resultado\n```"
+        self.assertTrue(python_code_blocks_valid(valid))
+        self.assertFalse(python_code_response_needs_repair("Mostra código Python completo.", valid))
+
+    def test_python_validator_rejects_malformed_try_except(self):
+        broken = "```python\ntry:\n    print(1 / 0)\nexcept except ZeroDivisionError:\n    print('erro')\n```"
+        self.assertFalse(python_code_blocks_valid(broken))
     def test_duplicate_sentence_is_removed(self):
         out = refine_assistant_text(
             "A confiança não é veracidade. A confiança não é veracidade."
