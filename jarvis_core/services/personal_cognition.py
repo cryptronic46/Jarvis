@@ -27,6 +27,36 @@ EXPLICIT_PATTERNS = (
     ("project", re.compile(r"(?i)\b(?:o projeto|projeto|estou a fazer|estamos a fazer|estou a construir|estamos a construir)\s+(.{3,220}?)(?:[.!?]|$)")),
 )
 
+DEFAULT_TIME_BOUNDARIES = {
+    "morning": "06:00",
+    "afternoon": "12:00",
+    "night": "20:00",
+}
+
+TIME_BOUNDARY_LABELS = {
+    "manha": "morning",
+    "tarde": "afternoon",
+    "noite": "night",
+    "noturna": "night",
+    "noturno": "night",
+}
+
+
+def _extract_time_boundary(value: str) -> tuple[str, str] | None:
+    normalized = _norm(value)
+    match = re.search(
+        r"\b(manha|tarde|noite|noturna|noturno)\s+"
+        r"(?:comeca|inicia)\s+(?:as|a partir das)\s+"
+        r"([01]?\d|2[0-3])(?:\s+([0-5]\d))?\b",
+        normalized,
+    )
+    if not match:
+        return None
+    period = TIME_BOUNDARY_LABELS[match.group(1)]
+    hour = int(match.group(2))
+    minute = int(match.group(3) or 0)
+    return period, f"{hour:02d}:{minute:02d}"
+
 
 STYLE_PREFERENCE_PREFIXES = (
     "que respondas",
@@ -195,6 +225,7 @@ class PersonalCognitionStore:
                 "discarded_legacy_goals": [],
                 "topic_counts": {},
                 "recent_topics": [],
+                "time_boundaries": {},
                 "last_updated": None,
             })
 
@@ -459,6 +490,16 @@ class PersonalCognitionStore:
     def model(self) -> dict[str, Any]:
         return _load_json(self.model_path, {})
 
+    def time_boundaries(self) -> dict[str, str]:
+        resolved = dict(DEFAULT_TIME_BOUNDARIES)
+        learned = self.model().get("time_boundaries") or {}
+        if isinstance(learned, dict):
+            for key in resolved:
+                value = str(learned.get(key) or "")
+                if re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", value):
+                    resolved[key] = value
+        return resolved
+
     def state(self) -> dict[str, Any]:
         return _load_json(self.state_path, {})
 
@@ -593,6 +634,26 @@ class PersonalCognitionStore:
 
             learned = []
             if not sensitive_context and not assistant_learning_directive:
+                time_boundary = _extract_time_boundary(clean)
+                if time_boundary is not None:
+                    period, boundary = time_boundary
+                    boundaries = dict(model.get("time_boundaries") or {})
+                    if boundaries.get(period) != boundary:
+                        boundaries[period] = boundary
+                        model["time_boundaries"] = boundaries
+                        learned.append({
+                            "category": "time_boundary",
+                            "statement": f"{period}={boundary}",
+                        })
+                        self._append_observation({
+                            "timestamp": _iso(),
+                            "category": "time_boundary",
+                            "period": period,
+                            "boundary": boundary,
+                            "confidence": 1.0,
+                            "source": "explicit-user-statement",
+                            "route": str(route or "")[:64],
+                        })
                 for category, pattern in EXPLICIT_PATTERNS:
                     for match in pattern.finditer(clean):
                         statement = re.sub(r"\s+", " ", match.group(1).strip(" ,;:-"))[:220]

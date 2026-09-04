@@ -64,6 +64,56 @@ def _clean_memory_fact(value: str) -> str:
     return text.rstrip(" .!?").strip()
 
 
+_DEFAULT_TIME_BOUNDARIES = {
+    "morning": "06:00",
+    "afternoon": "12:00",
+    "night": "20:00",
+}
+
+_TIME_PERIOD_LABELS = {
+    "manha": ("morning", "manhã"),
+    "tarde": ("afternoon", "tarde"),
+    "noite": ("night", "noite"),
+    "noturna": ("night", "noite"),
+    "noturno": ("night", "noite"),
+}
+
+
+def _extract_time_boundary_statement(normalized: str) -> tuple[str, str, str] | None:
+    match = re.search(
+        r"\b(manha|tarde|noite|noturna|noturno)\s+"
+        r"(?:comeca|inicia)\s+(?:as|a partir das)\s+"
+        r"([01]?\d|2[0-3])(?:\s+([0-5]\d))?\b",
+        normalized,
+    )
+    if not match:
+        return None
+    key, label = _TIME_PERIOD_LABELS[match.group(1)]
+    boundary = f"{int(match.group(2)):02d}:{int(match.group(3) or 0):02d}"
+    return key, label, boundary
+
+
+def _time_boundary_question_period(normalized: str) -> tuple[str, str] | None:
+    if "que horas" not in normalized or not re.search(r"\b(?:comeca|inicia)\b", normalized):
+        return None
+    for marker, value in _TIME_PERIOD_LABELS.items():
+        if re.search(rf"\b{marker}\b", normalized):
+            return value
+    return None
+
+
+def _resolved_time_boundaries(data: dict[str, Any]) -> dict[str, str]:
+    resolved = dict(_DEFAULT_TIME_BOUNDARIES)
+    model = data.get("model") if isinstance(data.get("model"), dict) else data
+    learned = model.get("time_boundaries") if isinstance(model, dict) else {}
+    if isinstance(learned, dict):
+        for key in resolved:
+            value = str(learned.get(key) or "")
+            if re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", value):
+                resolved[key] = value
+    return resolved
+
+
 def _extract_explicit_memory_fact(value: str) -> str | None:
     """Return the exact fact from a high-confidence explicit local-memory order.
 
@@ -1711,9 +1761,33 @@ class FastCommandRouter:
             )
             return self._hit(response, "agenda_tomorrow", "list_agenda_items")
 
+        boundary_statement = _extract_time_boundary_statement(normalized)
+        if boundary_statement is not None:
+            _, label, boundary = boundary_statement
+            return self._hit(
+                f"Entendido, Senhor. Vou considerar que a {label} começa às {boundary}.",
+                "time_boundary_learning",
+                "none",
+            )
+
+        boundary_question = _time_boundary_question_period(normalized)
+        if boundary_question is not None:
+            key, label = boundary_question
+            data = self._tool("get_personal_model")
+            boundary = _resolved_time_boundaries(data).get(
+                key,
+                _DEFAULT_TIME_BOUNDARIES[key],
+            )
+            return self._hit(
+                f"A {label} começa às {boundary}, Senhor.",
+                "time_boundary",
+                "get_personal_model",
+            )
+
         # Current time.
         if normalized in {"hora", "horas", "que horas sao", "que horas sao agora"} or (
             "horas" in words and words.intersection({"que", "quais", "sao", "agora"})
+            and not words.intersection({"comeca", "inicia", "manha", "tarde", "noite", "noturna", "noturno"})
         ):
             data = self._tool("get_current_time")
             dt = data.get("datetime")

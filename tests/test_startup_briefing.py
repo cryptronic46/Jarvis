@@ -1,10 +1,16 @@
 import unittest
 from datetime import datetime
 from unittest.mock import patch
-from jarvis_core.services.startup_briefing import build_startup_briefing
+from jarvis_core.services.startup_briefing import _greeting, build_startup_briefing
 class FakeMemory:
     def profile(self): return {'name':'Tiago','address_as':'Senhor','home':{'label':'Furadouro, Ovar'}}
 class StartupBriefingTests(unittest.TestCase):
+    def test_greeting_respects_owner_day_boundaries(self):
+        self.assertEqual(_greeting(5), "Boa noite")
+        self.assertEqual(_greeting(6), "Bom dia")
+        self.assertEqual(_greeting(19), "Boa tarde")
+        self.assertEqual(_greeting(20), "Boa noite")
+
     @patch('jarvis_core.services.startup_briefing.store')
     @patch('jarvis_core.services.startup_briefing.get_home_environment')
     @patch('jarvis_core.services.startup_briefing.format_environment_summary')

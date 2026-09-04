@@ -86,13 +86,13 @@ class ContextStore:
             target_date = (now - timedelta(days=1)).date()
             label = 'ontem'
             if 'noite' in text:
-                start_hour = 18
+                start_hour = 20
                 label = 'ontem à noite'
             elif 'tarde' in text:
-                start_hour, end_hour = 12, 18
+                start_hour, end_hour = 12, 20
                 label = 'ontem à tarde'
             elif 'manha' in text:
-                start_hour, end_hour = 5, 12
+                start_hour, end_hour = 6, 12
                 label = 'ontem de manhã'
         elif re.search(r'\bhoje\b', text):
             target_date = now.date()

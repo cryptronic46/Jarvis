@@ -137,6 +137,26 @@ class FastRouterTests(unittest.TestCase):
         self.assertTrue(result.handled)
         self.assertIn("10:30", result.response)
 
+    def test_day_period_question_is_not_current_time_query(self):
+        before = len(self.tools.calls)
+        for question in (
+            "Noite começa a que horas?",
+            "A hora noturna começa a que horas?",
+        ):
+            with self.subTest(question=question):
+                result = self.router.dispatch(question)
+                self.assertTrue(result.handled)
+                self.assertEqual(result.route, "time_boundary")
+                self.assertIn("20:00", result.response)
+                self.assertNotEqual(self.tools.calls[-1][0], "get_current_time")
+        self.assertGreater(len(self.tools.calls), before)
+
+    def test_explicit_day_period_boundary_is_acknowledged_for_learning(self):
+        result = self.router.dispatch("A manhã começa às 06:00 am")
+        self.assertTrue(result.handled)
+        self.assertEqual(result.route, "time_boundary_learning")
+        self.assertIn("06:00", result.response)
+
     def test_complex_question_falls_back(self):
         result = self.router.dispatch("Explica-me como funciona uma VPN")
         self.assertFalse(result.handled)

@@ -9,6 +9,52 @@ import json
 from jarvis_core.services.personal_cognition import personal_cognition
 
 
+DEFAULT_TIME_BOUNDARIES = {
+    "morning": "06:00",
+    "afternoon": "12:00",
+    "night": "20:00",
+}
+
+
+def _minute_of_day(value: str, fallback: int) -> int:
+    try:
+        hour, minute = str(value).split(":", 1)
+        result = int(hour) * 60 + int(minute)
+        return result if 0 <= result < 24 * 60 else fallback
+    except (TypeError, ValueError):
+        return fallback
+
+
+def _day_period(now: datetime, boundaries: dict[str, Any] | None) -> str:
+    values = dict(DEFAULT_TIME_BOUNDARIES)
+    if isinstance(boundaries, dict):
+        values.update({key: boundaries[key] for key in values if key in boundaries})
+    minute = now.hour * 60 + now.minute
+    morning = _minute_of_day(values["morning"], 6 * 60)
+    afternoon = _minute_of_day(values["afternoon"], 12 * 60)
+    night = _minute_of_day(values["night"], 20 * 60)
+    if minute >= night or minute < morning:
+        return "night"
+    if minute >= afternoon:
+        return "afternoon"
+    return "morning"
+
+
+def _conflicts_with_current_period(text: str, period: str) -> bool:
+    value = str(text or "").casefold()
+    current_claims = {
+        "night": ("boa noite", "a esta hora da noite", "está a trabalhar à noite", "esta a trabalhar a noite"),
+        "afternoon": ("boa tarde", "esta tarde", "a esta hora da tarde"),
+        "morning": ("bom dia", "boa manhã", "esta manhã", "esta manha", "a esta hora da manhã", "a esta hora da manha"),
+    }
+    return any(
+        marker in value
+        for other_period, markers in current_claims.items()
+        if other_period != period
+        for marker in markers
+    )
+
+
 def _now() -> datetime:
     return datetime.now().astimezone()
 
@@ -214,11 +260,22 @@ class CompanionPresenceService:
         if not eligible:
             return {"ok": True, "eligible": False, "reason": gate_reason}
 
+        now = _now()
+        cognition = personal_cognition()
+        try:
+            time_boundaries = cognition.time_boundaries()
+        except Exception:
+            time_boundaries = dict(DEFAULT_TIME_BOUNDARIES)
+        if not isinstance(time_boundaries, dict):
+            time_boundaries = dict(DEFAULT_TIME_BOUNDARIES)
+        current_period = _day_period(now, time_boundaries)
         context = {
             "flirt_enabled": self.flirt_enabled,
             "flirt_intensity": self.flirt_intensity,
             "max_chars": self.max_chars,
-            "local_time": _iso(),
+            "local_time": _iso(now),
+            "day_period": current_period,
+            "time_boundaries": time_boundaries,
         }
         with self._lock:
             self._state["last_decision_at"] = _iso()
@@ -241,6 +298,10 @@ class CompanionPresenceService:
             text = text[: self.max_chars].rstrip()
         if speak and not text:
             speak = False
+        if speak and _conflicts_with_current_period(text, current_period):
+            speak = False
+            text = ""
+            decision["reason"] = "temporal_claim_conflict"
 
         history_row = {
             "timestamp": _iso(),

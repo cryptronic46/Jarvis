@@ -75,6 +75,32 @@ class PersonalCognitionTests(unittest.TestCase):
         finally:
             tmp.cleanup()
 
+    def test_learns_explicit_day_period_boundaries(self):
+        tmp, store = self.make_store()
+        try:
+            morning = store.observe_interaction(
+                "A manhã começa às 06:00 am",
+                "Entendido.",
+                "FAST/time_boundary_learning",
+            )
+            night = store.observe_interaction(
+                "A noite começa às 20:00",
+                "Entendido.",
+                "FAST/time_boundary_learning",
+            )
+            self.assertIn(
+                {"category": "time_boundary", "statement": "morning=06:00"},
+                morning["learned"],
+            )
+            self.assertIn(
+                {"category": "time_boundary", "statement": "night=20:00"},
+                night["learned"],
+            )
+            self.assertEqual(store.time_boundaries()["morning"], "06:00")
+            self.assertEqual(store.time_boundaries()["night"], "20:00")
+        finally:
+            tmp.cleanup()
+
 
 if __name__ == "__main__":
     unittest.main()

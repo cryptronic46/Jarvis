@@ -9,7 +9,7 @@ from jarvis_core.services.security_watch import security_watch_store
 
 
 def _greeting(hour: int) -> str:
-    if 5 <= hour < 12: return "Bom dia"
+    if 6 <= hour < 12: return "Bom dia"
     if 12 <= hour < 20: return "Boa tarde"
     return "Boa noite"
 

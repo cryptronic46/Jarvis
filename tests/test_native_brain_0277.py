@@ -53,6 +53,7 @@ class NativeBrain0277Tests(unittest.TestCase):
             now = datetime.now().astimezone()
             yesterday = now - timedelta(days=1)
             rows = [
+                {'timestamp': yesterday.replace(hour=19, minute=15).isoformat(timespec='seconds'), 'user':'Falámos ainda durante a tarde.', 'assistant':'Sim.', 'route':'LOCAL'},
                 {'timestamp': yesterday.replace(hour=21, minute=15).isoformat(timespec='seconds'), 'user':'Falámos sobre a identidade da Jarvis.', 'assistant':'Sim.', 'route':'LOCAL'},
                 {'timestamp': now.replace(hour=8, minute=0).isoformat(timespec='seconds'), 'user':'Bom dia', 'assistant':'Bom dia.', 'route':'LOCAL'},
             ]

@@ -140,7 +140,7 @@
     },
     {
       "path": "jarvis_core/core/brain.py",
-      "sha256": "cbc515c1d05206f73a90e7538a2c956d90527dacad23fda3a27bfba804a19d39"
+      "sha256": "39e5a1bdc3338a2a01fe96c452db151c6f881c4c75933cdeebffaeb299a5a0ab"
     },
     {
       "path": "jarvis_core/core/cloud_brain.py",
@@ -160,7 +160,7 @@
     },
     {
       "path": "jarvis_core/core/fast_router.py",
-      "sha256": "e1d9094a444cc6c333442f505e486e121dea39f844338b060f25472ef8368199"
+      "sha256": "b17726a4269bfedf9e1d71fe78ad054d0003514b5e6d0b91776dee7e5dcfb554"
     },
     {
       "path": "jarvis_core/core/freshness.py",
@@ -220,11 +220,11 @@
     },
     {
       "path": "jarvis_core/services/companion_presence.py",
-      "sha256": "ecbf3dccc8584b17656406a649aa9799165df3bc03f8531fdfbaaa53785164e0"
+      "sha256": "8b08ede1c68457cccefee41f70935bb0823ffc3daa6b000c8d60b816f9171085"
     },
     {
       "path": "jarvis_core/services/context_store.py",
-      "sha256": "b386846661886bcbfa86062a4418cd85a1a2bc46660bec3b80324250d4045e77"
+      "sha256": "aea617a38d7591d67b6fc0844c9ea1931473392d961aed1908fd370e1ad26430"
     },
     {
       "path": "jarvis_core/services/cyber_knowledge.py",
@@ -304,7 +304,7 @@
     },
     {
       "path": "jarvis_core/services/personal_cognition.py",
-      "sha256": "21504e5d2960d93b96b48fe6f4e21b7dd458dfa8cab7b389ff7e182522650abe"
+      "sha256": "6aaad58b928802a6e41f29d88a74217e9dfd9f568e1f7f95d9fc47f61d10a39a"
     },
     {
       "path": "jarvis_core/services/presentation.py",
@@ -364,7 +364,7 @@
     },
     {
       "path": "jarvis_core/services/startup_briefing.py",
-      "sha256": "e1102e650209e26f19662b09103466fe547378321f1c7527d1e72bc09df5bf56"
+      "sha256": "00d889fabfc984f97155bd3152309fcac09b2145593dc632177d83713bcb0ba7"
     },
     {
       "path": "jarvis_core/services/stt_compat.py",
@@ -724,11 +724,11 @@
     },
     {
       "path": "tests/test_companion_brain_planner.py",
-      "sha256": "f8adcfd0f523de35c9007655072153dae26ca8e07d304078c6e1be6be901dd52"
+      "sha256": "ef9b596d7553f2ea75bfcb7ed607507cc02eede34c585a373192f4ab9654f8cc"
     },
     {
       "path": "tests/test_companion_presence.py",
-      "sha256": "beb647d692ac97c593d65104e3ae3e3ad3e31ec11ecf46d8ccb8d1c4061ea51c"
+      "sha256": "b8f42da756e877df21b712aecdd0b10e604d119378136e463dcf431a87e1ba2e"
     },
     {
       "path": "tests/test_confirmation_expiry.py",
@@ -852,7 +852,7 @@
     },
     {
       "path": "tests/test_fast_router.py",
-      "sha256": "607dba553bda9e0ba344af49db7780c299bcc02f1f269e453621b7264ca58e70"
+      "sha256": "dc3b14a9595b4cfc97f050b234c660f227aae2e87e590b973adb354ad6646408"
     },
     {
       "path": "tests/test_file_index_security.py",
@@ -1004,7 +1004,7 @@
     },
     {
       "path": "tests/test_native_brain_0277.py",
-      "sha256": "62ab9a1bf5654806aaa8c4df55191fd50de3545ae0730ca3b01a5997a483c9d5"
+      "sha256": "01e6f3761afcd04cea8a77087a50f6d03c62c90ff39c0e8cf228b8ce3121a1cb"
     },
     {
       "path": "tests/test_native_runtime_security_0277.py",
@@ -1060,7 +1060,7 @@
     },
     {
       "path": "tests/test_personal_cognition.py",
-      "sha256": "66c572be21df76c14e593fd99870733252d072ad8846ad13e74ee105599326c0"
+      "sha256": "fc53982e9a6aa2d112d26419537bfa5fda43cf2606e6e5b6a6133355118bc574"
     },
     {
       "path": "tests/test_personal_cognition_contract.py",
@@ -1248,7 +1248,7 @@
     },
     {
       "path": "tests/test_startup_briefing.py",
-      "sha256": "4a35adba00a7cb13756af5d1b3150a2d06d9af367cd5e5441ac511eb4dac5a25"
+      "sha256": "1bebe69ebd97766806f77e29c014dc72488d14d247d9f4336ca6627e201ae194"
     },
     {
       "path": "tests/test_startup_device_binding_0237.py",

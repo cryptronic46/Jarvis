@@ -76,6 +76,46 @@ class CompanionPresenceTests(unittest.TestCase):
             self.assertTrue(service.set_intensity(0.75)["ok"])
             self.assertEqual(service.status()["flirt_intensity"], 0.75)
 
+    def test_afternoon_blocks_false_current_night_claim(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixed_now = datetime.now().astimezone().replace(
+                hour=15,
+                minute=40,
+                second=0,
+                microsecond=0,
+            )
+            planner = Mock(return_value={
+                "speak": True,
+                "tone": "flirty",
+                "reason": "recent_conversation",
+                "text": "Senhor, parece que está a trabalhar à noite. Que tal um café?",
+            })
+            output = Mock()
+            service = self._service(planner, output, tmp)
+            cognition = Mock()
+            cognition.state.return_value = {
+                "last_interaction_at": (fixed_now - timedelta(minutes=3)).isoformat(),
+            }
+            cognition.time_boundaries.return_value = {
+                "morning": "06:00",
+                "afternoon": "12:00",
+                "night": "20:00",
+            }
+            with patch(
+                "jarvis_core.services.companion_presence._now",
+                return_value=fixed_now,
+            ), patch(
+                "jarvis_core.services.companion_presence.personal_cognition",
+                return_value=cognition,
+            ):
+                result = service.evaluate_once()
+
+            self.assertTrue(result["eligible"])
+            self.assertFalse(result["spoken"])
+            self.assertEqual(result["reason"], "temporal_claim_conflict")
+            self.assertEqual(planner.call_args.args[0]["day_period"], "afternoon")
+            output.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
