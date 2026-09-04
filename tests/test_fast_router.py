@@ -156,6 +156,14 @@ class FastRouterTests(unittest.TestCase):
             "a minha mulher se chama ISA",
         )
 
+    def test_python_indentation_probe_is_valid_deterministic_code(self):
+        result = self.router.dispatch("Jarvis, mostra apenas um exemplo Python indentado num bloco de código.")
+        self.assertTrue(result.handled)
+        self.assertEqual(result.route, "python_indentation_probe")
+        self.assertEqual(result.tool, "none")
+        self.assertIn("    resultado = a + b", result.response)
+        self.assertIn("    return resultado", result.response)
+
     def test_explicit_pdf_file_lookup_uses_local_index_not_book_library(self):
         result = self.router.dispatch("Jarvis, procura ficheiros PDF relacionados com Python.")
         self.assertTrue(result.handled)

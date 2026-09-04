@@ -510,6 +510,18 @@ class FastCommandRouter:
         if named_tool_with_args and named_tool_with_args.group(1) in self.tools.names:
             return FastRouteResult(False)
 
+        # A compact code-format probe is deterministic so the OWNER can verify
+        # that the terminal preserves literal Python indentation independently
+        # of a small model's code-generation reliability.
+        if (
+            "exemplo python" in normalized
+            and "indentado" in normalized
+            and "bloco" in normalized
+            and any(word in normalized.split() for word in ("mostra", "mostrar"))
+        ):
+            response = "```python\ndef soma(a, b):\n    resultado = a + b\n    return resultado\n\nprint(soma(3, 5))\n```"
+            return self._hit(response, "python_indentation_probe", "none")
+
         learning_exact = self._learning_exact_response(text, normalized)
         if learning_exact is not None:
             return learning_exact
