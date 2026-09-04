@@ -1898,7 +1898,7 @@ def main() -> None:
                 f"JARVIS > {result.text}"
             )
             if using_standing:
-                reason_code = str(result.error or "UNKNOWN")
+                reason_code = str(result.reason_code or result.error or "UNKNOWN")
                 print(
                     "JARVIS > A permissão persistente continua válida. "
                     f"Esta execução terminou sem aprendizagem (motivo: {reason_code}) e não criou uma nova autorização pendente."

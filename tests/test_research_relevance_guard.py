@@ -1,8 +1,13 @@
+import json
 import unittest
 from unittest.mock import patch
 
 from jarvis_core.core.config import Settings
-from jarvis_core.services.local_research import LocalResearchEngine, ResearchSource
+from jarvis_core.services.local_research import (
+    LocalResearchEngine,
+    LocalResearchFetchError,
+    ResearchSource,
+)
 
 
 class DummyEvents:
@@ -32,6 +37,92 @@ class ResearchRelevanceGuardTests(unittest.TestCase):
         source, links = engine._fetch_with_links(ResearchSource(title="Feed", url="https://example.test/feed.json"), max_chars=200)
         self.assertIn("CVE-2026-0001", source.text)
         self.assertEqual(links, [])
+
+    def test_direct_cisa_feed_larger_than_html_limit_uses_json_limit(self):
+        engine = self.make_engine()
+        official_url = (
+            "https://www.cisa.gov/sites/default/files/feeds/"
+            "known_exploited_vulnerabilities.json"
+        )
+        vulnerabilities = [{
+            "cveID": f"CVE-2099-{index:04d}",
+            "vendorProject": "Example Vendor",
+            "product": "Example Product",
+            "vulnerabilityName": "Example vulnerability",
+            "dateAdded": "2099-01-01",
+            "shortDescription": "Known exploitation. " + ("x" * 300),
+            "requiredAction": "Apply vendor mitigations.",
+            "dueDate": "2099-01-22",
+            "knownRansomwareCampaignUse": "Unknown",
+            "forensicTriage": "Review process creation events.",
+            "notes": "https://www.cisa.gov/known-exploited-vulnerabilities",
+            "cwes": ["CWE-78"],
+        } for index in range(1694)]
+        raw = json.dumps({
+            "title": "CISA Catalog of Known Exploited Vulnerabilities",
+            "catalogVersion": "2026.09.02",
+            "dateReleased": "2026-09-02T16:54:39.8321Z",
+            "count": 1694,
+            "vulnerabilities": vulnerabilities,
+        }).encode("utf-8")
+        self.assertGreater(len(raw), 524_288)
+
+        class Response:
+            headers = {"Content-Type": "application/json; charset=utf-8"}
+            requested_bytes = 0
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def geturl(self):
+                return official_url
+
+            def read(self, amount):
+                self.requested_bytes = amount
+                return raw[:amount]
+
+        response = Response()
+        opener = type("Opener", (), {"open": lambda self, request, timeout: response})()
+        engine._validate_public_url = lambda url: url
+        engine.local.synthesize_research = lambda **kwargs: (
+            "O catálogo CISA KEV contém vulnerabilidades exploradas conhecidas [S1]."
+        )
+
+        with patch(
+            "jarvis_core.services.local_research.build_opener",
+            return_value=opener,
+        ), patch.object(engine, "available", return_value=True):
+            result = engine.research_url(
+                official_url,
+                query="Aprende o catálogo CISA KEV através do feed JSON oficial.",
+                topic="catálogo CISA KEV",
+                deep=True,
+            )
+
+        self.assertTrue(result.ok)
+        self.assertEqual(response.requested_bytes, 5_000_001)
+        self.assertIn("CISA", (result.sources or [])[0]["title"])
+
+    def test_direct_json_failure_exposes_explicit_reason_code(self):
+        engine = self.make_engine()
+        engine._validate_public_url = lambda url: url
+        with patch.object(engine, "available", return_value=True), patch.object(
+            engine,
+            "_fetch_with_links",
+            side_effect=LocalResearchFetchError("LOCAL_RESEARCH_JSON_INVALID"),
+        ):
+            result = engine.research_url(
+                "https://www.cisa.gov/feed.json",
+                query="Aprende o catálogo CISA KEV.",
+                topic="catálogo CISA KEV",
+            )
+        self.assertFalse(result.ok)
+        self.assertEqual(result.error, "DIRECT_URL_FETCH_FAILED")
+        self.assertEqual(result.reason_code, "LOCAL_RESEARCH_JSON_INVALID")
+        self.assertIn("LOCAL_RESEARCH_JSON_INVALID", result.text)
 
     def test_remote_pdf_extension_is_accepted_with_generic_mime(self):
         from io import BytesIO

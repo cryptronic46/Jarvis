@@ -43,6 +43,71 @@ class ResearchAnswer:
     sources: list[dict[str, Any]] | None = None
     error: str | None = None
     message: str | None = None
+    reason_code: str | None = None
+
+
+class LocalResearchFetchError(RuntimeError):
+    """Expected fetch/parser failure with a stable machine-readable code."""
+
+    def __init__(self, reason_code: str, message: str = ""):
+        self.reason_code = reason_code
+        super().__init__(message or reason_code)
+
+
+STANDARD_FETCH_HARD_LIMIT_BYTES = 8_000_000
+JSON_FETCH_LIMIT_BYTES = 5_000_000
+
+
+def _media_type(value: str) -> str:
+    return str(value or "").split(";", 1)[0].strip().casefold()
+
+
+def _is_json_media_type(value: str) -> bool:
+    media_type = _media_type(value)
+    return media_type in {"application/json", "text/json"} or media_type.endswith("+json")
+
+
+def _routes_as_json(content_type: str, final_url: str) -> bool:
+    if _is_json_media_type(content_type):
+        return True
+    return (
+        _media_type(content_type) in {"", "application/octet-stream", "binary/octet-stream", "text/plain"}
+        and urlparse(final_url).path.casefold().endswith(".json")
+    )
+
+
+def _cisa_kev_evidence(payload: dict[str, Any], max_chars: int) -> str | None:
+    vulnerabilities = payload.get("vulnerabilities")
+    if not isinstance(vulnerabilities, list):
+        return None
+    header = {
+        key: payload.get(key)
+        for key in ("title", "catalogVersion", "dateReleased", "count")
+        if payload.get(key) is not None
+    }
+    lines = [json.dumps(header, ensure_ascii=False, separators=(",", ":"))]
+    fields = (
+        "cveID", "vendorProject", "product", "vulnerabilityName", "dateAdded",
+        "shortDescription", "requiredAction", "dueDate",
+        "knownRansomwareCampaignUse", "forensicTriage", "notes", "cwes",
+    )
+    for item in vulnerabilities:
+        if not isinstance(item, dict):
+            continue
+        bounded: dict[str, Any] = {}
+        for key in fields:
+            value = item.get(key)
+            if value is None:
+                continue
+            if isinstance(value, list):
+                bounded[key] = [str(entry)[:500] for entry in value[:32]]
+            else:
+                bounded[key] = str(value)[:4000]
+        row = json.dumps(bounded, ensure_ascii=False, separators=(",", ":"))
+        if sum(len(line) + 1 for line in lines) + len(row) > max_chars:
+            break
+        lines.append(row)
+    return "\n".join(lines)[:max_chars]
 
 
 class _ReadableHTML(HTMLParser):
@@ -585,16 +650,38 @@ class LocalResearchEngine:
             safe,
             headers={
                 "User-Agent": f"JARVIS-Core/{__version__} (+local-research; no-external-ai)",
-                "Accept": "text/html,application/xhtml+xml,application/xml,text/plain;q=0.9,*/*;q=0.1",
+                "Accept": "application/json,text/html,application/xhtml+xml,application/xml,text/plain;q=0.9,*/*;q=0.1",
             },
         )
         with opener.open(request, timeout=timeout) as response:
-            content_type = str(response.headers.get("Content-Type") or "").lower()
+            content_type = _media_type(response.headers.get("Content-Type") or "")
             final_url = str(response.geturl() or safe)
             self._validate_public_url(final_url)
-            raw = response.read(max_bytes + 1)
-            if len(raw) > max_bytes:
-                raw = raw[:max_bytes]
+            standard_limit = max(
+                64_000,
+                min(int(max_bytes), STANDARD_FETCH_HARD_LIMIT_BYTES),
+            )
+            response_limit = (
+                max(standard_limit, JSON_FETCH_LIMIT_BYTES)
+                if _routes_as_json(content_type, final_url)
+                else standard_limit
+            )
+            length = response.headers.get("Content-Length")
+            try:
+                declared_length = int(length) if length else None
+            except (TypeError, ValueError):
+                declared_length = None
+            if declared_length is not None and declared_length > response_limit:
+                raise LocalResearchFetchError(
+                    "LOCAL_RESEARCH_RESPONSE_TOO_LARGE",
+                    f"Tamanho declarado {declared_length} excede o limite {response_limit}",
+                )
+            raw = response.read(response_limit + 1)
+            if len(raw) > response_limit:
+                raise LocalResearchFetchError(
+                    "LOCAL_RESEARCH_RESPONSE_TOO_LARGE",
+                    f"A resposta excede o limite {response_limit}",
+                )
         return raw, content_type, final_url
 
     @staticmethod
@@ -756,9 +843,10 @@ class LocalResearchEngine:
             max_bytes=int(getattr(self.settings, "local_research_fetch_max_bytes", 524288)),
             timeout=float(getattr(self.settings, "local_research_timeout_seconds", 8.0)),
         )
-        allowed = ("text/", "application/xhtml+xml", "application/xml", "application/json", "application/pdf")
-        if content_type and not content_type.startswith(allowed) and not final_url.casefold().endswith(".pdf"):
-            raise ValueError("NON_TEXT_CONTENT_BLOCKED")
+        json_route = _routes_as_json(content_type, final_url)
+        allowed = ("text/", "application/xhtml+xml", "application/xml", "application/pdf")
+        if content_type and not json_route and not content_type.startswith(allowed) and not final_url.casefold().endswith(".pdf"):
+            raise LocalResearchFetchError("LOCAL_RESEARCH_CONTENT_TYPE_BLOCKED")
         links: list[str] = []
         char_limit = int(max_chars or getattr(self.settings, "local_research_source_max_chars", 5000))
         if "pdf" in content_type or final_url.casefold().endswith(".pdf"):
@@ -776,16 +864,40 @@ class LocalResearchEngine:
                 text = "\n".join(chunks)[:char_limit]
                 title = source.title
             except Exception as exc:
-                raise ValueError(f"PDF_PARSE_FAILED:{type(exc).__name__}") from exc
+                raise LocalResearchFetchError(
+                    "LOCAL_RESEARCH_PDF_INVALID",
+                    f"Falha ao interpretar PDF: {type(exc).__name__}",
+                ) from exc
         else:
             decoded = raw.decode("utf-8", errors="replace")
-            if "json" in content_type:
+            if json_route:
                 try:
                     payload = json.loads(decoded)
-                    text = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))[:char_limit]
-                    title = source.title
+                    if not isinstance(payload, (dict, list)):
+                        raise LocalResearchFetchError(
+                            "LOCAL_RESEARCH_JSON_SCHEMA_INVALID",
+                            "A raiz JSON não é um objeto nem uma lista",
+                        )
+                    cisa_text = (
+                        _cisa_kev_evidence(payload, char_limit)
+                        if isinstance(payload, dict)
+                        else None
+                    )
+                    text = cisa_text or json.dumps(
+                        payload,
+                        ensure_ascii=False,
+                        separators=(",", ":"),
+                    )[:char_limit]
+                    title = (
+                        str(payload.get("title") or source.title)
+                        if isinstance(payload, dict)
+                        else source.title
+                    )
                 except json.JSONDecodeError as exc:
-                    raise ValueError("JSON_PARSE_FAILED") from exc
+                    raise LocalResearchFetchError(
+                        "LOCAL_RESEARCH_JSON_INVALID",
+                        "A resposta JSON está incompleta ou é inválida",
+                    ) from exc
             elif "html" in content_type or "<html" in decoded[:500].lower():
                 parser = _ReadableHTML()
                 parser.feed(decoded)
@@ -894,17 +1006,23 @@ class LocalResearchEngine:
             )
         except Exception as exc:
             status = int(exc.code) if isinstance(exc, HTTPError) else None
+            reason_code = (
+                exc.reason_code
+                if isinstance(exc, LocalResearchFetchError)
+                else (f"HTTP_{status}" if status is not None else "DIRECT_URL_FETCH_FAILED")
+            )
             return ResearchAnswer(
                 ok=False,
                 text=(
                     f"Não consegui ler a página autorizada: o servidor respondeu HTTP {status}."
                     if status is not None
-                    else f"Não consegui ler a página autorizada em segurança: {type(exc).__name__}."
+                    else f"Não consegui ler a página autorizada em segurança (motivo: {reason_code})."
                 ),
                 elapsed_ms=round((monotonic() - started) * 1000),
                 query=query,
                 error="DIRECT_URL_FETCH_FAILED",
-                message=(f"HTTP status={status}; retryable={status in {429, 500, 502, 503, 504}}" if status is not None else type(exc).__name__),
+                message=(f"HTTP status={status}; retryable={status in {429, 500, 502, 503, 504}}" if status is not None else reason_code),
+                reason_code=reason_code,
             )
 
         if not self._owner_selected_root_acceptable(topic, root_source, safe_root):

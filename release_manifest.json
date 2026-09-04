@@ -132,7 +132,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "06bbea1811640e19fb9b1e04a22ca4a9a833bc57c5854a09f71b423c02a87ca6"
+      "sha256": "46d43aed23f94b04c51bd45beeeafd0a96f3266081c4a2b39843cec50fe87330"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -288,7 +288,7 @@
     },
     {
       "path": "jarvis_core/services/local_research.py",
-      "sha256": "404d27a90ccafaa53fccd159e0a5a37f65cb729fdfaab4e3f9707abb1ebfe6de"
+      "sha256": "ad0a3cb5a48cdb27aeda7e43da2a957d4e21c25f2a07b4ed19c0e881026efe69"
     },
     {
       "path": "jarvis_core/services/network_inventory.py",
@@ -1128,7 +1128,7 @@
     },
     {
       "path": "tests/test_research_relevance_guard.py",
-      "sha256": "557e05d02ee9a050a6ed9f9e1eaa49325a87f15e4b8d871913f068f817986a6a"
+      "sha256": "f16288f0c331a739f02ea49b4108c5834df2d7620455da798872362025b34b8b"
     },
     {
       "path": "tests/test_response_completion.py",
