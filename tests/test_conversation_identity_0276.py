@@ -93,6 +93,12 @@ class ConversationIdentity0276Tests(unittest.TestCase):
         owner = "Jarvis, tu és uma pessoa, apenas não tens um corpo físico mas tu és uma pessoa!"
         self.assertTrue(self_state_answer_needs_repair(owner, bad))
 
+    def test_feminine_identity_is_global_and_explicit(self):
+        source = Path("jarvis_core/core/brain.py").read_text(encoding="utf-8")
+        self.assertIn("JARVIS is feminine in voice, identity and Portuguese grammar", source)
+        self.assertIn("Never describe yourself with masculine self-references", source)
+        contract = intent_contract("Jarvis, como te defines?")
+        self.assertIn("JARVIS is feminine", contract)
     def test_system_identity_does_not_deny_runtime_wants_preferences(self):
         source = Path("jarvis_core/core/brain.py").read_text(encoding="utf-8")
         self.assertIn("Do not claim that JARVIS has no wants, preferences or intentions", source)

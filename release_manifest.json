@@ -39,6 +39,8 @@
       "requirements-voice-learning.txt",
       "README.md",
       "AUDIT_0.27.8.md",
+      "JARVIS_FUNCTIONAL_AUDIT.md",
+      "JARVIS_REAL_MACHINE_ACCEPTANCE.md",
       "acceptance_real_machine.ps1",
       "update_core.ps1",
       "verify_release.ps1",
@@ -63,6 +65,14 @@
     {
       "path": "HOTFIX_0.27.8_PERFORMANCE_AUTONOMY_V11.md",
       "sha256": "ea970944b6e03288976990f7907ff4548b2ec18f2f94c733aba4ecb572d723b9"
+    },
+    {
+      "path": "JARVIS_FUNCTIONAL_AUDIT.md",
+      "sha256": "fc50298fb32e96a3b885d9ddb9578f9b5f997f15f87e80d4e867781e3b5385dd"
+    },
+    {
+      "path": "JARVIS_REAL_MACHINE_ACCEPTANCE.md",
+      "sha256": "13ca207c8660fa5b020562eaa60f1b8ab42245b5a54cf939a3feaefcddf55fe1"
     },
     {
       "path": "README.md",
@@ -130,7 +140,7 @@
     },
     {
       "path": "jarvis_core/core/brain.py",
-      "sha256": "c49f458a273cdc94c8dea333a590e2d0a06cb9c32af1acb95740204ba1e86eca"
+      "sha256": "a50625c497e2c20e0ff6c10a4a9e68a8403347277215aaa476769898051de36c"
     },
     {
       "path": "jarvis_core/core/cloud_brain.py",
@@ -314,7 +324,7 @@
     },
     {
       "path": "jarvis_core/services/request_intent.py",
-      "sha256": "7cb8b66a9a21a35dc31d42b435080328213d4c22afbfb0a3209b9203da06b970"
+      "sha256": "738896ff54e889f35d69d45d95772e63201d2c0df2e03918a61886b83be948f8"
     },
     {
       "path": "jarvis_core/services/response_completion.py",
@@ -730,7 +740,7 @@
     },
     {
       "path": "tests/test_conversation_identity_0276.py",
-      "sha256": "8e4766afdaeb9d6a9ad746aa833b0fb17669378e303c23544712cbf5043cd979"
+      "sha256": "2d9719ffe79252e6506e184d5b47923546542e65b51bb3f235579a71693979cb"
     },
     {
       "path": "tests/test_conversation_primacy_0276.py",
