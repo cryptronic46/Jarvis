@@ -514,6 +514,31 @@ class FastCommandRouter:
         if learning_exact is not None:
             return learning_exact
 
+        # Explicit PDF file lookups use the safe local file index.  A PDF can
+        # also be a book, but that is a different request: search_book_library
+        # searches book passages, while this route searches file names/paths.
+        local_pdf_lookup = (
+            "pdf" in normalized
+            and any(word in normalized.split() for word in ("ficheiro", "ficheiros", "arquivo", "arquivos"))
+            and any(word in normalized.split() for word in ("procura", "procurar", "encontra", "encontrar", "buscar"))
+        )
+        if local_pdf_lookup:
+            query_match = re.search(r"\b(?:relacionad[oa]s?\s+com|sobre|de)\s+(.+)$", normalized)
+            query = query_match.group(1).strip() if query_match else "pdf"
+            data = self._tool("search_local_files", {"query": query, "limit": 20})
+            rows = [
+                row for row in list(data.get("results") or [])
+                if str(row.get("extension") or "").casefold() == ".pdf"
+            ]
+            if not data.get("ok"):
+                response = data.get("message") or "Não consegui consultar o índice local de ficheiros."
+            elif not rows:
+                response = f"Não encontrei ficheiros PDF locais relacionados com {query}."
+            else:
+                names = [str(row.get("path") or row.get("name") or "").strip() for row in rows[:10]]
+                response = f"Encontrei {len(rows)} ficheiro(s) PDF local(is) relacionado(s) com {query}: " + "; ".join(names) + "."
+            return self._hit(response, "local_pdf_file_search", "search_local_files")
+
         if "confianca" in normalized and any(marker in normalized for marker in (
             "registo", "registro", "aprendizagem", "fonte", "informacao aprendida", "relevancia",
         )):

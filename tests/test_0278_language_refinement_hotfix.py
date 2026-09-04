@@ -43,6 +43,10 @@ class LanguageRefinementHotfixTests(unittest.TestCase):
         self.assertIn("`registro = usuario`", out)
         self.assertIn("o utilizador vê o ecrã", out)
 
+    def test_sanitizer_preserves_python_block_indentation(self):
+        raw = "```python\ndef add_task(task):\n    with open('tasks.txt') as file:\n        file.write(task)\n```"
+        self.assertEqual(sanitize_assistant_text(raw), raw)
+
     def test_duplicate_sentence_is_removed(self):
         out = refine_assistant_text(
             "A confiança não é veracidade. A confiança não é veracidade."

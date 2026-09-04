@@ -65,6 +65,12 @@ class FakeTools:
         if name == "get_functional_self_model":
             return json.dumps({"ok": True, "capabilities": ["conversation", "local tools"]})
 
+        if name == "search_local_files":
+            return json.dumps({"ok": True, "results": [
+                {"name": "Python Notes.pdf", "path": "C:/Users/tiago/Documents/Python Notes.pdf", "extension": ".pdf"},
+                {"name": "python.py", "path": "C:/Users/tiago/Documents/python.py", "extension": ".py"},
+            ]})
+
         return json.dumps({"ok": False, "error": "UNKNOWN"})
 
 
@@ -149,6 +155,14 @@ class FastRouterTests(unittest.TestCase):
             self.tools.calls[-1][1]["fact"],
             "a minha mulher se chama ISA",
         )
+
+    def test_explicit_pdf_file_lookup_uses_local_index_not_book_library(self):
+        result = self.router.dispatch("Jarvis, procura ficheiros PDF relacionados com Python.")
+        self.assertTrue(result.handled)
+        self.assertEqual(result.route, "local_pdf_file_search")
+        self.assertEqual(self.tools.calls[-1][0], "search_local_files")
+        self.assertEqual(self.tools.calls[-1][1]["query"], "python")
+        self.assertIn("Python Notes.pdf", result.response)
 
     def test_generic_file_save_is_not_memory_write(self):
         result = self.router.dispatch("guarda o ficheiro relatório na pasta documentos")

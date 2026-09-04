@@ -318,8 +318,14 @@ def sanitize_assistant_text(text: str, *, user_text: str = "") -> str:
     if not user_requested_emoji(user_text):
         value = _EMOJI_RE.sub("", value)
     value = _ptpt_localize_plain_text(value)
-    value = re.sub(r"[ \t]+\n", "\n", value)
-    value = re.sub(r" {2,}", " ", value)
+    # Whitespace cleanup is for prose only.  Applying it to a fenced code
+    # block silently removes Python indentation and turns valid code into an
+    # invalid program.
+    parts = re.split(r"(```.*?```)", value, flags=re.DOTALL)
+    for index in range(0, len(parts), 2):
+        parts[index] = re.sub(r"[ \t]+\n", "\n", parts[index])
+        parts[index] = re.sub(r" {2,}", " ", parts[index])
+    value = "".join(parts)
     return value.strip()
 
 _SELF_STATE_BAD_MARKERS = (
