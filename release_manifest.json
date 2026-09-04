@@ -1112,7 +1112,7 @@
     },
     {
       "path": "tests/test_release_manifest_complete.py",
-      "sha256": "4c569d6de3ac5ceb5f778c585229858f6e0a47e62b7e38555d46d9b5c4b1a3f2"
+      "sha256": "7aec2827eae9d6671d7885069971674b7f52c2420692f7f19d2efc76f64740fa"
     },
     {
       "path": "tests/test_release_updater_contract.py",
@@ -1460,7 +1460,7 @@
     },
     {
       "path": "update_core.ps1",
-      "sha256": "d7171f5c403f00af9149b7d42db4d33c589be6e2f60a5da63d6ee84973baf65c"
+      "sha256": "72d0a2810e7e6e0e5f43802de17bd1692779dcb6a64ef201b914376bb5bf1a22"
     },
     {
       "path": "verify_release.ps1",
