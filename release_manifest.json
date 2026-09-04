@@ -160,7 +160,7 @@
     },
     {
       "path": "jarvis_core/core/fast_router.py",
-      "sha256": "b9c5471e783c5be3c2a8a6346a9ebbd91cd7be118dc8608b3cac97067ac76704"
+      "sha256": "e1d9094a444cc6c333442f505e486e121dea39f844338b060f25472ef8368199"
     },
     {
       "path": "jarvis_core/core/freshness.py",
@@ -184,7 +184,7 @@
     },
     {
       "path": "jarvis_core/core/tool_registry.py",
-      "sha256": "c00a1f16012d979cc56b6670285d068b763047300698e35460d739a0f483d845"
+      "sha256": "390a444e73abb3cd0aff81aa0532819db686ea783599b2b5ace456e96bd737da"
     },
     {
       "path": "jarvis_core/security/__init__.py",
@@ -496,7 +496,7 @@
     },
     {
       "path": "jarvis_core/tools/windows_actions.py",
-      "sha256": "a49cca65eaa405a281d3bb40c2e3125728bad08a0ca223c75041973285c83586"
+      "sha256": "7d2196db28de570b986a5988c5dc212702c5bad1c7924e62e0dc40d6344b8cff"
     },
     {
       "path": "migrate_state.ps1",
@@ -652,7 +652,7 @@
     },
     {
       "path": "tests/test_apps.py",
-      "sha256": "a2196d47fefca0ec839bbffe736f4cc0b36635107fe30ece9f61f1354fcb8772"
+      "sha256": "8f9e4602820103cd8e26414c79cea6d625b7de87a9603cb912124a987248a114"
     },
     {
       "path": "tests/test_audio_contract.py",
@@ -852,7 +852,7 @@
     },
     {
       "path": "tests/test_fast_router.py",
-      "sha256": "53bcd4ae87d67880c4b004b3598dbff3aa83f77dd47534689f3c31f0c71adadc"
+      "sha256": "607dba553bda9e0ba344af49db7780c299bcc02f1f269e453621b7264ca58e70"
     },
     {
       "path": "tests/test_file_index_security.py",

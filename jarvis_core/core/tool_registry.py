@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable
 import json
 import re
@@ -34,7 +35,7 @@ from jarvis_core.services.privacy import (
 )
 from jarvis_core.services.routines import list_routines, run_routine
 from jarvis_core.services.file_index import (
-    build_local_file_index, search_local_files, list_recent_local_files, read_local_document,
+    build_local_file_index, search_local_files, list_recent_local_files, read_local_document, file_index,
 )
 from jarvis_core.services.book_library import (
     get_book_library_status,
@@ -137,6 +138,16 @@ class ToolRegistry:
     def _register(self, tool: ToolDef) -> None:
         self._tools[tool.name] = tool
         self.security.register(tool.name, tool.risk, tool.description)
+
+    def _open_local_document(self, path: str, app_name: str = "brave") -> dict[str, Any]:
+        target = Path(path)
+        if not file_index()._allowed_path(target):
+            return {
+                "ok": False,
+                "error": "PATH_NOT_ALLOWED",
+                "message": "Só posso abrir documentos nas pastas locais autorizadas da JARVIS.",
+            }
+        return self.apps.open_document(app_name, str(target))
 
     def register_skill_tool(
         self,
@@ -388,6 +399,20 @@ class ToolRegistry:
             read_local_document,
             {"type":"function","function":{"name":"read_local_document","description":"Read a local TXT/MD/CSV/JSON/LOG/PY/PDF document from allowed user folders.","parameters":{"type":"object","properties":{"path":{"type":"string"},"max_chars":{"type":"integer","minimum":1000,"maximum":50000}},"required":["path"]}}},
             RiskLevel.READ_ONLY,
+        ))
+        self._register(ToolDef(
+            "open_local_document",
+            "Open an allowlisted local PDF visually in an approved application.",
+            self._open_local_document,
+            {"type":"function","function":{
+                "name":"open_local_document",
+                "description":"Open an allowlisted local PDF visually in Brave.",
+                "parameters":{"type":"object","properties":{
+                    "path":{"type":"string"},
+                    "app_name":{"type":"string","default":"brave"}
+                },"required":["path"]}
+            }},
+            RiskLevel.LOW,
         ))
         self._register(ToolDef(
             "get_book_library_status",
@@ -1294,6 +1319,7 @@ class ToolRegistry:
                 "search_local_files",
                 "list_recent_local_files",
                 "read_local_document",
+                "open_local_document",
             )
 
         if has(

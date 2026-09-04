@@ -254,6 +254,43 @@ class AppRegistry:
         except OSError as exc:
             return {"ok": False, "error": type(exc).__name__, "message": str(exc), "app": app_id}
 
+    def open_document(self, app_name: str, path: str):
+        resolved = self.resolve(app_name)
+        if not resolved:
+            return {"ok": False, "error": "APP_NOT_ALLOWED", "message": f"'{app_name}' não está no App Registry."}
+        app_id, item = resolved
+        document = Path(path).resolve()
+        if not document.is_file():
+            return {"ok": False, "error": "FILE_NOT_FOUND", "path": str(document)}
+        if document.suffix.casefold() != ".pdf":
+            return {"ok": False, "error": "DOCUMENT_TYPE_NOT_ALLOWED", "message": "A abertura visual está limitada a ficheiros PDF."}
+
+        target, method, attempts = self._discover_executable(item)
+        if not target:
+            return {
+                "ok": False,
+                "error": "APP_EXECUTABLE_NOT_FOUND",
+                "message": f"Não encontrei o executável de {item.get('name', app_id)}.",
+                "attempts": attempts,
+            }
+        try:
+            subprocess.Popen(
+                [target, str(document)],
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+            time.sleep(0.15)
+            return {
+                "ok": True,
+                "app": app_id,
+                "name": item.get("name", app_id),
+                "path": str(document),
+                "launch_method": method,
+                "launch_requested": True,
+                "effect_verified": bool(self.running(app_name)),
+            }
+        except OSError as exc:
+            return {"ok": False, "error": type(exc).__name__, "message": str(exc), "app": app_id}
+
     def close(self, app_name: str):
         resolved = self.resolve(app_name)
         if not resolved:

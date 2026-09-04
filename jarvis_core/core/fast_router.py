@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 import json
 import re
 from time import time
@@ -575,14 +576,12 @@ class FastCommandRouter:
             )
         if open_first_followup and self._last_local_file_results:
             path = str(self._last_local_file_results[0].get("path") or "")
-            data = self._tool("read_local_document", {"path": path, "max_chars": 20000})
+            data = self._tool("open_local_document", {"path": path, "app_name": "brave"})
             if data.get("ok"):
-                self._last_local_document = data
-                body = str(data.get("text") or "").strip()
-                response = f"Abri {data.get('name') or path}.\n{body[:4000]}" + ("…" if len(body) > 4000 else "")
+                response = f"Enviei {Path(path).name} para abrir visualmente no Brave."
             else:
                 response = data.get("message") or data.get("error") or "Não consegui abrir o primeiro documento da lista."
-            return self._hit(response, "local_file_followup_open_first", "read_local_document")
+            return self._hit(response, "local_file_followup_open_first", "open_local_document")
 
         if self._last_local_file_results and any(phrase in normalized for phrase in (
             "qual e o mais recente", "qual deles e o mais recente", "ficheiro mais recente",
@@ -650,15 +649,13 @@ class FastCommandRouter:
                 response = f"Encontrei {len(rows)} ficheiro(s) PDF local(is) relacionado(s) com {query}: " + "; ".join(names) + "."
                 if compound_open_first:
                     path = str(rows[0].get("path") or "")
-                    opened = self._tool("read_local_document", {"path": path, "max_chars": 20000})
+                    opened = self._tool("open_local_document", {"path": path, "app_name": "brave"})
                     if opened.get("ok"):
-                        self._last_local_document = opened
-                        body = str(opened.get("text") or "").strip()
-                        response += f"\n\nAbri {opened.get('name') or path}.\n{body[:4000]}" + ("…" if len(body) > 4000 else "")
+                        response += f"\n\nEnviei {Path(path).name} para abrir visualmente no Brave."
                     else:
                         response += "\n\n" + str(opened.get("message") or opened.get("error") or "Não consegui abrir o primeiro documento.")
             route = "local_pdf_file_search_chain" if (compound_show_paths or compound_open_first) else "local_pdf_file_search"
-            tool = "search_local_files+read_local_document" if compound_open_first and rows else "search_local_files"
+            tool = "search_local_files+open_local_document" if compound_open_first and rows else "search_local_files"
             return self._hit(response, route, tool)
 
         create_plan_match = re.search(r"(?i)\b(?:cria|criar|faz|planeia)\s+(?:um\s+)?plano\s+(?:para|de)\s+(.+)$", text)

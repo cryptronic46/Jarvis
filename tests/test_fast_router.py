@@ -77,6 +77,8 @@ class FakeTools:
                 "path": args["path"],
                 "text": "Conteúdo Python verificado.",
             })
+        if name == "open_local_document":
+            return json.dumps({"ok": True, "name": "Brave", "path": args["path"], "launch_requested": True})
 
         return json.dumps({"ok": False, "error": "UNKNOWN"})
 
@@ -189,11 +191,11 @@ class FastRouterTests(unittest.TestCase):
         self.assertEqual(result.route, "local_pdf_file_search_chain")
         self.assertEqual(
             [name for name, _ in self.tools.calls],
-            ["search_local_files", "read_local_document"],
+            ["search_local_files", "open_local_document"],
         )
         self.assertEqual(self.tools.calls[0][1]["query"], "python")
         self.assertIn("C:/Users/tiago/Documents/Python Notes.pdf", result.response)
-        self.assertIn("Conteúdo Python verificado.", result.response)
+        self.assertIn("abrir visualmente no Brave", result.response)
 
     def test_explicit_pdf_file_lookup_uses_local_index_not_book_library(self):
         result = self.router.dispatch("Jarvis, procura ficheiros PDF relacionados com Python.")
