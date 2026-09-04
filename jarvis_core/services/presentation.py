@@ -386,7 +386,12 @@ def format_cyber_knowledge_sync(data: dict[str, Any]) -> str:
         detail = (
             f"{row.get('documents',0)} registos"
             if row.get("ok")
-            else row.get("message") or row.get("error") or "erro"
+            else (
+                f"{row.get('reason_code')}: {row.get('message')}"
+                if row.get("reason_code") and row.get("message")
+                else row.get("reason_code") or row.get("message")
+                or row.get("error") or "erro"
+            )
         )
         lines.append(
             f"- {status} · {row.get('source_name') or row.get('source_id')}: {detail}"

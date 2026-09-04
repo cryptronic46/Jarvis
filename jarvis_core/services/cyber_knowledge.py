@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from hashlib import sha256
 from html.parser import HTMLParser
@@ -22,6 +23,11 @@ DEFAULT_DB = Path("knowledge/cyber/cyber_knowledge.sqlite3")
 DEFAULT_SOURCES = Path("defaults/cyber_sources.json")
 DEFAULT_STATE = Path("knowledge/cyber/state.json")
 USER_AGENT = "JARVIS-CyberKnowledge/0.13 (+local personal knowledge base)"
+DEFAULT_DOWNLOAD_LIMIT_BYTES = 5_000_000
+MIN_DOWNLOAD_LIMIT_BYTES = 64_000
+HARD_DOWNLOAD_LIMIT_BYTES = 25_000_000
+MAX_JSON_RECORDS = 25_000
+MAX_CISA_FIELD_CHARS = 20_000
 
 ALLOWED_WEB_HOSTS = {
     "www.nist.gov",
@@ -44,6 +50,49 @@ MITRE_OBJECT_TYPES = {
     "x-mitre-data-source",
     "x-mitre-data-component",
 }
+
+
+class CyberSourceError(RuntimeError):
+    """Expected source failure with a stable, machine-readable reason code."""
+
+    def __init__(self, reason_code: str, message: str = ""):
+        self.reason_code = reason_code
+        super().__init__(message or reason_code)
+
+
+@dataclass(frozen=True)
+class DownloadedSource:
+    raw: bytes
+    content_type: str
+    final_url: str
+
+
+def _media_type(value: str) -> str:
+    return str(value or "").split(";", 1)[0].strip().casefold()
+
+
+def _is_json_media_type(value: str) -> bool:
+    media_type = _media_type(value)
+    return media_type in {"application/json", "text/json"} or media_type.endswith("+json")
+
+
+def _is_html_media_type(value: str) -> bool:
+    return _media_type(value) in {"text/html", "application/xhtml+xml"}
+
+
+def _routes_as_json(downloaded: DownloadedSource, kind: str) -> bool:
+    if _is_json_media_type(downloaded.content_type):
+        return True
+    generic_types = {"", "application/octet-stream", "binary/octet-stream", "text/plain"}
+    return (
+        kind in {"cisa_kev", "mitre_attack_stix"}
+        and downloaded.content_type in generic_types
+        and urlparse(downloaded.final_url).path.casefold().endswith(".json")
+    )
+
+
+def _bounded_text(value: Any, limit: int = MAX_CISA_FIELD_CHARS) -> str:
+    return str(value or "")[:limit]
 
 SEED_DOCS = [
     ("foundation-identity","Identidade, contas, UAC e privilégio mínimo","windows-security",
@@ -324,17 +373,23 @@ class CyberKnowledgeVault:
     def _validate_url(self, url: str) -> None:
         parsed = urlparse(url)
         if parsed.scheme != "https":
-            raise ValueError("CYBER_SOURCE_HTTPS_REQUIRED")
+            raise CyberSourceError("CYBER_SOURCE_HTTPS_REQUIRED")
         host = (parsed.hostname or "").lower()
         if host not in ALLOWED_WEB_HOSTS:
-            raise ValueError(f"CYBER_SOURCE_HOST_NOT_ALLOWED:{host}")
+            raise CyberSourceError(
+                "CYBER_SOURCE_HOST_NOT_ALLOWED",
+                f"Host público não autorizado: {host}",
+            )
 
-    def _download(self, source: dict[str, Any]) -> bytes:
+    def _download(self, source: dict[str, Any]) -> DownloadedSource:
         url = str(source.get("url") or "")
         self._validate_url(url)
         max_bytes = max(
-            100_000,
-            min(int(source.get("max_bytes") or 5_000_000), 80_000_000),
+            MIN_DOWNLOAD_LIMIT_BYTES,
+            min(
+                int(source.get("max_bytes") or DEFAULT_DOWNLOAD_LIMIT_BYTES),
+                HARD_DOWNLOAD_LIMIT_BYTES,
+            ),
         )
         req = Request(
             url,
@@ -345,14 +400,26 @@ class CyberKnowledgeVault:
         )
         with urlopen(req, timeout=35) as response:
             length = response.headers.get("Content-Length")
-            if length and int(length) > max_bytes:
-                raise ValueError(f"CYBER_SOURCE_TOO_LARGE:{length}>{max_bytes}")
+            try:
+                declared_length = int(length) if length else None
+            except (TypeError, ValueError):
+                declared_length = None
+            if declared_length is not None and declared_length > max_bytes:
+                raise CyberSourceError(
+                    "CYBER_SOURCE_TOO_LARGE",
+                    f"Tamanho declarado {declared_length} excede o limite {max_bytes}",
+                )
             raw = response.read(max_bytes + 1)
             if len(raw) > max_bytes:
-                raise ValueError(
-                    f"CYBER_SOURCE_TOO_LARGE:{len(raw)}>{max_bytes}"
+                raise CyberSourceError(
+                    "CYBER_SOURCE_TOO_LARGE",
+                    f"Tamanho recebido excede o limite {max_bytes}",
                 )
-            return raw
+            return DownloadedSource(
+                raw=raw,
+                content_type=_media_type(response.headers.get("Content-Type", "")),
+                final_url=str(response.geturl() or url),
+            )
 
     def _sync_html(
         self,
@@ -363,7 +430,7 @@ class CyberKnowledgeVault:
         parser.feed(raw.decode("utf-8", errors="replace"))
         page_title, body = parser.result()
         if len(body) < 100:
-            raise ValueError("CYBER_SOURCE_EMPTY_TEXT")
+            raise CyberSourceError("CYBER_SOURCE_EMPTY_TEXT")
         _, changed = self._upsert(
             source_id=source["id"],
             external_id="root",
@@ -383,22 +450,46 @@ class CyberKnowledgeVault:
         source: dict[str, Any],
         raw: bytes,
     ) -> dict[str, Any]:
-        data = json.loads(raw.decode("utf-8"))
+        try:
+            data = json.loads(raw.decode("utf-8-sig"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise CyberSourceError(
+                "CYBER_SOURCE_JSON_INVALID",
+                "O catálogo CISA KEV não contém JSON UTF-8 válido",
+            ) from exc
+        if not isinstance(data, dict):
+            raise CyberSourceError(
+                "CISA_KEV_SCHEMA_INVALID",
+                "A raiz do catálogo CISA KEV não é um objeto JSON",
+            )
+        vulnerabilities = data.get("vulnerabilities")
+        if not isinstance(vulnerabilities, list):
+            raise CyberSourceError(
+                "CISA_KEV_SCHEMA_INVALID",
+                "O catálogo CISA KEV não contém a lista vulnerabilities",
+            )
+        if len(vulnerabilities) > MAX_JSON_RECORDS:
+            raise CyberSourceError(
+                "CYBER_SOURCE_RECORD_LIMIT_EXCEEDED",
+                f"O catálogo excede o limite de {MAX_JSON_RECORDS} registos",
+            )
         changed = 0
         inserted = 0
-        for item in data.get("vulnerabilities") or []:
-            cve = str(item.get("cveID") or "").strip()
+        for item in vulnerabilities:
+            if not isinstance(item, dict):
+                continue
+            cve = _bounded_text(item.get("cveID"), 64).strip()
             if not cve:
                 continue
             title = (
-                f"{cve} — {item.get('vendorProject','')} "
-                f"{item.get('product','')}"
+                f"{cve} — {_bounded_text(item.get('vendorProject'), 500)} "
+                f"{_bounded_text(item.get('product'), 500)}"
             ).strip()
             body = " ".join(x for x in [
-                item.get("vulnerabilityName") or "",
-                item.get("shortDescription") or "",
+                _bounded_text(item.get("vulnerabilityName")),
+                _bounded_text(item.get("shortDescription")),
                 (
-                    "Required action: " + str(item.get("requiredAction"))
+                    "Required action: " + _bounded_text(item.get("requiredAction"))
                     if item.get("requiredAction") else ""
                 ),
                 (
@@ -413,6 +504,10 @@ class CyberKnowledgeVault:
                 (
                     "Notes: " + str(item.get("notes"))
                     if item.get("notes") else ""
+                ),
+                (
+                    "Forensic triage: " + _bounded_text(item.get("forensicTriage"))
+                    if item.get("forensicTriage") else ""
                 ),
             ] if x)
             _, was_changed = self._upsert(
@@ -436,6 +531,7 @@ class CyberKnowledgeVault:
                         "knownRansomwareCampaignUse"
                     ),
                     "cwes": item.get("cwes"),
+                    "forensic_triage": _bounded_text(item.get("forensicTriage")),
                 },
             )
             inserted += 1
@@ -445,6 +541,7 @@ class CyberKnowledgeVault:
             "changed": changed,
             "catalog_version": data.get("catalogVersion"),
             "date_released": data.get("dateReleased"),
+            "declared_count": data.get("count"),
         }
 
     def _sync_mitre_attack(
@@ -530,30 +627,59 @@ class CyberKnowledgeVault:
             return {
                 "ok": False,
                 "error": "CYBER_SOURCE_NOT_FOUND",
+                "reason_code": "CYBER_SOURCE_NOT_FOUND",
                 "source_id": source_id,
             }
 
         started = time.monotonic()
         try:
-            raw = self._download(source)
+            downloaded = self._download(source)
             kind = str(source.get("kind") or "html")
-            if kind == "html":
-                result = self._sync_html(source, raw)
-            elif kind == "cisa_kev":
-                result = self._sync_cisa_kev(source, raw)
-            elif kind == "mitre_attack_stix":
-                result = self._sync_mitre_attack(source, raw)
+            if _routes_as_json(downloaded, kind):
+                if kind == "cisa_kev":
+                    result = self._sync_cisa_kev(source, downloaded.raw)
+                elif kind == "mitre_attack_stix":
+                    result = self._sync_mitre_attack(source, downloaded.raw)
+                else:
+                    raise CyberSourceError(
+                        "CYBER_SOURCE_JSON_KIND_UNSUPPORTED",
+                        f"JSON não suportado para a fonte {kind}",
+                    )
+            elif _is_html_media_type(downloaded.content_type):
+                if kind != "html":
+                    raise CyberSourceError(
+                        "CYBER_SOURCE_CONTENT_TYPE_MISMATCH",
+                        f"A fonte {kind} devolveu {downloaded.content_type}",
+                    )
+                result = self._sync_html(source, downloaded.raw)
             else:
-                raise ValueError(f"CYBER_SOURCE_KIND_UNSUPPORTED:{kind}")
+                raise CyberSourceError(
+                    "CYBER_SOURCE_CONTENT_TYPE_UNSUPPORTED",
+                    f"Content-Type não suportado: {downloaded.content_type or 'ausente'}",
+                )
 
             output = {
                 "ok": True,
                 "source_id": source_id,
                 "source_name": source.get("name"),
                 "kind": kind,
-                "bytes": len(raw),
+                "bytes": len(downloaded.raw),
+                "content_type": downloaded.content_type,
+                "final_url": downloaded.final_url,
                 "elapsed_ms": round((time.monotonic() - started) * 1000),
                 **result,
+            }
+            self._record_sync(source_id, output)
+            return output
+        except CyberSourceError as exc:
+            output = {
+                "ok": False,
+                "source_id": source_id,
+                "source_name": source.get("name"),
+                "error": "CYBER_SOURCE_ERROR",
+                "reason_code": exc.reason_code,
+                "message": str(exc),
+                "elapsed_ms": round((time.monotonic() - started) * 1000),
             }
             self._record_sync(source_id, output)
             return output
@@ -562,7 +688,8 @@ class CyberKnowledgeVault:
                 "ok": False,
                 "source_id": source_id,
                 "source_name": source.get("name"),
-                "error": type(exc).__name__,
+                "error": "CYBER_SOURCE_ERROR",
+                "reason_code": "CYBER_SOURCE_FETCH_FAILED",
                 "message": str(exc),
                 "elapsed_ms": round((time.monotonic() - started) * 1000),
             }

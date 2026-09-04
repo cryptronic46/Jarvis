@@ -228,7 +228,7 @@
     },
     {
       "path": "jarvis_core/services/cyber_knowledge.py",
-      "sha256": "4b50720bcb4a05b0acc46232abedc4391afd6f739e743cd50f4fb2639145ccde"
+      "sha256": "8680f0d18c142c127bbe169121e9b1aa395416a2f0438a34e2371467ae2e96e4"
     },
     {
       "path": "jarvis_core/services/cyber_range.py",
@@ -308,7 +308,7 @@
     },
     {
       "path": "jarvis_core/services/presentation.py",
-      "sha256": "a4f96ec3861a172c5a0e9496d778de881c3d2cdb91fec549e67f9b0f726c6f66"
+      "sha256": "35f02093fa78859c33daf9c50e84ac5ef25473ba0dc6ad4d7518c7b3073f54a9"
     },
     {
       "path": "jarvis_core/services/privacy.py",
@@ -768,7 +768,7 @@
     },
     {
       "path": "tests/test_cyber_knowledge_vault.py",
-      "sha256": "4a091fcd8001325bc49c69482189bd04e0fdb61306d4fd0dcdb0a4fc8140e0d5"
+      "sha256": "969f950c3812092a49670bf3cf8a8bc90bcce5d4b3b8a14a45c28794bbe10987"
     },
     {
       "path": "tests/test_cyber_range_contract.py",
