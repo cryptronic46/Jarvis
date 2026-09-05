@@ -12,7 +12,7 @@ from jarvis_core.core.local_llm import build_local_client, LocalLLMError
 from jarvis_core.core.config import Settings
 from jarvis_core.core.events import EventBus
 from jarvis_core.core.tool_registry import ToolRegistry
-from jarvis_core.core.freshness import requires_current_gpu, requires_current_system
+from jarvis_core.core.freshness import allows_freshness_fallback
 from jarvis_core.services.user_memory import store as user_memory_store
 from jarvis_core.services.context_store import context_store, recall_answer_needs_repair, deterministic_recall_answer
 from jarvis_core.services.cyber_knowledge import cyber_vault
@@ -2480,9 +2480,11 @@ class JarvisBrain:
             )
         }
 
-        force_fresh = (
-            requires_current_gpu(user_text)
-            or requires_current_system(user_text)
+        force_fresh = allows_freshness_fallback(
+            user_text,
+            semantic_request_present=(
+                request is not None
+            ),
         )
         freshness_used = False
 

@@ -17,3 +17,18 @@ def requires_current_gpu(text: str) -> bool:
 def requires_current_system(text: str) -> bool:
     t = text.lower()
     return any(x in t for x in CURRENT_MARKERS) and any(x in t for x in PC_MARKERS)
+
+
+def allows_freshness_fallback(
+    text: str,
+    *,
+    semantic_request_present: bool,
+) -> bool:
+    """Allow heuristic freshness only outside semantic routing."""
+    if semantic_request_present:
+        return False
+
+    return (
+        requires_current_gpu(text)
+        or requires_current_system(text)
+    )

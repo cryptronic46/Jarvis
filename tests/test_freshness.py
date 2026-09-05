@@ -11,5 +11,53 @@ class FreshnessTests(unittest.TestCase):
     def test_current_pc(self):
         self.assertTrue(requires_current_system("Como está o meu PC agora?"))
 
+    def test_legacy_freshness_fallback_allows_current_pc(self):
+        from jarvis_core.core.freshness import (
+            allows_freshness_fallback,
+        )
+
+        self.assertTrue(
+            allows_freshness_fallback(
+                "Como esta o meu PC agora?",
+                semantic_request_present=False,
+            )
+        )
+
+    def test_structured_request_disables_freshness_fallback(self):
+        import inspect
+
+        from jarvis_core.core.brain import (
+            JarvisBrain,
+        )
+        from jarvis_core.core.freshness import (
+            allows_freshness_fallback,
+        )
+
+        self.assertFalse(
+            allows_freshness_fallback(
+                "Como esta o meu PC agora?",
+                semantic_request_present=True,
+            )
+        )
+
+        source = inspect.getsource(
+            JarvisBrain._ask_locked
+        )
+
+        compact = "".join(
+            source.split()
+        )
+
+        self.assertIn(
+            "allows_freshness_fallback(",
+            source,
+        )
+
+        self.assertIn(
+            "semantic_request_present=(requestisnotNone)",
+            compact,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
