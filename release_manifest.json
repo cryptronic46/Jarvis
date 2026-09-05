@@ -120,7 +120,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "11033d09fb27745bd700086d60d9023e271dee8bbbaea9bb506de0c9114608d4"
+      "sha256": "0094664980aec1159449d6790b1c363b5cadb4269edd1ff00305ab060a3c9c31"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -1199,6 +1199,10 @@
       "sha256": "9cd8d4f73972b672da852d6828d2bf19c57cd022340799faf0a76596402138ec"
     },
     {
+      "path": "tests/test_runtime_request_pipeline.py",
+      "sha256": "0737641aa55556953041e648b331ffdc8c5ae5fd0c5467d1d20a899329c0ba30"
+    },
+    {
       "path": "tests/test_security.py",
       "sha256": "5cf05e44239cd5fb07c3baccf46075d3ef297983f0ed910d6c6fd54827d34d73"
     },
@@ -1264,7 +1268,7 @@
     },
     {
       "path": "tests/test_semantic_fast_authority.py",
-      "sha256": "14a41df2ecf79f3a6a10b6d08cc13fe20f22ff5eae34bc0f0bcbddb10fcc0a07"
+      "sha256": "753bd94cfa9094d6cb8c41ddd8298605ce5012e9bd38b9974b20785ea99a7469"
     },
     {
       "path": "tests/test_semantic_intent.py",

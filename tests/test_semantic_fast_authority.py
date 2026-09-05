@@ -166,34 +166,102 @@ class SemanticFastAuthorityTests(unittest.TestCase):
             "jarvis_core/cli.py"
         ).read_text(encoding="utf-8")
 
-        start = source.index(
+        route_start = source.index(
+            "def route_runtime_request("
+        )
+
+        route_end = source.index(
+            "\ndef main() -> None:",
+            route_start,
+        )
+
+        route_block = source[
+            route_start:route_end
+        ]
+
+        process_start = source.index(
             "    def process_request("
         )
-        end = source.index(
+
+        process_end = source.index(
             "    def handle_voice_command(",
-            start,
+            process_start,
         )
-        block = source[start:end]
+
+        process_block = source[
+            process_start:process_end
+        ]
 
         self.assertEqual(
-            block.count(
+            route_block.count(
                 "resolve_semantic_request("
             ),
             1,
         )
 
-        self.assertLess(
-            block.index(
-                "resolve_semantic_request("
-            ),
-            block.index(
+        self.assertEqual(
+            route_block.count(
                 "fast_router.dispatch("
             ),
+            1,
         )
 
-        self.assertIn(
-            "request=structured_request",
-            block,
+        self.assertEqual(
+            route_block.count(
+                "hybrid_brain.ask("
+            ),
+            1,
+        )
+
+        semantic_index = route_block.index(
+            "resolve_semantic_request("
+        )
+
+        fast_index = route_block.index(
+            "fast_router.dispatch("
+        )
+
+        hybrid_index = route_block.index(
+            "hybrid_brain.ask("
+        )
+
+        self.assertLess(
+            semantic_index,
+            fast_index,
+        )
+
+        self.assertLess(
+            fast_index,
+            hybrid_index,
+        )
+
+        self.assertEqual(
+            route_block.count(
+                "request=structured_request"
+            ),
+            2,
+        )
+
+        self.assertEqual(
+            process_block.count(
+                "route_runtime_request("
+            ),
+            1,
+        )
+
+        self.assertNotIn(
+            "resolve_semantic_request(",
+            process_block,
+        )
+
+        self.assertNotIn(
+            "fast_router.dispatch(",
+            process_block,
+        )
+
+        self.assertNotIn(
+            "hybrid_brain.ask(",
+            process_block,
         )
 
     def test_fast_router_has_single_tool_execution_boundary(self):

@@ -646,6 +646,93 @@ Experimenta:
   Fecha o Discord.
 """.strip()
 
+def route_runtime_request(
+    user_text: str,
+    *,
+    source: str,
+    semantic_context_inputs,
+    events,
+    fast_router,
+    hybrid_brain,
+    before_hybrid=None,
+):
+    """
+    Execute the semantic routing core used by the real CLI.
+
+    This function deliberately owns only routing:
+    semantic context -> StructuredRequest -> FastRouter -> HybridBrain.
+
+    Persistence, cognition, performance accounting, voice lifecycle,
+    and other runtime side effects remain owned by main().
+    """
+    (
+        semantic_recent_turns,
+        semantic_app_aliases,
+    ) = semantic_context_inputs()
+
+    structured_request = resolve_semantic_request(
+        user_text,
+        recent_turns=semantic_recent_turns,
+        app_aliases=semantic_app_aliases,
+    )
+
+    events.emit(
+        "SEMANTIC_REQUEST_RESOLVED",
+        intent=structured_request.intent,
+        domain=structured_request.domain,
+        subject=structured_request.subject,
+        action=structured_request.action,
+        requires_tool=structured_request.requires_tool,
+        preferred_tool=structured_request.preferred_tool,
+        epistemic_learning_eligible=(
+            structured_request.epistemic_learning_eligible
+        ),
+        confidence=structured_request.confidence,
+    )
+
+    voice_origin = (
+        str(source).lower()
+        in {
+            "wake",
+            "voice",
+            "manual_voice",
+            "manual",
+        }
+    )
+
+    fast = fast_router.dispatch(
+        user_text,
+        voice_origin=voice_origin,
+        request=structured_request,
+    )
+
+    if fast.handled:
+        fast.response = sanitize_assistant_text(
+            fast.response,
+            user_text=user_text,
+        )
+
+        return (
+            fast.response,
+            f"FAST/{fast.route}",
+            None,
+        )
+
+    if before_hybrid is not None:
+        before_hybrid()
+
+    hybrid = hybrid_brain.ask(
+        user_text,
+        request=structured_request,
+    )
+
+    return (
+        hybrid.text,
+        hybrid.route,
+        hybrid,
+    )
+
+
 def main() -> None:
     # The updater preserves settings.json. Normalize/add the current schema on
     # every startup so release migrations (including the 0.21 voice profile)
@@ -1025,107 +1112,146 @@ def main() -> None:
                 "SYNTHETIC_SELF_INPUT_OBSERVE_ERROR",
                 error=f"{type(exc).__name__}: {exc}",
             )
-        voice_origin = str(source).lower() in {"wake", "voice", "manual_voice", "manual"}
+        def before_hybrid():
+            if (
+                voice_engine_state.get("effective") == "v2"
+                and bool(
+                    getattr(
+                        settings,
+                        "voice_v2_vram_handoff_enabled",
+                        True,
+                    )
+                )
+            ):
+                try:
+                    stt_state = (
+                        microphone.stt_residency_status()
+                    )
 
-        # 2F.5A: establish semantic authority before any FastRouter
-        # tool execution. The same immutable request is forwarded.
-        semantic_recent_turns, semantic_app_aliases = (
-            semantic_context_inputs()
-        )
+                    if str(
+                        stt_state.get("backend")
+                        or ""
+                    ).lower().startswith("cuda/"):
+                        released = microphone.release_stt()
 
-        structured_request = resolve_semantic_request(
+                        events.emit(
+                            "VOICE_V2_VRAM_TO_REASONING",
+                            result=released,
+                        )
+                except Exception as exc:
+                    events.emit(
+                        "VOICE_V2_VRAM_TO_REASONING_FAILED",
+                        error=(
+                            f"{type(exc).__name__}: "
+                            f"{exc}"
+                        ),
+                    )
+
+        answer, route, hybrid = route_runtime_request(
             user_text,
-            recent_turns=semantic_recent_turns,
-            app_aliases=semantic_app_aliases,
-        )
-
-        events.emit(
-            "SEMANTIC_REQUEST_RESOLVED",
-            intent=structured_request.intent,
-            domain=structured_request.domain,
-            subject=structured_request.subject,
-            action=structured_request.action,
-            requires_tool=structured_request.requires_tool,
-            preferred_tool=structured_request.preferred_tool,
-            epistemic_learning_eligible=(
-                structured_request.epistemic_learning_eligible
+            source=source,
+            semantic_context_inputs=(
+                semantic_context_inputs
             ),
-            confidence=structured_request.confidence,
+            events=events,
+            fast_router=fast_router,
+            hybrid_brain=hybrid_brain,
+            before_hybrid=before_hybrid,
         )
 
-        fast = fast_router.dispatch(
-            user_text,
-            voice_origin=voice_origin,
-            request=structured_request,
+        elapsed = round(
+            (monotonic() - command_started)
+            * 1000
         )
-        if fast.handled:
-            # Fast-path text bypasses JarvisBrain, so apply the same final output
-            # policy here (pt-PT localization, emoji policy, duplicate cleanup).
-            fast.response = sanitize_assistant_text(fast.response, user_text=user_text)
-            route = f"FAST/{fast.route}"
-            elapsed = round((monotonic() - command_started) * 1000)
+
+        if hybrid is None:
             if settings.persistent_context_enabled:
-                persistent_context.record(user_text, fast.response, route)
-            cognition.observe_interaction(user_text, fast.response, route)
+                persistent_context.record(
+                    user_text,
+                    answer,
+                    route,
+                )
+
+            cognition.observe_interaction(
+                user_text,
+                answer,
+                route,
+            )
+
             try:
                 self_engine.observe_outcome(
                     owner_text=user_text,
-                    assistant_text=fast.response,
+                    assistant_text=answer,
                     route=route,
                     success=True,
                 )
             except Exception as exc:
                 events.emit(
                     "SYNTHETIC_SELF_OUTCOME_OBSERVE_ERROR",
-                    error=f"{type(exc).__name__}: {exc}",
+                    error=(
+                        f"{type(exc).__name__}: "
+                        f"{exc}"
+                    ),
                 )
+
             performance.record_request(
                 elapsed_ms=elapsed,
                 route=route,
             )
-            return fast.response, route, elapsed, None
 
-        if (
-            voice_engine_state.get("effective") == "v2"
-            and bool(getattr(settings, "voice_v2_vram_handoff_enabled", True))
-        ):
-            try:
-                stt_state = microphone.stt_residency_status()
-                if str(stt_state.get("backend") or "").lower().startswith("cuda/"):
-                    released = microphone.release_stt()
-                    events.emit("VOICE_V2_VRAM_TO_REASONING", result=released)
-            except Exception as exc:
-                events.emit(
-                    "VOICE_V2_VRAM_TO_REASONING_FAILED",
-                    error=f"{type(exc).__name__}: {exc}",
-                )
+            return (
+                answer,
+                route,
+                elapsed,
+                None,
+            )
 
-        hybrid = hybrid_brain.ask(
-            user_text,
-            request=structured_request,
-        )
-        elapsed = round((monotonic() - command_started) * 1000)
         if settings.persistent_context_enabled:
-            persistent_context.record(user_text, hybrid.text, hybrid.route)
-        cognition.observe_interaction(user_text, hybrid.text, hybrid.route)
+            persistent_context.record(
+                user_text,
+                hybrid.text,
+                hybrid.route,
+            )
+
+        cognition.observe_interaction(
+            user_text,
+            hybrid.text,
+            hybrid.route,
+        )
+
         try:
             self_engine.observe_outcome(
                 owner_text=user_text,
                 assistant_text=hybrid.text,
                 route=hybrid.route,
-                success=bool(str(hybrid.text or "").strip()),
+                success=bool(
+                    str(
+                        hybrid.text
+                        or ""
+                    ).strip()
+                ),
             )
         except Exception as exc:
             events.emit(
                 "SYNTHETIC_SELF_OUTCOME_OBSERVE_ERROR",
-                error=f"{type(exc).__name__}: {exc}",
+                error=(
+                    f"{type(exc).__name__}: "
+                    f"{exc}"
+                ),
             )
+
         if hybrid.route.startswith("RESEARCH"):
             performance.record_request(
                 elapsed_ms=elapsed,
                 route=hybrid.route,
             )
-        return (hybrid.text, hybrid.route, elapsed, hybrid)
+
+        return (
+            hybrid.text,
+            hybrid.route,
+            elapsed,
+            hybrid,
+        )
 
     def handle_voice_command(source: str = "manual"):
         with command_lock:
