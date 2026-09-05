@@ -132,7 +132,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "9edb1084eb252a2b5a1a0cfbbfc6b240c457cafd3ed97d14102ee7231c362803"
+      "sha256": "1617dbeb0ed5c4b026e43f0007a660437d91df4e5c1d17130ce0017551d52996"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -148,7 +148,7 @@
     },
     {
       "path": "jarvis_core/core/config.py",
-      "sha256": "0cb4d30aacc3f80aaa9b8cbccb1e2894aa0c3e881798c700d7ed9e6b39842b4c"
+      "sha256": "4f0376b83eb5bdfb0cda12e5bfa92c6833712464188dedd88cfef57c438beb87"
     },
     {
       "path": "jarvis_core/core/conversation_policy.py",
@@ -217,6 +217,10 @@
     {
       "path": "jarvis_core/services/av_devices.py",
       "sha256": "b7dee113797d54e33202a0eeae36f6d3852493966c6c8c78f1e8ddb339ea7a4e"
+    },
+    {
+      "path": "jarvis_core/services/book_library.py",
+      "sha256": "43969d93f0addef22da47749c458761b618a281e6b9c0ae4c0c1c57b83f5612a"
     },
     {
       "path": "jarvis_core/services/companion_presence.py",
@@ -297,6 +301,10 @@
     {
       "path": "jarvis_core/services/openwakeword_compat.py",
       "sha256": "909493696f95cd758ee8a7bfbbffe4298e6ebc93df662478452bf8899b0afd23"
+    },
+    {
+      "path": "jarvis_core/services/pdf_ocr.py",
+      "sha256": "77f33876d6b86c6f26c4b51a361facba62035476a9c2f40d08c95b10cafb66be"
     },
     {
       "path": "jarvis_core/services/performance.py",
@@ -687,12 +695,24 @@
       "sha256": "88c59834a28176e2e56342d295c803a8a18cb44e8a52c7b011c07be4e373eb99"
     },
     {
+      "path": "tests/test_book_grounding_hotfix.py",
+      "sha256": "d1d946249bb0cf57d615a211d9bdd47ed46c9d158ed132fb6e3bbe6594666635"
+    },
+    {
+      "path": "tests/test_book_library.py",
+      "sha256": "b463bedf3590fc8d087c06676c619b6cf6570034dfaf878de1721da6df0cd5ea"
+    },
+    {
       "path": "tests/test_clean_cli_contract.py",
       "sha256": "836106c3c38908d74180e17f667f67ab1ae34642ada7d26be73887ca005b87eb"
     },
     {
       "path": "tests/test_clean_presentation.py",
       "sha256": "534cefb40f8447eadf8ea016474dd6ec93d95d5a2c21e7115b4df474f6eebaca"
+    },
+    {
+      "path": "tests/test_cli_banner.py",
+      "sha256": "7ca4b395f31fa786b2a171c7dc1334ffb1c2243690602f248f25f4d65cbd73b7"
     },
     {
       "path": "tests/test_cli_regex_import_contract.py",
@@ -741,6 +761,10 @@
     {
       "path": "tests/test_conversation_identity_0276.py",
       "sha256": "2d9719ffe79252e6506e184d5b47923546542e65b51bb3f235579a71693979cb"
+    },
+    {
+      "path": "tests/test_conversation_learning_and_flirt.py",
+      "sha256": "075cf6f3bb4f0f25b75a1eb2f2f2194caa2599857051367e9b484cddd25068cb"
     },
     {
       "path": "tests/test_conversation_primacy_0276.py",
@@ -953,6 +977,10 @@
     {
       "path": "tests/test_local_research_architecture.py",
       "sha256": "4ed93b425fc37d2f274c351291487a5025e9ac165f1d7aa769e6530281338879"
+    },
+    {
+      "path": "tests/test_local_voice_retired.py",
+      "sha256": "38551b040640dfaace66dd97c8739bed51dfa11d7b8d9ee41226876e054a85c2"
     },
     {
       "path": "tests/test_location_registry_contract.py",
@@ -1224,7 +1252,7 @@
     },
     {
       "path": "tests/test_speaker_lock_contract.py",
-      "sha256": "2742e00235a5d312efbd7f4f2e6e1acc67290a2dc78ee3ae4f27d1a4bf6c4fb0"
+      "sha256": "cc1661620c9c2c03bba45a5f82bfe34b85a5eb318066104a9dcb6ef37e723a0f"
     },
     {
       "path": "tests/test_speech_chunking.py",
@@ -1320,7 +1348,7 @@
     },
     {
       "path": "tests/test_voice_contract.py",
-      "sha256": "a106aa56e6c0e226b1a44906636b7ae7b12ba6e355531d1971117df843c24a25"
+      "sha256": "4dd63a21b6d2f3721324f7caae0a9a6520ca8cc83c41b0f637e14c0fd5cd5a43"
     },
     {
       "path": "tests/test_voice_engine_v2_contract.py",
@@ -1336,7 +1364,7 @@
     },
     {
       "path": "tests/test_voice_policy.py",
-      "sha256": "e4330acc64af7b6aef66a85eddce7eee6f595f1286a9b7753fe11aaeb3fc946f"
+      "sha256": "131b83114afc6d716e31ff3c36b6ac01797d014d2fe6ec4b8a9781d131fe4e9e"
     },
     {
       "path": "tests/test_voice_reset_0270.py",
@@ -1465,30 +1493,6 @@
     {
       "path": "verify_release.ps1",
       "sha256": "5c4e9b619a133c2fcd3946e2d8e267bfba6e0fb84fb6f5136af8c380d6376268"
-    },
-    {
-      "path": "jarvis_core/services/book_library.py",
-      "sha256": "43969d93f0addef22da47749c458761b618a281e6b9c0ae4c0c1c57b83f5612a"
-    },
-    {
-      "path": "tests/test_book_grounding_hotfix.py",
-      "sha256": "d1d946249bb0cf57d615a211d9bdd47ed46c9d158ed132fb6e3bbe6594666635"
-    },
-    {
-      "path": "tests/test_book_library.py",
-      "sha256": "b463bedf3590fc8d087c06676c619b6cf6570034dfaf878de1721da6df0cd5ea"
-    },
-    {
-      "path": "jarvis_core/services/pdf_ocr.py",
-      "sha256": "77f33876d6b86c6f26c4b51a361facba62035476a9c2f40d08c95b10cafb66be"
-    },
-    {
-      "path": "tests/test_cli_banner.py",
-      "sha256": "7ca4b395f31fa786b2a171c7dc1334ffb1c2243690602f248f25f4d65cbd73b7"
-    },
-    {
-      "path": "tests/test_conversation_learning_and_flirt.py",
-      "sha256": "075cf6f3bb4f0f25b75a1eb2f2f2194caa2599857051367e9b484cddd25068cb"
     }
   ]
 }

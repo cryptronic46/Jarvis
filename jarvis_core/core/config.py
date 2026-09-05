@@ -127,6 +127,9 @@ class Settings:
     wallpaper_live_state_path: str = "memory/live_hud.json"
     wallpaper_live_interval_seconds: float = 2.0
 
+    # PC-local audio is retired from the active runtime.
+    # A future authenticated client such as iPhone/Siri may provide speech transport.
+    local_voice_enabled: bool = False
     # 0.25 Voice Engine v2. ``auto`` prefers the mature Windows-native
     # WASAPI/openWakeWord pipeline when its optional dependencies are ready,
     # while retaining the legacy acoustic engine as an explicit fallback.
@@ -678,7 +681,16 @@ class Settings:
             "external_ai_auto_escalate_complex": False,
             "performance_cloud_offload_under_pressure": False,
             "performance_release_llm_on_pressure": False,
-            "voice_v2_preload_stt": True,
+            # PC-local speech is retired. Schema normalization must never
+            # resurrect any historical audio subsystem on startup.
+            "local_voice_enabled": False,
+            "speech_enabled": False,
+            "speaker_lock_enabled": False,
+            "wake_enabled": False,
+            "wake_auto_start": False,
+            "proactive_speech_enabled": False,
+            "listening_watchdog_enabled": False,
+            "voice_v2_preload_stt": False,
         }
         local_first_values.update({
             "external_ai_enabled": False,

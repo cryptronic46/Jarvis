@@ -13,9 +13,10 @@ class SpeakerLockContractTests(unittest.TestCase):
         y = SpeakerVerifier._normalize_embedding(x)
         self.assertAlmostEqual(float(np.linalg.norm(y)), 1.0, places=5)
 
-    def test_defaults_use_camplus(self):
+    def test_camplus_contract_is_preserved_but_disabled_by_default(self):
         data = json.loads(Path("settings.json").read_text(encoding="utf-8"))
-        self.assertTrue(data["speaker_lock_enabled"])
+        self.assertFalse(data["local_voice_enabled"])
+        self.assertFalse(data["speaker_lock_enabled"])
         self.assertIn("campplus", data["speaker_model_path"].lower())
         self.assertEqual(data["speaker_model_sha256"], CAMPLUS_SHA256)
         self.assertGreaterEqual(data["speaker_threshold"], 0.40)

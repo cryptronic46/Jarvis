@@ -4,9 +4,10 @@ from pathlib import Path
 
 
 class VoicePolicyTests(unittest.TestCase):
-    def test_voice_id_remains_enabled_but_observe_only(self):
+    def test_voice_id_is_retired_but_legacy_policy_remains_observe_only(self):
         data = json.loads(Path("settings.json").read_text(encoding="utf-8"))
-        self.assertTrue(data["speaker_lock_enabled"])
+        self.assertFalse(data["local_voice_enabled"])
+        self.assertFalse(data["speaker_lock_enabled"])
         self.assertEqual(data["speaker_enforcement_mode"], "observe")
 
     def test_observe_mode_still_calls_verification(self):

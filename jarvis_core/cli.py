@@ -473,52 +473,17 @@ Comandos:
   /tools            ferramentas e risco
   /apps             aplicações autorizadas
   /appcheck APP     diagnosticar localização de uma aplicação
-  /voice status     voz + motor de entrada + STT
-  /voice doctor     diagnóstico completo do Voice Engine
-  /voice benchmark  medir custo do wake v2 em tempo real
-  /voice backend auto|v2|legacy  escolher motor de entrada (reinício)
-  /voice release    libertar modelo Faster Whisper da RAM/VRAM
-  /voice test       testar a voz
-  /voice on         ativar respostas faladas
-  /voice off        desativar respostas faladas
-  /voice stop       interromper a fala atual
-  /voice feminine   aplicar voz feminina Raquel (perfil Velvet)
   /companion status estado da presença social adaptativa
   /companion on|off ativar/desativar iniciativa social
   /companion flirt on|off permitir/bloquear flirt contextual
   /companion intensity 0..1 intensidade máxima do flirt
-  /mic list         listar microfones disponíveis
-  /mic status       mostrar microfone/STT atual
-  /mic doctor       listar candidatos JBL pela ordem de tentativa
-  /mic use N        escolher microfone pelo índice
-  /mic default      voltar ao microfone predefinido
-  /av status        estado conjunto webcam + microfone
-  /av auto          detetar e priorizar webcam/microfone integrado
-  /av microphones   listar entradas e pontuação provável de webcam
-  /av probe         testar quais entradas entregam sinal real
   /av cameras       listar câmaras locais disponíveis
-  /av mic N         fixar o microfone da webcam pelo índice
   /av camera N      fixar a câmara pelo índice
-  /av webcam on|off ativar/desativar prioridade automática da webcam
-  /listen           ouvir uma frase e enviá-la ao JARVIS
-  /listening status estado combinado do microfone/wake/watchdog
-  /listening recover recuperar o stream de escuta sem reiniciar o Core
-  /stt status       perfil e parâmetros de precisão do reconhecimento
-  /stt test         capturar uma frase e mostrar diagnóstico STT sem executar
   /silence status   estado do silêncio conversacional latched
-  /silence on|off   silenciar até novo wake / libertar silêncio
+  /silence on|off   silenciar/libertar saída conversacional
   /activity on|off  mostrar/ocultar trace seguro em tempo real
   /activity status  estado + atividade recente (sem chain-of-thought)
   /activity last    últimas decisões/ações observáveis
-  /wake status      estado do Always Listening
-  /wake doctor      testar wake acústico + JBL
-  /wake test        captar 'Jarvis' e medir score/threshold
-  /wake enroll      registar a tua pronúncia de 'Jarvis'
-  /wake delete      apagar o perfil acústico de 'Jarvis'
-  /wake on          iniciar Always Listening
-  /interrupt enroll registar a frase 'Cala-te'
-  /interrupt status estado da interrupção por voz
-  /interrupt delete apagar perfil 'Cala-te'
   /memory status    estado da memória local
   /memory show      mostrar factos guardados
   /profile status   resumo do perfil atual
@@ -584,7 +549,6 @@ Comandos:
   /mind why          motivo da última mensagem espontânea
   /mind learning on|off aprendizagem pessoal local
   /mind proactive on|off iniciativa espontânea
-  /mind speech on|off fala espontânea
   /autonomy status      autoridade, permissões e modo de autonomia
   /autonomy pending     pedidos autónomos à espera da tua decisão
   /autonomy history     auditoria recente de pedidos/autorizações
@@ -616,14 +580,6 @@ Comandos:
   /network devices  dispositivos ativos na LAN
   /network devices all todos os dispositivos conhecidos
   /network status full detalhe técnico completo da rede
-  /wake off         parar Always Listening
-  /voiceid status   estado do Voice Lock
-  /voiceid doctor   testar backend/modelo antes do registo
-  /voiceid enroll   registar a tua voz (5 amostras)
-  /voiceid on       aceitar apenas a voz registada
-  /voiceid off      desativar filtro de voz
-  /voiceid threshold X  ajustar limiar de semelhança
-  /voiceid delete   apagar perfil de voz local
   /desktop status   estado da integração Core + Wallpaper Engine
   /desktop ensure   garantir bridge e Wallpaper Engine ativos
   /desktop agent status estado do Desktop Agent
@@ -670,7 +626,7 @@ Comandos:
   /local TEXT       forçar Qwen local
   /cloud status     confirma que IA externa está HARD BLOCKED
   /cloud diagnose   confirma que IA externa está HARD BLOCKED
-  /warmup           pré-carregar STT, Voice Lock e LLM
+  /warmup           pré-carregar o modelo local Qwen
   /debug on         mostrar eventos técnicos no terminal
   /debug off        ocultar eventos técnicos (predefinição)
   /debug status     estado do modo de diagnóstico
@@ -690,13 +646,24 @@ Experimenta:
   Fecha o Discord.
 """.strip()
 
-
 def main() -> None:
     # The updater preserves settings.json. Normalize/add the current schema on
     # every startup so release migrations (including the 0.21 voice profile)
     # apply without overwriting custom OWNER choices.
     Settings.ensure_file_schema()
     settings = Settings.load()
+
+    # Master switch for PC-local speech input/output.
+    # Vision/webcam remains independent from the retired audio path.
+    local_voice_enabled = bool(getattr(settings, "local_voice_enabled", False))
+    if not local_voice_enabled:
+        settings.speech_enabled = False
+        settings.wake_enabled = False
+        settings.wake_auto_start = False
+        settings.listening_watchdog_enabled = False
+        settings.speaker_lock_enabled = False
+        settings.proactive_speech_enabled = False
+        settings.voice_v2_preload_stt = False
     events = EventBus(settings.log_dir, max_bytes=settings.log_max_bytes, backup_count=settings.log_backup_count)
     desktop = DesktopIntegrationService(
         events,
@@ -835,7 +802,7 @@ def main() -> None:
     # configured model is unavailable, disable only the effective runtime lock
     # instead of breaking every voice command or pretending protection is active.
     speaker_lock_health = {"ok": True, "disabled": False}
-    if speaker.config.enabled:
+    if local_voice_enabled and speaker.config.enabled:
         speaker_lock_health = speaker.ensure_ready()
         if not speaker_lock_health.get("ok"):
             speaker.set_enabled(False)
@@ -1339,7 +1306,17 @@ def main() -> None:
     }
     wake = voice_v2
     microphone = v2_microphone
-    if requested_voice_backend == "legacy":
+
+    if not local_voice_enabled:
+        wake = legacy_wake
+        microphone = legacy_microphone
+        voice_engine_state.update({
+            "requested": "off",
+            "effective": "off",
+            "fallback_reason": None,
+        })
+        events.emit("LOCAL_VOICE_DISABLED")
+    elif requested_voice_backend == "legacy":
         wake = legacy_wake
         microphone = legacy_microphone
         voice_engine_state["effective"] = "legacy"
@@ -1424,7 +1401,8 @@ def main() -> None:
     performance.start(
         on_sustained_pressure=on_sustained_pressure
     )
-    speech.start()
+    if local_voice_enabled:
+        speech.start()
 
     def warm_services():
         events.emit("WARMUP_STARTED")
@@ -1435,16 +1413,17 @@ def main() -> None:
             )
         )
 
-        if speaker.enrolled():
-            speaker.ensure_ready()
+        if local_voice_enabled:
+            if speaker.enrolled():
+                speaker.ensure_ready()
 
-        # Voice v2 deliberately keeps the heavier STT model cold by default.
-        # openWakeWord+Silero remain resident on CPU; Faster Whisper is loaded
-        # only after a verified wake and released again after idle.
-        if voice_engine_state.get("effective") != "v2" or settings.voice_v2_preload_stt:
-            microphone.preload_stt()
-        else:
-            events.emit("STT_WARMUP_DEFERRED_FOR_VOICE_V2")
+            # Voice v2 deliberately keeps the heavier STT model cold by default.
+            # openWakeWord+Silero remain resident on CPU; Faster Whisper is loaded
+            # only after a verified wake and released again after idle.
+            if voice_engine_state.get("effective") != "v2" or settings.voice_v2_preload_stt:
+                microphone.preload_stt()
+            else:
+                events.emit("STT_WARMUP_DEFERRED_FOR_VOICE_V2")
 
         if performance.should_warm_llm():
             brain.warmup()
@@ -1471,7 +1450,8 @@ def main() -> None:
     ):
         wake.start()
 
-    listening_watchdog.start()
+    if local_voice_enabled:
+        listening_watchdog.start()
 
     print(BANNER_TEMPLATE.format(version=__version__))
     print(f"Assistant : {settings.assistant_name}")
@@ -1489,67 +1469,133 @@ def main() -> None:
         + " | Wallpaper Engine "
         + ("ONLINE" if desktop_state.get("wallpaper_engine_running") else "NOT DETECTED")
     )
-    print(f"Voice     : {'ON' if settings.speech_enabled else 'OFF'} | {settings.speech_voice} | {settings.speech_persona_profile}")
-    print(f"Persona   : FEMININE | adaptive companion={'ON' if settings.companion_enabled else 'OFF'} | flirt={'ON' if settings.companion_flirt_enabled else 'OFF'}")
-    print(f"Language  : pt-PT refinement=ON | personal learning={'ON' if settings.personal_learning_enabled else 'OFF'}")
-    selected_stt_model = (
-        settings.voice_v2_stt_model
-        if voice_engine_state.get("effective") == "v2"
-        else settings.stt_model
-    )
-    selected_stt_device = (
-        settings.voice_v2_stt_device
-        if voice_engine_state.get("effective") == "v2"
-        else settings.stt_device
+    if local_voice_enabled:
+        print(
+            f"Voice     : {'ON' if settings.speech_enabled else 'OFF'} | "
+            f"{settings.speech_voice} | {settings.speech_persona_profile}"
+        )
+    else:
+        print("Voice     : LOCAL PC AUDIO DISABLED | external speech client")
+
+    print(
+        f"Persona   : FEMININE | "
+        f"adaptive companion={'ON' if settings.companion_enabled else 'OFF'} | "
+        f"flirt={'ON' if settings.companion_flirt_enabled else 'OFF'}"
     )
     print(
-        f"Listening : {voice_engine_state.get('effective', 'legacy').upper()} | "
-        f"Whisper {selected_stt_model} ({selected_stt_device})"
+        f"Language  : pt-PT refinement=ON | "
+        f"personal learning={'ON' if settings.personal_learning_enabled else 'OFF'}"
     )
-    if voice_engine_state.get("fallback_reason"):
-        print(f"Voice v2  : FALLBACK -> legacy | {voice_engine_state['fallback_reason']}")
-    elif voice_engine_state.get("effective") == "v2":
-        print("Voice v2  : WASAPI + openWakeWord + Silero VAD | READY")
-    try:
-        startup_mic = microphone.status().get("device") or {}
-        print(
-            "A/V       : webcam-primary="
-            + ("ON" if settings.av_webcam_primary_enabled else "OFF")
-            + f" | mic={startup_mic.get('name') or 'AUTO'}"
-            + f" | camera={settings.vision_camera_index}"
+
+    if local_voice_enabled:
+        selected_stt_model = (
+            settings.voice_v2_stt_model
+            if voice_engine_state.get("effective") == "v2"
+            else settings.stt_model
         )
-    except Exception:
-        print(
-            "A/V       : webcam-primary="
-            + ("ON" if settings.av_webcam_primary_enabled else "OFF")
-            + f" | camera={settings.vision_camera_index}"
+        selected_stt_device = (
+            settings.voice_v2_stt_device
+            if voice_engine_state.get("effective") == "v2"
+            else settings.stt_device
         )
-    print(
-        "ListenGuard: "
-        + ("ON" if settings.listening_watchdog_enabled else "OFF")
-        + " | auto-recovery="
-        + ("ON" if settings.listening_watchdog_enabled else "OFF")
+        print(
+            f"Listening : {voice_engine_state.get('effective', 'legacy').upper()} | "
+            f"Whisper {selected_stt_model} ({selected_stt_device})"
+        )
+        if voice_engine_state.get("fallback_reason"):
+            print(
+                "Voice v2  : FALLBACK -> legacy | "
+                f"{voice_engine_state['fallback_reason']}"
+            )
+        elif voice_engine_state.get("effective") == "v2":
+            print("Voice v2  : WASAPI + openWakeWord + Silero VAD | READY")
+
+        try:
+            startup_mic = microphone.status().get("device") or {}
+            print(
+                "A/V       : webcam-primary="
+                + ("ON" if settings.av_webcam_primary_enabled else "OFF")
+                + f" | mic={startup_mic.get('name') or 'AUTO'}"
+                + f" | camera={settings.vision_camera_index}"
+            )
+        except Exception:
+            print(
+                "A/V       : webcam-primary="
+                + ("ON" if settings.av_webcam_primary_enabled else "OFF")
+                + f" | camera={settings.vision_camera_index}"
+            )
+
+        print(
+            "ListenGuard: "
+            + ("ON" if settings.listening_watchdog_enabled else "OFF")
+            + " | auto-recovery="
+            + ("ON" if settings.listening_watchdog_enabled else "OFF")
+        )
+    else:
+        print("Listening : OFF | STT=OFF | Wake=OFF")
+        print(
+            "A/V       : camera="
+            + str(settings.vision_camera_index)
+            + " | mic=DISABLED"
+        )
+        print("ListenGuard: OFF")
+
+    speed_detail = (
+        f"STT beam={settings.stt_beam_size}"
+        if local_voice_enabled
+        else "local voice=OFF"
     )
     print(
         f"Speed     : Governor={performance.mode.upper()} | "
-        f"FAST PATH + selective tools | STT beam={settings.stt_beam_size}"
+        f"FAST PATH + selective tools | {speed_detail}"
     )
     print(
         f"AI VRAM   : native={getattr(settings, 'local_llm_backend', 'native_llama')} | "
         f"vision={getattr(settings, 'vision_keep_alive', '2m')} | "
         f"shutdown-release={'ON' if getattr(settings, 'ollama_release_on_shutdown', True) else 'OFF'}"
     )
-    print(f"Voice Lock: {'ON' if speaker.config.enabled else 'OFF'} | {'ENROLLED' if speaker.enrolled() else 'NOT ENROLLED'} | mode={settings.speaker_enforcement_mode}" + (" | AUTO-DISABLED" if speaker_lock_health.get('disabled') else ""))
-    wake_label = (
-        "OPENWAKEWORD/READY"
-        if voice_engine_state.get("effective") == "v2" and wake.enrolled()
-        else "ACOUSTIC/READY"
-        if wake.enrolled()
-        else "NOT READY"
-    )
-    print(f"Wake Word : {settings.wake_keyword.upper()} | {wake_label}")
-    print("Interrupt : CALA-TE | " + ("READY" if wake.interrupt_enrolled() else "NEEDS /interrupt enroll"))
-    print(f"Silence   : {'READY' if settings.silence_latch_enabled else 'OFF'} | wake-release=ON")
+    if local_voice_enabled:
+        print(
+            f"Voice Lock: {'ON' if speaker.config.enabled else 'OFF'} | "
+            f"{'ENROLLED' if speaker.enrolled() else 'NOT ENROLLED'} | "
+            f"mode={settings.speaker_enforcement_mode}"
+            + (
+                " | AUTO-DISABLED"
+                if speaker_lock_health.get("disabled")
+                else ""
+            )
+        )
+        wake_label = (
+            "OPENWAKEWORD/READY"
+            if voice_engine_state.get("effective") == "v2" and wake.enrolled()
+            else "ACOUSTIC/READY"
+            if wake.enrolled()
+            else "NOT READY"
+        )
+        print(f"Wake Word : {settings.wake_keyword.upper()} | {wake_label}")
+        print(
+            "Interrupt : CALA-TE | "
+            + (
+                "READY"
+                if wake.interrupt_enrolled()
+                else "NEEDS /interrupt enroll"
+            )
+        )
+        print(
+            f"Silence   : "
+            f"{'READY' if settings.silence_latch_enabled else 'OFF'} | "
+            "wake-release=ON"
+        )
+    else:
+        print("Voice Lock: OFF | local PC voice retired")
+        print("Wake Word : OFF")
+        print("Interrupt : OFF")
+        print(
+            f"Silence   : "
+            f"{'READY' if settings.silence_latch_enabled else 'OFF'} | "
+            "text-output gate"
+        )
+
     print(f"Activity  : {'ON' if settings.activity_trace_enabled else 'OFF'} | live={'ON' if settings.activity_trace_live else 'OFF'} | /activity on")
     print(f"Brain     : LOCAL PRIMARY | {settings.model}")
     print("External AI: HARD BLOCKED | Web research -> local Qwen synthesis")
@@ -2364,6 +2410,41 @@ def main() -> None:
             if lower in {"/quit", "/qquit", "/exit", "sair"}:
                 print("JARVIS > Núcleo desligado.")
                 break
+            local_voice_command = (
+                lower in {"/listen", "/ptt"}
+                or lower.startswith("/voice")
+                or lower.startswith("/stt")
+                or lower.startswith("/mic")
+                or lower.startswith("/listening")
+                or lower.startswith("/wake")
+                or lower.startswith("/voiceid")
+                or lower.startswith("/interrupt")
+                or lower.startswith("/av mic ")
+                or lower in {
+                    "/av status",
+                    "/av microphones",
+                    "/av probe",
+                    "/av auto",
+                    "/av webcam on",
+                    "/av webcam off",
+                }
+                or lower in {
+                    "/mind speech on",
+                    "/mind speech off",
+                }
+            )
+
+            if not local_voice_enabled and local_voice_command:
+                events.emit(
+                    "LOCAL_VOICE_COMMAND_BLOCKED",
+                    command=lower[:120],
+                )
+                print(
+                    "JARVIS > A voz local do PC foi retirada da arquitetura. "
+                    "Este comando já não está disponível."
+                )
+                continue
+
             if lower == "/help":
                 print(help_text()); continue
             if lower == "/health":
@@ -3901,16 +3982,24 @@ def main() -> None:
                 continue
 
             if lower == "/warmup":
-                print("JARVIS > A pré-carregar os modelos.")
-                result = {
-                    "voiceid": (
-                        speaker.ensure_ready()
-                        if speaker.enrolled()
-                        else {"ok": True, "skipped": "not_enrolled"}
-                    ),
-                    "stt": microphone.preload_stt(),
-                    "llm": brain.warmup(),
-                }
+                if local_voice_enabled:
+                    result = {
+                        "voiceid": (
+                            speaker.ensure_ready()
+                            if speaker.enrolled()
+                            else {"ok": True, "skipped": "not_enrolled"}
+                        ),
+                        "stt": microphone.preload_stt(),
+                        "llm": brain.warmup(),
+                    }
+                else:
+                    result = {
+                        "voice": {
+                            "ok": True,
+                            "skipped": "local_voice_disabled",
+                        },
+                        "llm": brain.warmup(),
+                    }
                 print(json.dumps(result, ensure_ascii=False, indent=2))
                 continue
             if lower == "/security blocked files":
