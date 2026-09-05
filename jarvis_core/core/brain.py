@@ -1940,6 +1940,12 @@ class JarvisBrain:
 
         if (
             request is not None
+            and not request.preferred_tool
+        ):
+            return []
+
+        if (
+            request is not None
             and request.preferred_tool
         ):
             arguments = (
@@ -1986,6 +1992,26 @@ class JarvisBrain:
 
         if not requested_name:
             return None, {}, "missing_tool_name"
+
+        if (
+            request is not None
+            and not request.requires_tool
+        ):
+            return (
+                None,
+                {},
+                "semantic_request_forbids_tool",
+            )
+
+        if (
+            request is not None
+            and not request.preferred_tool
+        ):
+            return (
+                None,
+                {},
+                "semantic_tool_not_resolved",
+            )
 
         if (
             request is not None

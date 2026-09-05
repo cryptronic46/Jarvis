@@ -174,7 +174,7 @@ class PreferredToolRoutingTests(unittest.TestCase):
         self.assertEqual(tools.exact_calls, [])
         self.assertEqual(tools.query_calls, [])
 
-    def test_unresolved_tool_request_uses_query_fallback(self):
+    def test_unresolved_tool_request_exposes_no_tools(self):
         tools = _ProbeTools()
         brain = SimpleNamespace(
             tools=tools,
@@ -191,14 +191,92 @@ class PreferredToolRoutingTests(unittest.TestCase):
             max_tools=7,
         )
 
-        self.assertEqual(tools.exact_calls, [])
+        self.assertEqual(
+            result,
+            [],
+        )
+
+        self.assertEqual(
+            tools.exact_calls,
+            [],
+        )
+
         self.assertEqual(
             tools.query_calls,
-            [("faz esta acao", 7)],
+            [],
         )
+
+
+    def test_unresolved_semantic_tool_call_is_blocked(self):
+        brain = SimpleNamespace()
+
+        (
+            execution_name,
+            arguments,
+            reason,
+        ) = JarvisBrain._prepare_tool_execution_call(
+            brain,
+            request=self._request(
+                requires_tool=True,
+                preferred_tool=None,
+            ),
+            allowed_tool_names={
+                "heuristic_tool",
+            },
+            name="heuristic_tool",
+            arguments={
+                "value": "model-selected",
+            },
+        )
+
+        self.assertIsNone(
+            execution_name
+        )
+
         self.assertEqual(
-            result[0]["function"]["name"],
-            "heuristic_tool",
+            arguments,
+            {},
+        )
+
+        self.assertEqual(
+            reason,
+            "semantic_tool_not_resolved",
+        )
+
+    def test_no_tool_semantic_request_cannot_be_manually_executed(self):
+        brain = SimpleNamespace()
+
+        (
+            execution_name,
+            arguments,
+            reason,
+        ) = JarvisBrain._prepare_tool_execution_call(
+            brain,
+            request=self._request(
+                requires_tool=False,
+                preferred_tool=None,
+            ),
+            allowed_tool_names={
+                "heuristic_tool",
+            },
+            name="heuristic_tool",
+            arguments={
+                "value": "model-selected",
+            },
+        )
+
+        self.assertIsNone(
+            execution_name
+        )
+
+        self.assertEqual(
+            arguments,
+            {},
+        )
+
+        self.assertEqual(
+            reason,
+            "semantic_request_forbids_tool",
         )
 
     def test_semantic_arguments_override_model_arguments(self):
