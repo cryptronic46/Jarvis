@@ -216,7 +216,7 @@
     },
     {
       "path": "jarvis_core/services/context_clause_resolver.py",
-      "sha256": "c2a1343a738825859abc565e5fc77a64cfa4ba1408d96e2a99abe68894463ca9"
+      "sha256": "10482a397a69e0c6093af0acf120e89c9a72252f85f0f2cdc8d095ae17a64541"
     },
     {
       "path": "jarvis_core/services/context_store.py",
@@ -352,7 +352,7 @@
     },
     {
       "path": "jarvis_core/services/semantic_intent.py",
-      "sha256": "1a3e2bbf239379056ddfc45d59352aae23bdd0638175e536a733a829391c62d6"
+      "sha256": "6301540c206f9814bc1f36954fc36474628a26f93fa1ee03bd9bdd24a91e9c46"
     },
     {
       "path": "jarvis_core/services/semantic_request.py",
@@ -776,7 +776,7 @@
     },
     {
       "path": "tests/test_context_clause_resolver.py",
-      "sha256": "44cfe951f1215c4da2ce4236e9513661db57c72eda817a72d30bcca90ac9237d"
+      "sha256": "0ef046f2154dc7680c75ad7ce657d18730c38ad556a56e641284e40db2e234b1"
     },
     {
       "path": "tests/test_context_store.py",

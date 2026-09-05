@@ -86,6 +86,121 @@ def _semantic_text(value: str) -> str:
     return normalized
 
 
+def _clean_app_target(
+    value: str,
+) -> str:
+    target = _semantic_text(value)
+
+    target = re.sub(
+        r"^(?:o|a|os|as|um|uma)\s+",
+        "",
+        target,
+        count=1,
+    ).strip()
+
+    return target.strip(
+        " ,.;:!?\\\"'"
+    )
+
+
+def _known_app_open(
+    normalized: str,
+    app_aliases: dict[str, str] | None,
+) -> tuple[str, str] | None:
+    aliases: dict[str, str] = {}
+
+    for alias, canonical in dict(
+        app_aliases or {}
+    ).items():
+        alias_normalized = _clean_app_target(
+            str(alias)
+        )
+
+        canonical_value = str(
+            canonical
+            or ""
+        ).strip()
+
+        if (
+            alias_normalized
+            and canonical_value
+        ):
+            aliases[
+                alias_normalized
+            ] = canonical_value
+
+    if not aliases:
+        return None
+
+    match = re.match(
+        r"^(?:abre(?:-me)?|inicia|lanca|executa|corre)"
+        r"\s+(.+)$",
+        normalized,
+    )
+
+    if not match:
+        return None
+
+    semantic_target = _clean_app_target(
+        match.group(1)
+    )
+
+    tool_target = aliases.get(
+        semantic_target
+    )
+
+    if not tool_target:
+        return None
+
+    return (
+        semantic_target,
+        tool_target,
+    )
+
+
+def _subject_hint(
+    raw: str,
+    normalized: str,
+) -> str | None:
+    # Subject inference is deliberately restricted to
+    # questions so possessives inside operational orders
+    # cannot accidentally change execution semantics.
+    if not str(raw).rstrip().endswith("?"):
+        return None
+
+    if (
+        re.search(
+            r"\b(?:meu|minha|meus|minhas|mim)\b",
+            normalized,
+        )
+        or re.search(
+            r"\b(?:eu\s+prefiro|prefiro)\b",
+            normalized,
+        )
+        or normalized.startswith(
+            "onde vivo"
+        )
+    ):
+        return "OWNER"
+
+    if (
+        re.search(
+            r"\b(?:teu|tua|teus|tuas|ti)\b",
+            normalized,
+        )
+        or re.search(
+            r"\btu\s+preferes\b",
+            normalized,
+        )
+        or normalized.startswith(
+            "onde vives"
+        )
+    ):
+        return "JARVIS"
+
+    return None
+
+
 def resolve_semantic_request(
     text: str,
     *,
@@ -218,7 +333,97 @@ def resolve_semantic_request(
             confidence=context_resolution.confidence,
         )
 
-    # Compound or negated operational language needs a clause/modifier
+    if context_resolution.kind == "SOCIAL_INTERACTION":
+        return StructuredRequest(
+            raw_text=raw,
+            effective_text=raw,
+            intent="SOCIAL_INTERACTION",
+            domain="conversation",
+            subject="JARVIS",
+            action=context_resolution.action,
+            target="OWNER",
+            referent=context_resolution.referent,
+            requires_tool=False,
+            preferred_tool=None,
+            epistemic_learning_eligible=False,
+            confidence=context_resolution.confidence,
+        )
+
+    known_app_open = _known_app_open(
+        normalized,
+        app_aliases,
+    )
+
+    if known_app_open is not None:
+        (
+            semantic_target,
+            tool_target,
+        ) = known_app_open
+
+        return StructuredRequest(
+            raw_text=raw,
+            effective_text=raw,
+            intent="OPERATIONAL_ACTION",
+            domain="desktop",
+            subject="SYSTEM",
+            action="open",
+            target=semantic_target,
+            requires_tool=True,
+            preferred_tool="open_application",
+            tool_arguments={
+                "app_name": tool_target,
+            },
+            epistemic_learning_eligible=False,
+            confidence=0.99,
+        )
+
+    ambiguous_action = re.match(
+        r"^(?:abre(?:-me)?|fecha|inicia|lanca|executa|corre)"
+        r"\s+(?:isso|isto|aquilo)$",
+        normalized,
+    )
+
+    if ambiguous_action:
+        return StructuredRequest(
+            raw_text=raw,
+            effective_text=raw,
+            intent="UNKNOWN",
+            domain="unknown",
+            subject="UNKNOWN",
+            action=None,
+            target=None,
+            requires_tool=False,
+            preferred_tool=None,
+            epistemic_learning_eligible=False,
+            confidence=0.20,
+        )
+
+    subject_hint = _subject_hint(
+        raw,
+        normalized,
+    )
+
+    if subject_hint is not None:
+        return StructuredRequest(
+            raw_text=raw,
+            effective_text=raw,
+            intent="UNKNOWN",
+            domain=(
+                "owner_memory"
+                if subject_hint == "OWNER"
+                else "jarvis_self"
+            ),
+            subject=subject_hint,
+            action=None,
+            target=None,
+            requires_tool=False,
+            preferred_tool=None,
+            epistemic_learning_eligible=False,
+            confidence=0.95,
+        )
+
+    # Compound or negated operational language that was not
+    # deterministically resolved above must remain fail closed.
     # resolver. Until that exists, fail closed rather than act on a bad target.
     operational_word = re.search(
         r"\b(?:abre|abrir|abras|inicia|iniciar|lanca|lancar|executa|executar|"

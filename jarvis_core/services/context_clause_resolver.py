@@ -203,6 +203,75 @@ def _contextual_self_state(
     return normalized in contextual_exact
 
 
+def _previous_is_social(
+    recent_turns: list[dict] | None,
+) -> bool:
+    rows = list(
+        recent_turns or []
+    )
+
+    if not rows:
+        return False
+
+    latest = (
+        rows[-1]
+        if isinstance(rows[-1], dict)
+        else {}
+    )
+
+    route = _norm(
+        latest.get("route")
+        or ""
+    )
+
+    if "social" in route:
+        return True
+
+    previous_user = _semantic_text(
+        str(
+            latest.get("user")
+            or ""
+        )
+    )
+
+    direct_social = {
+        "provoca-me",
+        "provoca me",
+        "flirta comigo",
+        "seduz-me",
+        "seduz me",
+        "fala comigo",
+        "conversa comigo",
+        "faz-me companhia",
+        "faz me companhia",
+    }
+
+    return previous_user in direct_social
+
+
+def _contextual_social(
+    normalized: str,
+    recent_turns: list[dict] | None,
+) -> bool:
+    if not _previous_is_social(
+        recent_turns
+    ):
+        return False
+
+    contextual_exact = {
+        "mais",
+        "continua",
+        "mais subtil",
+        "agora mais provocadora",
+        "se mais atrevida",
+        "agora surpreende-me",
+        "quero diversao",
+        "que tipo de diversao tens em mente",
+    }
+
+    return normalized in contextual_exact
+
+
 def _add_unique(
     rows: list[str],
     target: str | None,
@@ -497,6 +566,18 @@ def resolve_context_clauses(
             action="read_state",
             target="JARVIS",
             referent="jarvis_self_state",
+            confidence=0.96,
+        )
+
+    if _contextual_social(
+        normalized,
+        recent_turns,
+    ):
+        return ContextClauseResolution(
+            kind="SOCIAL_INTERACTION",
+            action="social_continue",
+            target="OWNER",
+            referent="social_interaction",
             confidence=0.96,
         )
 

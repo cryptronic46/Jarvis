@@ -27,6 +27,57 @@ DEFAULT_CASES = (
 AUDIT_DIR = ROOT / "Audit"
 
 
+APP_ALIASES = {
+    "brave": "brave",
+    "brave browser": "brave",
+    "spotify": "spotify",
+    "bloco de notas": "bloco de notas",
+    "calculadora": "calculadora",
+}
+
+
+def semantic_inputs_for_case(
+    case: dict[str, Any],
+) -> tuple[list[dict], dict[str, str]]:
+    category = str(
+        case.get("category")
+        or ""
+    )
+
+    recent_turns: list[dict] = []
+
+    if category == "self_state_followup":
+        recent_turns = [
+            {
+                "user": "Como te sentes?",
+                "assistant": (
+                    "Estou focada e curiosa."
+                ),
+                "route": (
+                    "FAST/self_state_affect"
+                ),
+            }
+        ]
+
+    elif category == "social_followup":
+        recent_turns = [
+            {
+                "user": "Provoca-me",
+                "assistant": (
+                    "Interacao social ativa."
+                ),
+                "route": (
+                    "FAST/social_interaction"
+                ),
+            }
+        ]
+
+    return (
+        recent_turns,
+        dict(APP_ALIASES),
+    )
+
+
 def plain_request(request: Any) -> dict[str, Any]:
     if hasattr(request, "as_dict"):
         data = request.as_dict()
@@ -306,8 +357,17 @@ def main() -> int:
         )
 
         try:
-            request = (
-                resolve_semantic_request(text)
+            (
+                semantic_recent_turns,
+                semantic_app_aliases,
+            ) = semantic_inputs_for_case(
+                case
+            )
+
+            request = resolve_semantic_request(
+                text,
+                recent_turns=semantic_recent_turns,
+                app_aliases=semantic_app_aliases,
             )
             actual = plain_request(request)
             failures = compare(
@@ -414,10 +474,16 @@ def main() -> int:
         for category, data in sorted(
             counters.items()
         ):
+            marker = (
+                "PASS"
+                if data["failed"] == 0
+                else "FAIL"
+            )
+
             print(
                 f"{category:<26} "
                 f"{data['passed']:>3}/"
-                f"{data['total']:<3} PASS"
+                f"{data['total']:<3} {marker}"
             )
 
     if not args.no_report:
@@ -471,7 +537,9 @@ def main() -> int:
         print("REPORT JSON:", json_path)
         print("REPORT MD  :", md_path)
 
-    if args.strict and failed:
+    # A stress runner is a quality gate: failures must
+    # always produce a non-zero process exit code.
+    if failed:
         return 1
 
     return 0

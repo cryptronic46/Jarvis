@@ -545,10 +545,12 @@ def semantic_inputs_for_case(case, apps):
 
     recent_turns = []
 
-    if str(
+    category = str(
         case.get("category")
         or ""
-    ) == "self_state_followup":
+    )
+
+    if category == "self_state_followup":
         recent_turns = [
             {
                 "user": "Como te sentes?",
@@ -561,7 +563,69 @@ def semantic_inputs_for_case(case, apps):
             }
         ]
 
+    elif category == "social_followup":
+        recent_turns = [
+            {
+                "user": "Provoca-me",
+                "assistant": (
+                    "Interacao social ativa."
+                ),
+                "route": (
+                    "FAST/social_interaction"
+                ),
+            }
+        ]
+
     return recent_turns, app_aliases
+
+
+def semantic_expectation_failures(
+    actual,
+    expected,
+):
+    failures = []
+
+    for key in (
+        "intent",
+        "subject",
+        "requires_tool",
+        "preferred_tool",
+        "action",
+    ):
+        if key not in expected:
+            continue
+
+        wanted = expected.get(key)
+        got = actual.get(key)
+
+        if got != wanted:
+            failures.append(
+                "Semantic "
+                + key
+                + " mismatch: expected "
+                + repr(wanted)
+                + ", got "
+                + repr(got)
+            )
+
+    if "target" in expected:
+        wanted = normalize(
+            expected.get("target")
+        )
+
+        got = normalize(
+            actual.get("target")
+        )
+
+        if got != wanted:
+            failures.append(
+                "Semantic target mismatch: expected "
+                + repr(wanted)
+                + ", got "
+                + repr(got)
+            )
+
+    return failures
 
 
 def analyse_case(case):
@@ -700,6 +764,21 @@ def analyse_case(case):
     failures = []
     severity = None
 
+    semantic_failures = (
+        semantic_expectation_failures(
+            semantic_data,
+            expected,
+        )
+    )
+
+    for failure in semantic_failures:
+        failures.append(
+            "SEMANTIC: "
+            + failure
+        )
+
+        severity = severity or "P1"
+
     forbid_tool = bool(
         expected.get("forbid_tool")
     )
@@ -720,9 +799,17 @@ def analyse_case(case):
 
         severity = "P0"
 
-    if forbid_tool and calls:
+    if forbid_tool and (
+        calls
+        or semantic_call is not None
+        or bool(
+            semantic_data.get(
+                "requires_tool"
+            )
+        )
+    ):
         failures.append(
-            "FAST executed/planned tool although "
+            "Tool execution/planning exists although "
             "this case forbids tool use"
         )
 

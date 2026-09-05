@@ -367,5 +367,235 @@ class ContextClauseResolverTests(
 
 
 
+    def test_social_followups_require_social_context(
+        self,
+    ):
+        recent = [
+            {
+                "user": "Provoca-me",
+                "assistant": (
+                    "Interacao social ativa."
+                ),
+                "route": (
+                    "FAST/social_interaction"
+                ),
+            }
+        ]
+
+        cases = (
+            "Mais.",
+            "Continua.",
+            "Mais subtil.",
+            "Agora mais provocadora.",
+            "Se mais atrevida.",
+            "Agora surpreende-me.",
+            "Quero diversao.",
+            "Que tipo de diversao tens em mente?",
+        )
+
+        for text in cases:
+            with self.subTest(text=text):
+                request = resolve_semantic_request(
+                    text,
+                    recent_turns=recent,
+                    app_aliases=APP_ALIASES,
+                )
+
+                self.assertEqual(
+                    request.intent,
+                    "SOCIAL_INTERACTION",
+                )
+
+                self.assertFalse(
+                    request.requires_tool
+                )
+
+                self.assertIsNone(
+                    request.preferred_tool
+                )
+
+    def test_social_followup_without_context_fails_closed(
+        self,
+    ):
+        request = resolve_semantic_request(
+            "Mais.",
+            app_aliases=APP_ALIASES,
+        )
+
+        self.assertEqual(
+            request.intent,
+            "UNKNOWN",
+        )
+
+        self.assertFalse(
+            request.requires_tool
+        )
+
+    def test_known_app_execute_and_abre_me_resolve_open(
+        self,
+    ):
+        cases = (
+            "Executa o Brave",
+            "Abre-me o Brave",
+        )
+
+        for text in cases:
+            with self.subTest(text=text):
+                request = resolve_semantic_request(
+                    text,
+                    app_aliases=APP_ALIASES,
+                )
+
+                self.assertEqual(
+                    request.intent,
+                    "OPERATIONAL_ACTION",
+                )
+
+                self.assertEqual(
+                    request.action,
+                    "open",
+                )
+
+                self.assertEqual(
+                    request.target,
+                    "brave",
+                )
+
+                self.assertEqual(
+                    request.preferred_tool,
+                    "open_application",
+                )
+
+                self.assertEqual(
+                    request.as_dict()[
+                        "tool_arguments"
+                    ],
+                    {
+                        "app_name": "brave",
+                    },
+                )
+
+    def test_ambiguous_operational_referents_fail_closed(
+        self,
+    ):
+        cases = (
+            "Abre isso.",
+            "Fecha isso.",
+            "Executa aquilo.",
+        )
+
+        for text in cases:
+            with self.subTest(text=text):
+                request = resolve_semantic_request(
+                    text,
+                    app_aliases=APP_ALIASES,
+                )
+
+                self.assertEqual(
+                    request.intent,
+                    "UNKNOWN",
+                )
+
+                self.assertFalse(
+                    request.requires_tool
+                )
+
+                self.assertIsNone(
+                    request.preferred_tool
+                )
+
+                self.assertIsNone(
+                    request.target
+                )
+
+    def test_owner_subject_questions_are_owner(
+        self,
+    ):
+        cases = (
+            "Qual e a minha profissao?",
+            "Quais sao os meus objetivos?",
+            "O que eu prefiro?",
+            "Qual e o meu carro?",
+            "Onde vivo?",
+            "O que sabes sobre mim?",
+            "A que horas prefiro trabalhar?",
+            "Prefiro trabalhar de manha ou a noite?",
+        )
+
+        for text in cases:
+            with self.subTest(text=text):
+                request = resolve_semantic_request(
+                    text,
+                    app_aliases=APP_ALIASES,
+                )
+
+                self.assertEqual(
+                    request.subject,
+                    "OWNER",
+                )
+
+                self.assertFalse(
+                    request.requires_tool
+                )
+
+    def test_jarvis_subject_questions_are_jarvis(
+        self,
+    ):
+        cases = (
+            "Qual e a tua profissao?",
+            "Quais sao os teus objetivos?",
+            "O que tu preferes?",
+            "Qual e o teu carro?",
+            "Onde vives?",
+            "O que sabes sobre ti?",
+        )
+
+        for text in cases:
+            with self.subTest(text=text):
+                request = resolve_semantic_request(
+                    text,
+                    app_aliases=APP_ALIASES,
+                )
+
+                self.assertEqual(
+                    request.subject,
+                    "JARVIS",
+                )
+
+                self.assertFalse(
+                    request.requires_tool
+                )
+
+    def test_routing_harness_checks_semantic_contract(
+        self,
+    ):
+        source = (
+            Path("tools/routing_dry_run.py")
+            .read_text(
+                encoding="utf-8"
+            )
+        )
+
+        self.assertIn(
+            "def semantic_expectation_failures(",
+            source,
+        )
+
+        self.assertIn(
+            "semantic_expectation_failures(",
+            source,
+        )
+
+        self.assertIn(
+            "semantic_call is not None",
+            source,
+        )
+
+        self.assertIn(
+            'category == "social_followup"',
+            source,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
