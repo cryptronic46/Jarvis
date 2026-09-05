@@ -1,0 +1,2 @@
+JARVIS Live Wallpaper 0.1.0
+Core target: JARVIS Core 0.12.0
