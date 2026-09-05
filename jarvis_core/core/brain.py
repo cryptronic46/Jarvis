@@ -1972,6 +1972,73 @@ class JarvisBrain:
             max_tools=max_tools,
         )
 
+    def _prepare_tool_execution_call(
+        self,
+        *,
+        request: StructuredRequest | None,
+        allowed_tool_names: set[str],
+        name: str | None,
+        arguments: Any,
+    ) -> tuple[str | None, dict[str, Any], str | None]:
+        """Bind a model tool request to the authoritative Core decision."""
+
+        requested_name = str(name or "").strip()
+
+        if not requested_name:
+            return None, {}, "missing_tool_name"
+
+        if (
+            request is not None
+            and request.preferred_tool
+            and requested_name != request.preferred_tool
+        ):
+            return None, {}, "semantic_tool_mismatch"
+
+        if requested_name not in allowed_tool_names:
+            return None, {}, "tool_not_exposed"
+
+        if (
+            request is not None
+            and request.preferred_tool
+        ):
+            semantic_arguments = (
+                request.as_dict().get("tool_arguments")
+                or {}
+            )
+
+            return (
+                request.preferred_tool,
+                dict(semantic_arguments),
+                None,
+            )
+
+        parsed_arguments = arguments or {}
+
+        if isinstance(parsed_arguments, str):
+            try:
+                parsed_arguments = json.loads(
+                    parsed_arguments
+                )
+            except json.JSONDecodeError:
+                return (
+                    None,
+                    {},
+                    "invalid_json_arguments",
+                )
+
+        if not isinstance(parsed_arguments, dict):
+            return (
+                None,
+                {},
+                "arguments_not_object",
+            )
+
+        return (
+            requested_name,
+            dict(parsed_arguments),
+            None,
+        )
+
     def ask(
         self,
         user_text: str,
@@ -2217,6 +2284,22 @@ class JarvisBrain:
                 if str((schema.get("function") or {}).get("name") or "")
                 not in deterministic_book_tools
             ]
+
+        allowed_tool_names = {
+            str(
+                (schema.get("function") or {}).get(
+                    "name"
+                )
+                or ""
+            )
+            for schema in tool_schemas
+            if str(
+                (schema.get("function") or {}).get(
+                    "name"
+                )
+                or ""
+            )
+        }
 
         force_fresh = (
             requires_current_gpu(user_text)
@@ -2476,34 +2559,79 @@ class JarvisBrain:
                         "name",
                         None,
                     )
-                    arguments = (
+                    model_arguments = (
                         getattr(fn, "arguments", None)
                         or {}
                     )
 
-                    if not name:
+                    requested_name = str(
+                        name or ""
+                    ).strip()
+
+                    if not requested_name:
                         continue
 
-                    if isinstance(arguments, str):
-                        try:
-                            arguments = json.loads(
-                                arguments
-                            )
-                        except json.JSONDecodeError:
-                            arguments = {}
+                    (
+                        execution_name,
+                        execution_arguments,
+                        block_reason,
+                    ) = self._prepare_tool_execution_call(
+                        request=request,
+                        allowed_tool_names=allowed_tool_names,
+                        name=requested_name,
+                        arguments=model_arguments,
+                    )
 
-                    canonical_args = json.dumps(dict(arguments), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-                    action_key = f"{name}:{canonical_args}"
-                    if action_key in successful_action_calls:
-                        repeated_successes += 1
+                    if block_reason:
                         self.events.emit(
-                            "TOOL_REPEAT_SUPPRESSED",
-                            tool=name,
+                            "TOOL_CALL_BLOCKED",
+                            tool=requested_name,
+                            reason=block_reason,
                             round=rounds,
                         )
                         self.messages.append({
                             "role": "tool",
-                            "tool_name": name,
+                            "tool_name": requested_name,
+                            "content": json.dumps({
+                                "ok": False,
+                                "error": "TOOL_CALL_BLOCKED",
+                                "tool": requested_name,
+                                "reason": block_reason,
+                            }, ensure_ascii=False),
+                        })
+                        new_tool_calls += 1
+                        continue
+
+                    if (
+                        request is not None
+                        and request.preferred_tool
+                    ):
+                        self.events.emit(
+                            "SEMANTIC_TOOL_CALL_ENFORCED",
+                            tool=execution_name,
+                            round=rounds,
+                        )
+
+                    canonical_args = json.dumps(
+                        execution_arguments,
+                        ensure_ascii=False,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    )
+                    action_key = (
+                        f"{execution_name}:"
+                        f"{canonical_args}"
+                    )
+                    if action_key in successful_action_calls:
+                        repeated_successes += 1
+                        self.events.emit(
+                            "TOOL_REPEAT_SUPPRESSED",
+                            tool=execution_name,
+                            round=rounds,
+                        )
+                        self.messages.append({
+                            "role": "tool",
+                            "tool_name": execution_name,
                             "content": json.dumps({
                                 "ok": True,
                                 "already_completed": True,
@@ -2513,8 +2641,8 @@ class JarvisBrain:
                         continue
 
                     result = self.tools.execute(
-                        name,
-                        dict(arguments),
+                        execution_name,
+                        execution_arguments,
                     )
                     new_tool_calls += 1
                     try:
@@ -2531,12 +2659,20 @@ class JarvisBrain:
                         successful_tool_calls += 1
                     if tool_succeeded:
                         successful_action_calls[action_key] = result
-                    compact_result = self._compact_tool_result(name, result)
+                    compact_result = self._compact_tool_result(
+                        execution_name,
+                        result,
+                    )
                     if compact_result != result:
-                        self.events.emit("TOOL_RESULT_COMPACTED", tool=name, before_chars=len(result), after_chars=len(compact_result))
+                        self.events.emit(
+                            "TOOL_RESULT_COMPACTED",
+                            tool=execution_name,
+                            before_chars=len(result),
+                            after_chars=len(compact_result),
+                        )
                     self.messages.append({
                         "role": "tool",
-                        "tool_name": name,
+                        "tool_name": execution_name,
                         "content": compact_result,
                     })
 

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import ast
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 
 from jarvis_core.core.brain import JarvisBrain
@@ -181,6 +183,274 @@ class PreferredToolRoutingTests(unittest.TestCase):
         self.assertEqual(
             result[0]["function"]["name"],
             "heuristic_tool",
+        )
+
+    def test_semantic_arguments_override_model_arguments(self):
+        brain = SimpleNamespace()
+
+        execution_name, arguments, reason = (
+            JarvisBrain._prepare_tool_execution_call(
+                brain,
+                request=self._request(
+                    requires_tool=True,
+                    preferred_tool="open_application",
+                    tool_arguments={
+                        "app_name": "spotify",
+                    },
+                ),
+                allowed_tool_names={
+                    "open_application",
+                },
+                name="open_application",
+                arguments={
+                    "app_name": "notepad",
+                },
+            )
+        )
+
+        self.assertIsNone(reason)
+        self.assertEqual(
+            execution_name,
+            "open_application",
+        )
+        self.assertEqual(
+            arguments,
+            {"app_name": "spotify"},
+        )
+
+    def test_semantic_tool_name_mismatch_is_blocked(self):
+        brain = SimpleNamespace()
+
+        execution_name, arguments, reason = (
+            JarvisBrain._prepare_tool_execution_call(
+                brain,
+                request=self._request(
+                    requires_tool=True,
+                    preferred_tool="open_application",
+                    tool_arguments={
+                        "app_name": "spotify",
+                    },
+                ),
+                allowed_tool_names={
+                    "open_application",
+                    "close_application",
+                },
+                name="close_application",
+                arguments={
+                    "app_name": "spotify",
+                },
+            )
+        )
+
+        self.assertIsNone(execution_name)
+        self.assertEqual(arguments, {})
+        self.assertEqual(
+            reason,
+            "semantic_tool_mismatch",
+        )
+
+    def test_unexposed_legacy_tool_is_blocked(self):
+        brain = SimpleNamespace()
+
+        execution_name, arguments, reason = (
+            JarvisBrain._prepare_tool_execution_call(
+                brain,
+                request=None,
+                allowed_tool_names={
+                    "open_application",
+                },
+                name="close_application",
+                arguments={
+                    "app_name": "spotify",
+                },
+            )
+        )
+
+        self.assertIsNone(execution_name)
+        self.assertEqual(arguments, {})
+        self.assertEqual(
+            reason,
+            "tool_not_exposed",
+        )
+
+    def test_exposed_legacy_tool_preserves_model_arguments(self):
+        brain = SimpleNamespace()
+
+        execution_name, arguments, reason = (
+            JarvisBrain._prepare_tool_execution_call(
+                brain,
+                request=None,
+                allowed_tool_names={
+                    "open_application",
+                },
+                name="open_application",
+                arguments='{"app_name":"spotify"}',
+            )
+        )
+
+        self.assertIsNone(reason)
+        self.assertEqual(
+            execution_name,
+            "open_application",
+        )
+        self.assertEqual(
+            arguments,
+            {"app_name": "spotify"},
+        )
+
+    def test_agent_loop_uses_prepared_call_for_registry_execution(self):
+        tree = ast.parse(
+            Path(
+                "jarvis_core/core/brain.py"
+            ).read_text(encoding="utf-8")
+        )
+
+        method = next(
+            node
+            for node in ast.walk(tree)
+            if isinstance(
+                node,
+                ast.FunctionDef,
+            )
+            and node.name == "_ask_locked"
+        )
+
+        tool_loop = next(
+            node
+            for node in ast.walk(method)
+            if isinstance(node, ast.For)
+            and isinstance(node.iter, ast.Name)
+            and node.iter.id == "tool_calls"
+        )
+
+        prepare_calls = []
+        execute_calls = []
+
+        for node in ast.walk(tool_loop):
+            if not isinstance(node, ast.Call):
+                continue
+
+            func = node.func
+
+            if (
+                isinstance(func, ast.Attribute)
+                and func.attr
+                == "_prepare_tool_execution_call"
+            ):
+                prepare_calls.append(node)
+
+            if (
+                isinstance(func, ast.Attribute)
+                and func.attr == "execute"
+                and isinstance(
+                    func.value,
+                    ast.Attribute,
+                )
+                and func.value.attr == "tools"
+                and isinstance(
+                    func.value.value,
+                    ast.Name,
+                )
+                and func.value.value.id == "self"
+            ):
+                execute_calls.append(node)
+
+        self.assertEqual(
+            len(prepare_calls),
+            1,
+        )
+        self.assertEqual(
+            len(execute_calls),
+            1,
+        )
+
+        prepare_call = prepare_calls[0]
+        execute_call = execute_calls[0]
+
+        self.assertLess(
+            prepare_call.lineno,
+            execute_call.lineno,
+        )
+
+        self.assertEqual(
+            len(execute_call.args),
+            2,
+        )
+
+        self.assertIsInstance(
+            execute_call.args[0],
+            ast.Name,
+        )
+        self.assertEqual(
+            execute_call.args[0].id,
+            "execution_name",
+        )
+
+        self.assertIsInstance(
+            execute_call.args[1],
+            ast.Name,
+        )
+        self.assertEqual(
+            execute_call.args[1].id,
+            "execution_arguments",
+        )
+
+    def test_blocked_tool_call_cannot_reach_registry_execute(self):
+        tree = ast.parse(
+            Path(
+                "jarvis_core/core/brain.py"
+            ).read_text(encoding="utf-8")
+        )
+
+        method = next(
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "_ask_locked"
+        )
+
+        tool_loop = next(
+            node
+            for node in ast.walk(method)
+            if isinstance(node, ast.For)
+            and isinstance(node.iter, ast.Name)
+            and node.iter.id == "tool_calls"
+        )
+
+        block_if = next(
+            node
+            for node in ast.walk(tool_loop)
+            if isinstance(node, ast.If)
+            and isinstance(node.test, ast.Name)
+            and node.test.id == "block_reason"
+        )
+
+        self.assertTrue(
+            any(
+                isinstance(node, ast.Continue)
+                for node in ast.walk(block_if)
+            )
+        )
+
+        execute_call = next(
+            node
+            for node in ast.walk(tool_loop)
+            if isinstance(node, ast.Call)
+            and isinstance(
+                node.func,
+                ast.Attribute,
+            )
+            and node.func.attr == "execute"
+            and isinstance(
+                node.func.value,
+                ast.Attribute,
+            )
+            and node.func.value.attr == "tools"
+        )
+
+        self.assertLess(
+            block_if.lineno,
+            execute_call.lineno,
         )
 
     def test_registry_exact_names_is_fail_closed(self):
