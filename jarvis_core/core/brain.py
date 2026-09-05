@@ -33,6 +33,7 @@ from jarvis_core.services.request_intent import (
     sanitize_assistant_text,
 )
 from jarvis_core.services.followup_intent import resolve_followup
+from jarvis_core.services.semantic_request import StructuredRequest
 from jarvis_core.services.action_truth import guard_unverified_local_action_claim
 from jarvis_core.services.response_completion import (
     continuation_is_meta,
@@ -1925,11 +1926,24 @@ class JarvisBrain:
         rendered = json.dumps(compact(value), ensure_ascii=False, separators=(",", ":"))
         return rendered if len(rendered) <= max_chars else rendered[:max_chars] + "…[compacted]"
 
-    def ask(self, user_text: str) -> str:
+    def ask(
+        self,
+        user_text: str,
+        *,
+        request: StructuredRequest | None = None,
+    ) -> str:
         with self._lock:
-            return self._ask_locked(user_text)
+            return self._ask_locked(
+                user_text,
+                request=request,
+            )
 
-    def _ask_locked(self, user_text: str) -> str:
+    def _ask_locked(
+        self,
+        user_text: str,
+        *,
+        request: StructuredRequest | None = None,
+    ) -> str:
         perf_started = monotonic()
         request_started_at = time()
         self.tools.request_started_at = request_started_at

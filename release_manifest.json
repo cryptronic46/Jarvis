@@ -120,7 +120,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "8bcdbcc41bf269db0cda5bc4a1e2d3a5879848b186d4f2baecd3c20e5b13fb8c"
+      "sha256": "b8012695a9eb4e368e7b3c99552e209a23cf7c3040c2c351201234bdcb91752b"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -128,7 +128,7 @@
     },
     {
       "path": "jarvis_core/core/brain.py",
-      "sha256": "0e1f3069fb9ab993e9d563647399f66447dce8c845615dfa5ee1ada94b98c308"
+      "sha256": "94dee4bd24aefdc9758f6bb16c55fc0c4cd581d8d0b90c78c0c78b6365679f96"
     },
     {
       "path": "jarvis_core/core/cloud_brain.py",
@@ -156,7 +156,7 @@
     },
     {
       "path": "jarvis_core/core/hybrid_brain.py",
-      "sha256": "d0726c41b098c7e446e85d6f171b046d0bbc8c6fc2399291dda3bf453e35ff5b"
+      "sha256": "df2159534faa01c2abaed2a9315d1ad17999fe7c52798e834a89ee1740d73638"
     },
     {
       "path": "jarvis_core/core/local_llm.py",
@@ -345,6 +345,10 @@
     {
       "path": "jarvis_core/services/self_grounding.py",
       "sha256": "6be464d82056704f0a65b1fde4bd09fb501946ad013fc6d92a0cff9b3b17b6c1"
+    },
+    {
+      "path": "jarvis_core/services/semantic_request.py",
+      "sha256": "764cd105a9a188f8cf6e07e1b26da8dc11dc02fa1a492749b09c6d4ccee53769"
     },
     {
       "path": "jarvis_core/services/silence_latch.py",
@@ -1233,6 +1237,14 @@
     {
       "path": "tests/test_self_grounding_0276.py",
       "sha256": "7b285e0739170e74722707c68e2c57a17caec1cd793b3e90b9c6f1661afdcaef"
+    },
+    {
+      "path": "tests/test_semantic_request.py",
+      "sha256": "67eb044be7faf32608d1db8b95e0ffc8b5555c19ca1478d0469ebac62046be6f"
+    },
+    {
+      "path": "tests/test_semantic_request_transport.py",
+      "sha256": "c1c438fa3be4210341c377bcd6c69762dee698cf677ad6bf43a4b3a38df96955"
     },
     {
       "path": "tests/test_settings_schema_migration.py",

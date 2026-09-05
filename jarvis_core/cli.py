@@ -99,6 +99,7 @@ from jarvis_core.services.kali_bridge import (
     format_kali_scan,
 )
 from jarvis_core.services.companion_presence import CompanionPresenceService
+from jarvis_core.services.semantic_request import StructuredRequest
 from jarvis_core.services.synthetic_self import synthetic_self
 from jarvis_core.services.personal_cognition import (
     personal_cognition,
@@ -1000,7 +1001,19 @@ def main() -> None:
                     error=f"{type(exc).__name__}: {exc}",
                 )
 
-        hybrid = hybrid_brain.ask(user_text)
+        structured_request = StructuredRequest(
+            raw_text=user_text,
+            effective_text=user_text,
+            intent="UNKNOWN",
+            domain="unknown",
+            subject="UNKNOWN",
+            confidence=0.0,
+        )
+
+        hybrid = hybrid_brain.ask(
+            user_text,
+            request=structured_request,
+        )
         elapsed = round((monotonic() - command_started) * 1000)
         if settings.persistent_context_enabled:
             persistent_context.record(user_text, hybrid.text, hybrid.route)

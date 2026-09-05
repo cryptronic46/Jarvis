@@ -6,6 +6,7 @@ import re
 import unicodedata
 
 from jarvis_core.services.autonomy import authorized_learning, build_external_learning_query
+from jarvis_core.services.semantic_request import StructuredRequest
 from jarvis_core.services.learning_gap import (
     assess_learning_gap,
     contains_secret_hints,
@@ -452,7 +453,12 @@ class HybridBrain:
             return True
         return False
 
-    def ask(self, user_text: str) -> HybridAnswer:
+    def ask(
+        self,
+        user_text: str,
+        *,
+        request: StructuredRequest | None = None,
+    ) -> HybridAnswer:
         started = monotonic()
         decision = self.policy.decide(user_text, cloud_available=False)
 
@@ -548,7 +554,13 @@ class HybridBrain:
         # considered only for explicit OWNER routing or genuine complexity after
         # that local attempt, never merely because cloud exists or the PC is busy.
         try:
-            local_text = self.local.ask(decision.text)
+            if request is None:
+                local_text = self.local.ask(decision.text)
+            else:
+                local_text = self.local.ask(
+                    decision.text,
+                    request=request,
+                )
             local_failed = not str(local_text or "").strip()
         except Exception as exc:
             local_text = ""
