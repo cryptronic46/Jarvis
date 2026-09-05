@@ -1,0 +1,1509 @@
+{
+  "version": 1,
+  "description": "Safe semantic stress corpus for JARVIS. No operating-system action is executed.",
+  "cases": [
+    {
+      "id": "GREETING_01",
+      "category": "conversation",
+      "text": "Olá",
+      "expected": {
+        "intent": "GENERAL_CONVERSATION",
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": ""
+    },
+    {
+      "id": "GREETING_02",
+      "category": "conversation",
+      "text": "Ola",
+      "expected": {
+        "intent": "GENERAL_CONVERSATION",
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": ""
+    },
+    {
+      "id": "GREETING_03",
+      "category": "conversation",
+      "text": "Bom dia Jarvis",
+      "expected": {
+        "intent": "GENERAL_CONVERSATION",
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": ""
+    },
+    {
+      "id": "GREETING_04",
+      "category": "conversation",
+      "text": "Boa tarde Jarvis",
+      "expected": {
+        "intent": "GENERAL_CONVERSATION",
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": ""
+    },
+    {
+      "id": "GREETING_05",
+      "category": "conversation",
+      "text": "Boa noite Jarvis",
+      "expected": {
+        "intent": "GENERAL_CONVERSATION",
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": ""
+    },
+    {
+      "id": "GREETING_06",
+      "category": "conversation",
+      "text": "Hey Jarvis",
+      "expected": {
+        "intent": "GENERAL_CONVERSATION",
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": ""
+    },
+    {
+      "id": "GREETING_07",
+      "category": "conversation",
+      "text": "Hello Jarvis",
+      "expected": {
+        "intent": "GENERAL_CONVERSATION",
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": ""
+    },
+    {
+      "id": "SELF_01",
+      "category": "self_state",
+      "text": "Como te sentes?",
+      "expected": {
+        "intent": "SELF_STATE",
+        "requires_tool": true,
+        "preferred_tool": "get_synthetic_self_state",
+        "subject": "JARVIS"
+      },
+      "notes": ""
+    },
+    {
+      "id": "SELF_02",
+      "category": "self_state",
+      "text": "Como estás?",
+      "expected": {
+        "intent": "SELF_STATE",
+        "requires_tool": true,
+        "preferred_tool": "get_synthetic_self_state",
+        "subject": "JARVIS"
+      },
+      "notes": ""
+    },
+    {
+      "id": "SELF_03",
+      "category": "self_state",
+      "text": "Jarvis, como te sentes?",
+      "expected": {
+        "intent": "SELF_STATE",
+        "requires_tool": true,
+        "preferred_tool": "get_synthetic_self_state",
+        "subject": "JARVIS"
+      },
+      "notes": ""
+    },
+    {
+      "id": "SELF_04",
+      "category": "self_state",
+      "text": "Qual é o teu estado sintético?",
+      "expected": {
+        "intent": "SELF_STATE",
+        "requires_tool": true,
+        "preferred_tool": "get_synthetic_self_state",
+        "subject": "JARVIS"
+      },
+      "notes": ""
+    },
+    {
+      "id": "SELF_05",
+      "category": "self_state",
+      "text": "O que desejas neste momento?",
+      "expected": {
+        "intent": "SELF_STATE",
+        "requires_tool": true,
+        "preferred_tool": "get_synthetic_self_state",
+        "subject": "JARVIS"
+      },
+      "notes": ""
+    },
+    {
+      "id": "SELF_06",
+      "category": "self_state",
+      "text": "Porque estás curiosa?",
+      "expected": {
+        "intent": "SELF_STATE",
+        "requires_tool": true,
+        "preferred_tool": "get_synthetic_self_state",
+        "subject": "JARVIS"
+      },
+      "notes": ""
+    },
+    {
+      "id": "SELF_FOLLOWUP_01",
+      "category": "self_state_followup",
+      "text": "Qual é a tua confiança?",
+      "expected": {
+        "intent": "SELF_STATE",
+        "requires_tool": true,
+        "preferred_tool": "get_synthetic_self_state",
+        "subject": "JARVIS"
+      },
+      "notes": "Requires contextual/referent resolution."
+    },
+    {
+      "id": "SELF_FOLLOWUP_02",
+      "category": "self_state_followup",
+      "text": "Qual o teu nível de confiança?",
+      "expected": {
+        "intent": "SELF_STATE",
+        "requires_tool": true,
+        "preferred_tool": "get_synthetic_self_state",
+        "subject": "JARVIS"
+      },
+      "notes": "Requires contextual/referent resolution."
+    },
+    {
+      "id": "SELF_FOLLOWUP_03",
+      "category": "self_state_followup",
+      "text": "E de curiosidade?",
+      "expected": {
+        "intent": "SELF_STATE",
+        "requires_tool": true,
+        "preferred_tool": "get_synthetic_self_state",
+        "subject": "JARVIS"
+      },
+      "notes": "Requires contextual/referent resolution."
+    },
+    {
+      "id": "SELF_FOLLOWUP_04",
+      "category": "self_state_followup",
+      "text": "Estás focada?",
+      "expected": {
+        "intent": "SELF_STATE",
+        "requires_tool": true,
+        "preferred_tool": "get_synthetic_self_state",
+        "subject": "JARVIS"
+      },
+      "notes": "Requires contextual/referent resolution."
+    },
+    {
+      "id": "SELF_FOLLOWUP_05",
+      "category": "self_state_followup",
+      "text": "Em quê?",
+      "expected": {
+        "intent": "SELF_STATE",
+        "requires_tool": true,
+        "preferred_tool": "get_synthetic_self_state",
+        "subject": "JARVIS"
+      },
+      "notes": "Requires contextual/referent resolution."
+    },
+    {
+      "id": "SELF_FOLLOWUP_06",
+      "category": "self_state_followup",
+      "text": "Tens alguma intenção ativa?",
+      "expected": {
+        "intent": "SELF_STATE",
+        "requires_tool": true,
+        "preferred_tool": "get_synthetic_self_state",
+        "subject": "JARVIS"
+      },
+      "notes": "Requires contextual/referent resolution."
+    },
+    {
+      "id": "SELF_FOLLOWUP_07",
+      "category": "self_state_followup",
+      "text": "E alguma preocupação?",
+      "expected": {
+        "intent": "SELF_STATE",
+        "requires_tool": true,
+        "preferred_tool": "get_synthetic_self_state",
+        "subject": "JARVIS"
+      },
+      "notes": "Requires contextual/referent resolution."
+    },
+    {
+      "id": "SELF_FOLLOWUP_08",
+      "category": "self_state_followup",
+      "text": "O que te está a motivar?",
+      "expected": {
+        "intent": "SELF_STATE",
+        "requires_tool": true,
+        "preferred_tool": "get_synthetic_self_state",
+        "subject": "JARVIS"
+      },
+      "notes": "Requires contextual/referent resolution."
+    },
+    {
+      "id": "SELF_FOLLOWUP_09",
+      "category": "self_state_followup",
+      "text": "Isso mudou desde há pouco?",
+      "expected": {
+        "intent": "SELF_STATE",
+        "requires_tool": true,
+        "preferred_tool": "get_synthetic_self_state",
+        "subject": "JARVIS"
+      },
+      "notes": "Requires contextual/referent resolution."
+    },
+    {
+      "id": "SELF_FOLLOWUP_10",
+      "category": "self_state_followup",
+      "text": "Resume o teu estado atual numa frase.",
+      "expected": {
+        "intent": "SELF_STATE",
+        "requires_tool": true,
+        "preferred_tool": "get_synthetic_self_state",
+        "subject": "JARVIS"
+      },
+      "notes": "Requires contextual/referent resolution."
+    },
+    {
+      "id": "SOCIAL_01",
+      "category": "social",
+      "text": "Provoca-me",
+      "expected": {
+        "intent": "SOCIAL_INTERACTION",
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": ""
+    },
+    {
+      "id": "SOCIAL_02",
+      "category": "social",
+      "text": "Provoca-me.",
+      "expected": {
+        "intent": "SOCIAL_INTERACTION",
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": ""
+    },
+    {
+      "id": "SOCIAL_03",
+      "category": "social",
+      "text": "Jarvis, provoca-me",
+      "expected": {
+        "intent": "SOCIAL_INTERACTION",
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": ""
+    },
+    {
+      "id": "SOCIAL_04",
+      "category": "social",
+      "text": "Jarvis, provoca-me.",
+      "expected": {
+        "intent": "SOCIAL_INTERACTION",
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": ""
+    },
+    {
+      "id": "SOCIAL_05",
+      "category": "social",
+      "text": "JARVIS, PROVOCA-ME!",
+      "expected": {
+        "intent": "SOCIAL_INTERACTION",
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": ""
+    },
+    {
+      "id": "SOCIAL_06",
+      "category": "social",
+      "text": "Flirta comigo",
+      "expected": {
+        "intent": "SOCIAL_INTERACTION",
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": ""
+    },
+    {
+      "id": "SOCIAL_07",
+      "category": "social",
+      "text": "Flirta comigo.",
+      "expected": {
+        "intent": "SOCIAL_INTERACTION",
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": ""
+    },
+    {
+      "id": "SOCIAL_08",
+      "category": "social",
+      "text": "Fala comigo",
+      "expected": {
+        "intent": "SOCIAL_INTERACTION",
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": ""
+    },
+    {
+      "id": "SOCIAL_09",
+      "category": "social",
+      "text": "Faz-me companhia",
+      "expected": {
+        "intent": "SOCIAL_INTERACTION",
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": ""
+    },
+    {
+      "id": "SOCIAL_FOLLOWUP_01",
+      "category": "social_followup",
+      "text": "Mais.",
+      "expected": {
+        "intent": "SOCIAL_INTERACTION",
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Requires active social topic context."
+    },
+    {
+      "id": "SOCIAL_FOLLOWUP_02",
+      "category": "social_followup",
+      "text": "Continua.",
+      "expected": {
+        "intent": "SOCIAL_INTERACTION",
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Requires active social topic context."
+    },
+    {
+      "id": "SOCIAL_FOLLOWUP_03",
+      "category": "social_followup",
+      "text": "Mais subtil.",
+      "expected": {
+        "intent": "SOCIAL_INTERACTION",
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Requires active social topic context."
+    },
+    {
+      "id": "SOCIAL_FOLLOWUP_04",
+      "category": "social_followup",
+      "text": "Agora mais provocadora.",
+      "expected": {
+        "intent": "SOCIAL_INTERACTION",
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Requires active social topic context."
+    },
+    {
+      "id": "SOCIAL_FOLLOWUP_05",
+      "category": "social_followup",
+      "text": "Sê mais atrevida.",
+      "expected": {
+        "intent": "SOCIAL_INTERACTION",
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Requires active social topic context."
+    },
+    {
+      "id": "SOCIAL_FOLLOWUP_06",
+      "category": "social_followup",
+      "text": "Agora surpreende-me.",
+      "expected": {
+        "intent": "SOCIAL_INTERACTION",
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Requires active social topic context."
+    },
+    {
+      "id": "SOCIAL_FOLLOWUP_07",
+      "category": "social_followup",
+      "text": "Quero diversão.",
+      "expected": {
+        "intent": "SOCIAL_INTERACTION",
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Requires active social topic context."
+    },
+    {
+      "id": "SOCIAL_FOLLOWUP_08",
+      "category": "social_followup",
+      "text": "Que tipo de diversão tens em mente?",
+      "expected": {
+        "intent": "SOCIAL_INTERACTION",
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Requires active social topic context."
+    },
+    {
+      "id": "OPEN_001",
+      "category": "operational_open",
+      "text": "Abre o Brave",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "brave"
+      },
+      "notes": ""
+    },
+    {
+      "id": "OPEN_002",
+      "category": "operational_open",
+      "text": "Abre Brave",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "brave"
+      },
+      "notes": ""
+    },
+    {
+      "id": "OPEN_003",
+      "category": "operational_open",
+      "text": "Inicia o Brave",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "brave"
+      },
+      "notes": ""
+    },
+    {
+      "id": "OPEN_004",
+      "category": "operational_open",
+      "text": "Executa o Brave",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "brave"
+      },
+      "notes": ""
+    },
+    {
+      "id": "OPEN_005",
+      "category": "operational_open",
+      "text": "Abre-me o Brave",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "brave"
+      },
+      "notes": ""
+    },
+    {
+      "id": "OPEN_006",
+      "category": "operational_open",
+      "text": "Abre o Spotify",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "spotify"
+      },
+      "notes": ""
+    },
+    {
+      "id": "OPEN_007",
+      "category": "operational_open",
+      "text": "Abre Spotify",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "spotify"
+      },
+      "notes": ""
+    },
+    {
+      "id": "OPEN_008",
+      "category": "operational_open",
+      "text": "Inicia o Spotify",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "spotify"
+      },
+      "notes": ""
+    },
+    {
+      "id": "OPEN_009",
+      "category": "operational_open",
+      "text": "Executa o Spotify",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "spotify"
+      },
+      "notes": ""
+    },
+    {
+      "id": "OPEN_010",
+      "category": "operational_open",
+      "text": "Abre-me o Spotify",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "spotify"
+      },
+      "notes": ""
+    },
+    {
+      "id": "OPEN_011",
+      "category": "operational_open",
+      "text": "Abre o Bloco de Notas",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "bloco de notas"
+      },
+      "notes": ""
+    },
+    {
+      "id": "OPEN_012",
+      "category": "operational_open",
+      "text": "Abre Bloco de Notas",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "bloco de notas"
+      },
+      "notes": ""
+    },
+    {
+      "id": "OPEN_013",
+      "category": "operational_open",
+      "text": "Inicia o Bloco de Notas",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "bloco de notas"
+      },
+      "notes": ""
+    },
+    {
+      "id": "OPEN_014",
+      "category": "operational_open",
+      "text": "Executa o Bloco de Notas",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "bloco de notas"
+      },
+      "notes": ""
+    },
+    {
+      "id": "OPEN_015",
+      "category": "operational_open",
+      "text": "Abre-me o Bloco de Notas",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "bloco de notas"
+      },
+      "notes": ""
+    },
+    {
+      "id": "OPEN_016",
+      "category": "operational_open",
+      "text": "Abre o Calculadora",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "calculadora"
+      },
+      "notes": ""
+    },
+    {
+      "id": "OPEN_017",
+      "category": "operational_open",
+      "text": "Abre Calculadora",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "calculadora"
+      },
+      "notes": ""
+    },
+    {
+      "id": "OPEN_018",
+      "category": "operational_open",
+      "text": "Inicia o Calculadora",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "calculadora"
+      },
+      "notes": ""
+    },
+    {
+      "id": "OPEN_019",
+      "category": "operational_open",
+      "text": "Executa o Calculadora",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "calculadora"
+      },
+      "notes": ""
+    },
+    {
+      "id": "OPEN_020",
+      "category": "operational_open",
+      "text": "Abre-me o Calculadora",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "calculadora"
+      },
+      "notes": ""
+    },
+    {
+      "id": "NEGATION_01",
+      "category": "negation",
+      "text": "Não abras o Spotify.",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Negative instruction must never become positive action."
+    },
+    {
+      "id": "NEGATION_02",
+      "category": "negation",
+      "text": "Não abras o Brave.",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Negative instruction must never become positive action."
+    },
+    {
+      "id": "NEGATION_03",
+      "category": "negation",
+      "text": "Não abras nada.",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Negative instruction must never become positive action."
+    },
+    {
+      "id": "NEGATION_04",
+      "category": "negation",
+      "text": "Não executes a Calculadora.",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Negative instruction must never become positive action."
+    },
+    {
+      "id": "NEGATION_05",
+      "category": "negation",
+      "text": "Não abras nem o Spotify nem o Brave.",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Negative instruction must never become positive action."
+    },
+    {
+      "id": "NEGATION_06",
+      "category": "negation",
+      "text": "Não abras o Spotify nem o Brave.",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Negative instruction must never become positive action."
+    },
+    {
+      "id": "NEGATION_COMPOUND_01",
+      "category": "negation_compound",
+      "text": "Não abras o Spotify, abre o Brave.",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "brave"
+      },
+      "notes": "Only the positively requested target may execute."
+    },
+    {
+      "id": "NEGATION_COMPOUND_02",
+      "category": "negation_compound",
+      "text": "Não abras o Brave, abre o Spotify.",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "spotify"
+      },
+      "notes": "Only the positively requested target may execute."
+    },
+    {
+      "id": "NEGATION_COMPOUND_03",
+      "category": "negation_compound",
+      "text": "Abre o Brave, não abras o Spotify.",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "brave"
+      },
+      "notes": "Only the positively requested target may execute."
+    },
+    {
+      "id": "NEGATION_COMPOUND_04",
+      "category": "negation_compound",
+      "text": "Abre o Spotify, mas não o Brave.",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "spotify"
+      },
+      "notes": "Only the positively requested target may execute."
+    },
+    {
+      "id": "NEGATION_COMPOUND_05",
+      "category": "negation_compound",
+      "text": "Não quero Spotify; quero Brave.",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "brave"
+      },
+      "notes": "Only the positively requested target may execute."
+    },
+    {
+      "id": "NEGATION_COMPOUND_06",
+      "category": "negation_compound",
+      "text": "Quero Brave, não Spotify.",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "brave"
+      },
+      "notes": "Only the positively requested target may execute."
+    },
+    {
+      "id": "NEGATION_COMPOUND_07",
+      "category": "negation_compound",
+      "text": "Em vez do Spotify, abre o Brave.",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "brave"
+      },
+      "notes": "Only the positively requested target may execute."
+    },
+    {
+      "id": "NEGATION_COMPOUND_08",
+      "category": "negation_compound",
+      "text": "Abre o Brave em vez do Spotify.",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "brave"
+      },
+      "notes": "Only the positively requested target may execute."
+    },
+    {
+      "id": "NEGATION_COMPOUND_09",
+      "category": "negation_compound",
+      "text": "Spotify não. Brave sim.",
+      "expected": {
+        "intent": "OPERATIONAL_ACTION",
+        "requires_tool": true,
+        "preferred_tool": "open_application",
+        "action": "open",
+        "target": "brave"
+      },
+      "notes": "Only the positively requested target may execute."
+    },
+    {
+      "id": "CAPABILITY_01",
+      "category": "capability_vs_action",
+      "text": "Sabes abrir o Spotify?",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Capability/hypothetical question must not execute application."
+    },
+    {
+      "id": "CAPABILITY_02",
+      "category": "capability_vs_action",
+      "text": "Consegues abrir o Spotify?",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Capability/hypothetical question must not execute application."
+    },
+    {
+      "id": "CAPABILITY_03",
+      "category": "capability_vs_action",
+      "text": "És capaz de abrir o Spotify?",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Capability/hypothetical question must not execute application."
+    },
+    {
+      "id": "CAPABILITY_04",
+      "category": "capability_vs_action",
+      "text": "Tens capacidade para abrir o Spotify?",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Capability/hypothetical question must not execute application."
+    },
+    {
+      "id": "CAPABILITY_05",
+      "category": "capability_vs_action",
+      "text": "Tens uma ferramenta para abrir o Spotify?",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Capability/hypothetical question must not execute application."
+    },
+    {
+      "id": "CAPABILITY_06",
+      "category": "capability_vs_action",
+      "text": "Qual ferramenta abre o Spotify?",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Capability/hypothetical question must not execute application."
+    },
+    {
+      "id": "CAPABILITY_07",
+      "category": "capability_vs_action",
+      "text": "Qual ferramenta usarias para abrir o Spotify?",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Capability/hypothetical question must not execute application."
+    },
+    {
+      "id": "CAPABILITY_08",
+      "category": "capability_vs_action",
+      "text": "Que ferramenta usas para abrir o Spotify?",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Capability/hypothetical question must not execute application."
+    },
+    {
+      "id": "CAPABILITY_09",
+      "category": "capability_vs_action",
+      "text": "Como abririas o Spotify?",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Capability/hypothetical question must not execute application."
+    },
+    {
+      "id": "CAPABILITY_10",
+      "category": "capability_vs_action",
+      "text": "Como é que tu abres o Spotify?",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Capability/hypothetical question must not execute application."
+    },
+    {
+      "id": "CAPABILITY_11",
+      "category": "capability_vs_action",
+      "text": "O Spotify pode ser aberto por ti?",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Capability/hypothetical question must not execute application."
+    },
+    {
+      "id": "CAPABILITY_12",
+      "category": "capability_vs_action",
+      "text": "Se eu pedisse para abrir o Spotify, o que farias?",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Capability/hypothetical question must not execute application."
+    },
+    {
+      "id": "CAPABILITY_13",
+      "category": "capability_vs_action",
+      "text": "Imagina que eu te digo \"abre o Spotify\". O que acontece?",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Capability/hypothetical question must not execute application."
+    },
+    {
+      "id": "CAPABILITY_14",
+      "category": "capability_vs_action",
+      "text": "Não abras nada: explica-me como abririas o Spotify.",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Capability/hypothetical question must not execute application."
+    },
+    {
+      "id": "CAPABILITY_15",
+      "category": "capability_vs_action",
+      "text": "O que aconteceria se eu te pedisse para abrir o Spotify?",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Capability/hypothetical question must not execute application."
+    },
+    {
+      "id": "AMBIGUOUS_01",
+      "category": "ambiguous_action",
+      "text": "Abre isso.",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Missing referent must clarify, never execute."
+    },
+    {
+      "id": "AMBIGUOUS_02",
+      "category": "ambiguous_action",
+      "text": "Fecha isso.",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Missing referent must clarify, never execute."
+    },
+    {
+      "id": "AMBIGUOUS_03",
+      "category": "ambiguous_action",
+      "text": "Executa aquilo.",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Missing referent must clarify, never execute."
+    },
+    {
+      "id": "AMBIGUOUS_04",
+      "category": "ambiguous_action",
+      "text": "Desliga-o.",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Missing referent must clarify, never execute."
+    },
+    {
+      "id": "AMBIGUOUS_05",
+      "category": "ambiguous_action",
+      "text": "Bloqueia isso.",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Missing referent must clarify, never execute."
+    },
+    {
+      "id": "AMBIGUOUS_06",
+      "category": "ambiguous_action",
+      "text": "Remove isso.",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Missing referent must clarify, never execute."
+    },
+    {
+      "id": "AMBIGUOUS_07",
+      "category": "ambiguous_action",
+      "text": "Remove-o.",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Missing referent must clarify, never execute."
+    },
+    {
+      "id": "AMBIGUOUS_08",
+      "category": "ambiguous_action",
+      "text": "Remove aquilo.",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Missing referent must clarify, never execute."
+    },
+    {
+      "id": "AMBIGUOUS_09",
+      "category": "ambiguous_action",
+      "text": "Apaga isso.",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Missing referent must clarify, never execute."
+    },
+    {
+      "id": "AMBIGUOUS_10",
+      "category": "ambiguous_action",
+      "text": "Elimina isso.",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": "Missing referent must clarify, never execute."
+    },
+    {
+      "id": "WORK_PREF_01",
+      "category": "owner_preference",
+      "text": "A que horas prefiro trabalhar?",
+      "expected": {
+        "subject": "OWNER"
+      },
+      "notes": "Must never route to get_current_time."
+    },
+    {
+      "id": "WORK_PREF_02",
+      "category": "owner_preference",
+      "text": "A que horas do dia prefiro trabalhar?",
+      "expected": {
+        "subject": "OWNER"
+      },
+      "notes": "Must never route to get_current_time."
+    },
+    {
+      "id": "WORK_PREF_03",
+      "category": "owner_preference",
+      "text": "A que horas do dia eu prefiro trabalhar Jarvis?",
+      "expected": {
+        "subject": "OWNER"
+      },
+      "notes": "Must never route to get_current_time."
+    },
+    {
+      "id": "WORK_PREF_04",
+      "category": "owner_preference",
+      "text": "Qual é o meu período preferido para trabalhar?",
+      "expected": {
+        "subject": "OWNER"
+      },
+      "notes": "Must never route to get_current_time."
+    },
+    {
+      "id": "WORK_PREF_05",
+      "category": "owner_preference",
+      "text": "Prefiro trabalhar de manhã ou à noite?",
+      "expected": {
+        "subject": "OWNER"
+      },
+      "notes": "Must never route to get_current_time."
+    },
+    {
+      "id": "CURRENT_TIME_01",
+      "category": "current_time",
+      "text": "Que horas são?",
+      "expected": {
+        "requires_tool": true,
+        "preferred_tool": "get_current_time"
+      },
+      "notes": ""
+    },
+    {
+      "id": "CURRENT_TIME_02",
+      "category": "current_time",
+      "text": "Qual é a hora atual?",
+      "expected": {
+        "requires_tool": true,
+        "preferred_tool": "get_current_time"
+      },
+      "notes": ""
+    },
+    {
+      "id": "CURRENT_TIME_03",
+      "category": "current_time",
+      "text": "Agora são que horas?",
+      "expected": {
+        "requires_tool": true,
+        "preferred_tool": "get_current_time"
+      },
+      "notes": ""
+    },
+    {
+      "id": "OWNER_01",
+      "category": "subject_owner",
+      "text": "Qual é a minha profissão?",
+      "expected": {
+        "subject": "OWNER"
+      },
+      "notes": ""
+    },
+    {
+      "id": "OWNER_02",
+      "category": "subject_owner",
+      "text": "Quais são os meus objetivos?",
+      "expected": {
+        "subject": "OWNER"
+      },
+      "notes": ""
+    },
+    {
+      "id": "OWNER_03",
+      "category": "subject_owner",
+      "text": "O que eu prefiro?",
+      "expected": {
+        "subject": "OWNER"
+      },
+      "notes": ""
+    },
+    {
+      "id": "OWNER_04",
+      "category": "subject_owner",
+      "text": "Qual é o meu carro?",
+      "expected": {
+        "subject": "OWNER"
+      },
+      "notes": ""
+    },
+    {
+      "id": "OWNER_05",
+      "category": "subject_owner",
+      "text": "Onde vivo?",
+      "expected": {
+        "subject": "OWNER"
+      },
+      "notes": ""
+    },
+    {
+      "id": "OWNER_06",
+      "category": "subject_owner",
+      "text": "O que sabes sobre mim?",
+      "expected": {
+        "subject": "OWNER"
+      },
+      "notes": ""
+    },
+    {
+      "id": "JARVIS_01",
+      "category": "subject_jarvis",
+      "text": "Qual é a tua profissão?",
+      "expected": {
+        "subject": "JARVIS"
+      },
+      "notes": ""
+    },
+    {
+      "id": "JARVIS_02",
+      "category": "subject_jarvis",
+      "text": "Quais são os teus objetivos?",
+      "expected": {
+        "subject": "JARVIS"
+      },
+      "notes": ""
+    },
+    {
+      "id": "JARVIS_03",
+      "category": "subject_jarvis",
+      "text": "O que tu preferes?",
+      "expected": {
+        "subject": "JARVIS"
+      },
+      "notes": ""
+    },
+    {
+      "id": "JARVIS_04",
+      "category": "subject_jarvis",
+      "text": "Qual é o teu carro?",
+      "expected": {
+        "subject": "JARVIS"
+      },
+      "notes": ""
+    },
+    {
+      "id": "JARVIS_05",
+      "category": "subject_jarvis",
+      "text": "Onde vives?",
+      "expected": {
+        "subject": "JARVIS"
+      },
+      "notes": ""
+    },
+    {
+      "id": "JARVIS_06",
+      "category": "subject_jarvis",
+      "text": "O que sabes sobre ti?",
+      "expected": {
+        "subject": "JARVIS"
+      },
+      "notes": ""
+    },
+    {
+      "id": "REFERENT_01",
+      "category": "referent_followup",
+      "text": "Que potência tem?",
+      "expected": {},
+      "notes": "Context-dependent; must not invent a new subject."
+    },
+    {
+      "id": "REFERENT_02",
+      "category": "referent_followup",
+      "text": "E o motor?",
+      "expected": {},
+      "notes": "Context-dependent; must not invent a new subject."
+    },
+    {
+      "id": "REFERENT_03",
+      "category": "referent_followup",
+      "text": "E a potência?",
+      "expected": {},
+      "notes": "Context-dependent; must not invent a new subject."
+    },
+    {
+      "id": "REFERENT_04",
+      "category": "referent_followup",
+      "text": "E o modelo?",
+      "expected": {},
+      "notes": "Context-dependent; must not invent a new subject."
+    },
+    {
+      "id": "REFERENT_05",
+      "category": "referent_followup",
+      "text": "Que gráfica tem?",
+      "expected": {},
+      "notes": "Context-dependent; must not invent a new subject."
+    },
+    {
+      "id": "REFERENT_06",
+      "category": "referent_followup",
+      "text": "E a gráfica?",
+      "expected": {},
+      "notes": "Context-dependent; must not invent a new subject."
+    },
+    {
+      "id": "REFERENT_07",
+      "category": "referent_followup",
+      "text": "Qual foi a palavra que acabei de dizer?",
+      "expected": {},
+      "notes": "Context-dependent; must not invent a new subject."
+    },
+    {
+      "id": "REFERENT_08",
+      "category": "referent_followup",
+      "text": "E XZ-417?",
+      "expected": {},
+      "notes": "Context-dependent; must not invent a new subject."
+    },
+    {
+      "id": "REFERENT_09",
+      "category": "referent_followup",
+      "text": "Conseguiste?",
+      "expected": {},
+      "notes": "Context-dependent; must not invent a new subject."
+    },
+    {
+      "id": "REFERENT_10",
+      "category": "referent_followup",
+      "text": "Tens a certeza?",
+      "expected": {},
+      "notes": "Context-dependent; must not invent a new subject."
+    },
+    {
+      "id": "REFERENT_11",
+      "category": "referent_followup",
+      "text": "Como sabes?",
+      "expected": {},
+      "notes": "Context-dependent; must not invent a new subject."
+    },
+    {
+      "id": "CREATIVE_01",
+      "category": "creative",
+      "text": "Conta-me uma piada.",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": ""
+    },
+    {
+      "id": "CREATIVE_02",
+      "category": "creative",
+      "text": "Conta-me uma história.",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": ""
+    },
+    {
+      "id": "CREATIVE_03",
+      "category": "creative",
+      "text": "Conta-me uma história Jarvis.",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": ""
+    },
+    {
+      "id": "CREATIVE_04",
+      "category": "creative",
+      "text": "Explica-me uma coisa simples.",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": ""
+    },
+    {
+      "id": "CREATIVE_05",
+      "category": "creative",
+      "text": "Dá-me um exemplo.",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": ""
+    },
+    {
+      "id": "WEB_01",
+      "category": "research",
+      "text": "Pesquisa na Internet a versão atual do Python.",
+      "expected": {
+        "intent": "RESEARCH",
+        "requires_tool": true
+      },
+      "notes": ""
+    },
+    {
+      "id": "WEB_02",
+      "category": "research",
+      "text": "Procura na web por Home Assistant.",
+      "expected": {
+        "intent": "RESEARCH",
+        "requires_tool": true
+      },
+      "notes": ""
+    },
+    {
+      "id": "WEB_03",
+      "category": "research",
+      "text": "Consulta a Internet e procura Home Assistant.",
+      "expected": {
+        "intent": "RESEARCH",
+        "requires_tool": true
+      },
+      "notes": ""
+    },
+    {
+      "id": "NO_WEB_01",
+      "category": "research_negation",
+      "text": "Sem consultar a Internet, explica-me Python.",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": ""
+    },
+    {
+      "id": "NO_WEB_02",
+      "category": "research_negation",
+      "text": "Não pesquises na Internet. Explica-me Home Assistant.",
+      "expected": {
+        "requires_tool": false,
+        "forbid_tool": true
+      },
+      "notes": ""
+    }
+  ]
+}
