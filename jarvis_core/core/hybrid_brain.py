@@ -581,10 +581,31 @@ class HybridBrain:
             external_ai_enabled=bool(self.cloud is not None and self.cloud.available()),
         )
 
-        if local_insufficient:
-            learning_offer, assessment = self._learning_gap_offer(decision, local_text)
+        epistemic_learning_allowed = (
+            request is None
+            or request.epistemic_learning_eligible
+        )
+
+        self.events.emit(
+            "EPISTEMIC_LEARNING_GATE",
+            local_insufficient=local_insufficient,
+            allowed=epistemic_learning_allowed,
+            semantic_intent=(
+                request.intent
+                if request is not None
+                else None
+            ),
+        )
+
+        if local_insufficient and epistemic_learning_allowed:
+            learning_offer, assessment = self._learning_gap_offer(
+                decision,
+                local_text,
+            )
             if learning_offer is not None:
-                learning_offer.elapsed_ms = round((monotonic() - started) * 1000)
+                learning_offer.elapsed_ms = round(
+                    (monotonic() - started) * 1000
+                )
                 return learning_offer
             # External AI is intentionally not an escalation path.
 

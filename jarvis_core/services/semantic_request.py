@@ -129,3 +129,83 @@ class StructuredRequest:
             "epistemic_learning_eligible": self.epistemic_learning_eligible,
             "confidence": self.confidence,
         }
+
+
+def semantic_request_contract(
+    request: StructuredRequest,
+) -> str:
+    """Build deterministic model guidance from resolved semantics."""
+
+    contracts = {
+        "GENERAL_CONVERSATION": (
+            "[SEMANTIC REQUEST]\n"
+            "Intent: GENERAL_CONVERSATION.\n"
+            "This is ordinary conversation with the OWNER. "
+            "Answer naturally and directly. "
+            "Do not reinterpret the turn as an action, research request, "
+            "or knowledge-learning gap."
+        ),
+        "SOCIAL_INTERACTION": (
+            "[SEMANTIC REQUEST]\n"
+            "Intent: SOCIAL_INTERACTION.\n"
+            "This is a social or companion interaction with the OWNER. "
+            "Respond conversationally according to the active companion "
+            "and style settings. "
+            "Do not reinterpret the turn as research, learning, or an "
+            "operational command."
+        ),
+        "SELF_STATE": (
+            "[SEMANTIC REQUEST]\n"
+            "Intent: SELF_STATE.\n"
+            "The OWNER is asking about JARVIS synthetic/internal state. "
+            "Use only grounded synthetic-self evidence. "
+            "Do not claim biological feelings or unsupported state."
+        ),
+        "IDENTITY_DIALOGUE": (
+            "[SEMANTIC REQUEST]\n"
+            "Intent: IDENTITY_DIALOGUE.\n"
+            "The OWNER is talking with JARVIS about JARVIS identity. "
+            "Answer as JARVIS while preserving synthetic-self grounding."
+        ),
+        "CONVERSATION_RECALL": (
+            "[SEMANTIC REQUEST]\n"
+            "Intent: CONVERSATION_RECALL.\n"
+            "Answer only from conversation-memory evidence supplied by "
+            "the Core. Do not invent remembered facts."
+        ),
+        "KNOWLEDGE_CAPABILITY": (
+            "[SEMANTIC REQUEST]\n"
+            "Intent: KNOWLEDGE_CAPABILITY.\n"
+            "Answer the knowledge or capability question directly. "
+            "Do not claim tools were executed unless execution evidence "
+            "is present."
+        ),
+        "OPERATIONAL_ACTION": (
+            "[SEMANTIC REQUEST]\n"
+            "Intent: OPERATIONAL_ACTION.\n"
+            "This turn requests an action. "
+            "Do not claim the action succeeded without verified tool "
+            "execution evidence."
+        ),
+        "RESEARCH": (
+            "[SEMANTIC REQUEST]\n"
+            "Intent: RESEARCH.\n"
+            "This turn explicitly requests research. "
+            "Use only authorized research paths and grounded results."
+        ),
+        "CLARIFICATION": (
+            "[SEMANTIC REQUEST]\n"
+            "Intent: CLARIFICATION.\n"
+            "Ask the OWNER for the missing information needed to resolve "
+            "the request. Do not guess."
+        ),
+        "UNKNOWN": (
+            "[SEMANTIC REQUEST]\n"
+            "Intent: UNKNOWN.\n"
+            "The semantic intent is not sufficiently certain. "
+            "Do not invent an action or research objective. "
+            "Ask for clarification when needed."
+        ),
+    }
+
+    return contracts[request.intent]

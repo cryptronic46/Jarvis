@@ -10,7 +10,33 @@ class FollowupToolRoutingContractTests(unittest.TestCase):
         text = Path("jarvis_core/core/brain.py").read_text(encoding="utf-8")
         self.assertIn("followup = resolve_followup(", text)
         self.assertIn("effective_query = followup.tool_query", text)
-        self.assertIn("self.tools.schemas_for_query(\n            effective_query,", text)
+        self.assertIn(
+            "self.tools.schemas_for_query(",
+            text,
+        )
+        self.assertIn(
+            "effective_query,",
+            text,
+        )
+
+        followup_pos = text.index(
+            "followup = resolve_followup("
+        )
+        effective_pos = text.index(
+            "effective_query = "
+        )
+        tool_selection_pos = text.index(
+            "self.tools.schemas_for_query("
+        )
+
+        self.assertLess(
+            followup_pos,
+            effective_pos,
+        )
+        self.assertLess(
+            effective_pos,
+            tool_selection_pos,
+        )
         self.assertIn('"FOLLOWUP_RESOLVED"', text)
 
     def test_followup_service_never_searches_older_than_latest_row(self):

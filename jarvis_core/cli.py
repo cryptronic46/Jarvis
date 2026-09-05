@@ -99,7 +99,7 @@ from jarvis_core.services.kali_bridge import (
     format_kali_scan,
 )
 from jarvis_core.services.companion_presence import CompanionPresenceService
-from jarvis_core.services.semantic_request import StructuredRequest
+from jarvis_core.services.semantic_intent import resolve_semantic_request
 from jarvis_core.services.synthetic_self import synthetic_self
 from jarvis_core.services.personal_cognition import (
     personal_cognition,
@@ -1001,13 +1001,22 @@ def main() -> None:
                     error=f"{type(exc).__name__}: {exc}",
                 )
 
-        structured_request = StructuredRequest(
-            raw_text=user_text,
-            effective_text=user_text,
-            intent="UNKNOWN",
-            domain="unknown",
-            subject="UNKNOWN",
-            confidence=0.0,
+        structured_request = resolve_semantic_request(
+            user_text
+        )
+
+        events.emit(
+            "SEMANTIC_REQUEST_RESOLVED",
+            intent=structured_request.intent,
+            domain=structured_request.domain,
+            subject=structured_request.subject,
+            action=structured_request.action,
+            requires_tool=structured_request.requires_tool,
+            preferred_tool=structured_request.preferred_tool,
+            epistemic_learning_eligible=(
+                structured_request.epistemic_learning_eligible
+            ),
+            confidence=structured_request.confidence,
         )
 
         hybrid = hybrid_brain.ask(

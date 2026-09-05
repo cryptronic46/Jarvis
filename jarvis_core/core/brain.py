@@ -33,7 +33,7 @@ from jarvis_core.services.request_intent import (
     sanitize_assistant_text,
 )
 from jarvis_core.services.followup_intent import resolve_followup
-from jarvis_core.services.semantic_request import StructuredRequest
+from jarvis_core.services.semantic_request import StructuredRequest, semantic_request_contract
 from jarvis_core.services.action_truth import guard_unverified_local_action_claim
 from jarvis_core.services.response_completion import (
     continuation_is_meta,
@@ -1999,9 +1999,33 @@ class JarvisBrain:
                 ((learning_context + "\n\n") if learning_context else "")
                 + book_context
             )
-        current_intent = classify_request_intent(user_text)
-        dialogue_intent_kind = current_intent.kind
-        request_contract = intent_contract(user_text)
+        if request is None:
+            current_intent = classify_request_intent(user_text)
+            dialogue_intent_kind = current_intent.kind
+            request_contract = intent_contract(user_text)
+        else:
+            current_intent = None
+            dialogue_intent_kind = {
+                "SELF_STATE": "SELF_STATE_CONVERSATION",
+                "IDENTITY_DIALOGUE": "IDENTITY_DIALOGUE",
+                "CONVERSATION_RECALL": "CONVERSATION_RECALL",
+                "KNOWLEDGE_CAPABILITY": "KNOWLEDGE_CAPABILITY",
+                "OPERATIONAL_ACTION": "OPERATIONAL_ACTION",
+            }.get(
+                request.intent,
+                "GENERAL",
+            )
+            request_contract = semantic_request_contract(
+                request
+            )
+
+            self.events.emit(
+                "SEMANTIC_REQUEST_CONSUMED",
+                intent=request.intent,
+                domain=request.domain,
+                subject=request.subject,
+                confidence=request.confidence,
+            )
         self_context = ""
         if dialogue_intent_kind in {"SELF_STATE_CONVERSATION", "IDENTITY_DIALOGUE"}:
             try:
@@ -2109,9 +2133,33 @@ class JarvisBrain:
         })
         self._trim()
 
-        tool_schemas = self.tools.schemas_for_query(
-            effective_query,
-            max_tools=plan.max_tools,
+        semantic_tools_allowed = (
+            request is None
+            or request.requires_tool
+        )
+
+        if semantic_tools_allowed:
+            tool_schemas = self.tools.schemas_for_query(
+                effective_query,
+                max_tools=plan.max_tools,
+            )
+        else:
+            tool_schemas = []
+
+        self.events.emit(
+            "SEMANTIC_TOOL_GATE",
+            allowed=semantic_tools_allowed,
+            semantic_intent=(
+                request.intent
+                if request is not None
+                else None
+            ),
+            requires_tool=(
+                request.requires_tool
+                if request is not None
+                else None
+            ),
+            selected=len(tool_schemas),
         )
         if book_retrieval.get("requested"):
             deterministic_book_tools = {

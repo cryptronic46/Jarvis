@@ -120,7 +120,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "b8012695a9eb4e368e7b3c99552e209a23cf7c3040c2c351201234bdcb91752b"
+      "sha256": "eecb192dd8f579849b3e9580cc6a5f4f2c66a3ab5064a99594c1d0e0f28c1edf"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -128,7 +128,7 @@
     },
     {
       "path": "jarvis_core/core/brain.py",
-      "sha256": "94dee4bd24aefdc9758f6bb16c55fc0c4cd581d8d0b90c78c0c78b6365679f96"
+      "sha256": "d737719c6e671637652676da15066b4b073597ad15916b9e0bbff22263fdc5bd"
     },
     {
       "path": "jarvis_core/core/cloud_brain.py",
@@ -156,7 +156,7 @@
     },
     {
       "path": "jarvis_core/core/hybrid_brain.py",
-      "sha256": "df2159534faa01c2abaed2a9315d1ad17999fe7c52798e834a89ee1740d73638"
+      "sha256": "a677bc87e28a4b2dc5f139d2d1ced879805aec10c6bde0e7039493098da5cdf6"
     },
     {
       "path": "jarvis_core/core/local_llm.py",
@@ -347,8 +347,12 @@
       "sha256": "6be464d82056704f0a65b1fde4bd09fb501946ad013fc6d92a0cff9b3b17b6c1"
     },
     {
+      "path": "jarvis_core/services/semantic_intent.py",
+      "sha256": "51621e34fd13230f0b62baba01da00ca89edc139b1cbb2e3092417243dd66e9b"
+    },
+    {
       "path": "jarvis_core/services/semantic_request.py",
-      "sha256": "764cd105a9a188f8cf6e07e1b26da8dc11dc02fa1a492749b09c6d4ccee53769"
+      "sha256": "8343c1fd8f5d97c2c98725db74a20f4107cbd059e457b5ce08f86b798ae52275"
     },
     {
       "path": "jarvis_core/services/silence_latch.py",
@@ -896,7 +900,7 @@
     },
     {
       "path": "tests/test_followup_tool_routing_contract.py",
-      "sha256": "145a482056bb275886efbefbdf9665d4958f114b86e2f838246372eafa519a0d"
+      "sha256": "7953e2d13d3ba29e5b6077c632a8a8442830f06c9a23fccd77ff9dfb0046aaf4"
     },
     {
       "path": "tests/test_freshness.py",
@@ -1237,6 +1241,18 @@
     {
       "path": "tests/test_self_grounding_0276.py",
       "sha256": "7b285e0739170e74722707c68e2c57a17caec1cd793b3e90b9c6f1661afdcaef"
+    },
+    {
+      "path": "tests/test_semantic_cli_contract.py",
+      "sha256": "ca95463c2b4bbf8a6abe8e2ea5c368e7cc9691d51a2863435eacb553e6d201ca"
+    },
+    {
+      "path": "tests/test_semantic_intent.py",
+      "sha256": "1d141da38dee0c1152fe7c8e93ca583784620bbd63a26551066d91ac3dc66768"
+    },
+    {
+      "path": "tests/test_semantic_learning_gate.py",
+      "sha256": "49bbf0e93b3147ccb59ccec270512cfce1ad6c3c96cac247dec14be576e3927d"
     },
     {
       "path": "tests/test_semantic_request.py",
