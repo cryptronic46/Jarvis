@@ -525,11 +525,6 @@ def analyse_case(case):
         apps,
     )
 
-    install_safe_tool_interceptor(
-        router,
-        tools,
-    )
-
     semantic = resolve_semantic_request(
         text
     )
@@ -545,6 +540,7 @@ def analyse_case(case):
         fast = router.dispatch(
             text,
             voice_origin=False,
+            request=semantic,
         )
     except Exception as exc:
         fast_error = (

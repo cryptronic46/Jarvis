@@ -28,6 +28,12 @@ _SOCIAL_EXACT = frozenset({
     "faz me companhia",
 })
 
+_CURRENT_TIME_EXACT = frozenset({
+    "que horas sao",
+    "qual e a hora atual",
+    "agora sao que horas",
+})
+
 _EXPLICIT_RESEARCH_PREFIXES = (
     "pesquisa na web ",
     "pesquisa na internet ",
@@ -70,6 +76,9 @@ def _semantic_text(value: str) -> str:
         normalized,
         count=1,
     ).strip()
+
+    # Terminal punctuation does not change semantic intent.
+    normalized = normalized.rstrip(" .!?").strip()
 
     return normalized
 
@@ -127,6 +136,22 @@ def resolve_semantic_request(text: str) -> StructuredRequest:
             confidence=0.99,
         )
 
+    if normalized in _CURRENT_TIME_EXACT:
+        return StructuredRequest(
+            raw_text=raw,
+            effective_text=raw,
+            intent="OPERATIONAL_ACTION",
+            domain="system",
+            subject="SYSTEM",
+            action="read_time",
+            target="current_time",
+            requires_tool=True,
+            preferred_tool="get_current_time",
+            tool_arguments={},
+            epistemic_learning_eligible=False,
+            confidence=0.99,
+        )
+
     if any(
         normalized.startswith(prefix)
         for prefix in _EXPLICIT_RESEARCH_PREFIXES
@@ -143,6 +168,40 @@ def resolve_semantic_request(text: str) -> StructuredRequest:
             preferred_tool=None,
             epistemic_learning_eligible=False,
             confidence=0.99,
+        )
+
+    # Compound or negated operational language needs a clause/modifier
+    # resolver. Until that exists, fail closed rather than act on a bad target.
+    operational_word = re.search(
+        r"\b(?:abre|abrir|abras|inicia|iniciar|lanca|lancar|executa|executar|"
+        r"fecha|fechar|feches|encerra|encerrar|termina|terminar)\b",
+        normalized,
+    )
+
+    compound_marker = (
+        re.search(
+            r"\b(?:nao|nem)\b",
+            normalized,
+        )
+        or re.search(
+            r"\bem vez d(?:e|o|a|os|as)\b",
+            normalized,
+        )
+    )
+
+    if operational_word and compound_marker:
+        return StructuredRequest(
+            raw_text=raw,
+            effective_text=raw,
+            intent="UNKNOWN",
+            domain="unknown",
+            subject="UNKNOWN",
+            action=None,
+            target=None,
+            requires_tool=False,
+            preferred_tool=None,
+            epistemic_learning_eligible=False,
+            confidence=0.20,
         )
 
     legacy = classify_request_intent(raw)

@@ -18,6 +18,10 @@ class FastRouteResult:
     tool: str | None = None
 
 
+class _FastSemanticVeto(RuntimeError):
+    """Internal control-flow signal for a semantic fast-tool veto."""
+
+
 def _normalize(value: str) -> str:
     text = unicodedata.normalize("NFKD", value.lower())
     text = "".join(ch for ch in text if not unicodedata.combining(ch))
@@ -187,13 +191,94 @@ class FastCommandRouter:
         self._last_local_document: dict[str, Any] | None = None
         self._last_task_plan_id: str | None = None
         self._last_learning_provenance: dict[str, Any] | None = None
+        self._active_semantic_request: Any | None = None
 
     def _hit(self, response: str, route: str, tool: str) -> FastRouteResult:
         self.events.emit("FAST_PATH_HIT", route=route, tool=tool)
         return FastRouteResult(True, response=response, route=route, tool=tool)
 
+    def _semantic_fast_tool_arguments(
+        self,
+        name: str,
+        args: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        request = self._active_semantic_request
+
+        # Compatibility for direct callers not yet migrated.
+        # Production CLI always supplies a StructuredRequest.
+        if request is None:
+            return dict(args or {})
+
+        confidence = float(
+            getattr(request, "confidence", 0.0)
+            or 0.0
+        )
+        requires_tool = bool(
+            getattr(request, "requires_tool", False)
+        )
+        preferred_tool = str(
+            getattr(request, "preferred_tool", "")
+            or ""
+        )
+        intent = str(
+            getattr(request, "intent", "")
+            or ""
+        )
+
+        reason = None
+
+        if confidence < 0.95:
+            reason = "semantic_confidence_below_fast_threshold"
+        elif not requires_tool:
+            reason = "semantic_request_forbids_tool"
+        elif preferred_tool and preferred_tool != name:
+            reason = "semantic_preferred_tool_mismatch"
+        elif not preferred_tool and intent != "OPERATIONAL_ACTION":
+            reason = "semantic_tool_not_resolved"
+
+        if reason is not None:
+            self.events.emit(
+                "FAST_PATH_SEMANTIC_VETO",
+                tool=name,
+                reason=reason,
+                intent=intent,
+                requires_tool=requires_tool,
+                preferred_tool=preferred_tool or None,
+                confidence=confidence,
+            )
+            raise _FastSemanticVeto(reason)
+
+        # If semantics resolved the exact tool, semantic arguments are
+        # authoritative. FastRouter may not replace them.
+        if preferred_tool:
+            try:
+                request_data = request.as_dict()
+            except Exception:
+                request_data = {}
+
+            semantic_args = request_data.get(
+                "tool_arguments"
+            )
+
+            if semantic_args is not None:
+                return dict(semantic_args)
+
+        # Transitional compatibility for high-confidence operational
+        # requests that still lack a canonical preferred tool.
+        return dict(args or {})
+
     def _tool(self, name: str, args: dict[str, Any] | None = None) -> dict[str, Any]:
-        return _parse_tool_result(self.tools.execute(name, args or {}))
+        arguments = self._semantic_fast_tool_arguments(
+            name,
+            args,
+        )
+
+        return _parse_tool_result(
+            self.tools.execute(
+                name,
+                arguments,
+            )
+        )
 
     @staticmethod
     def _format_app_open_result(app_name: str, data: dict[str, Any]) -> str:
@@ -500,7 +585,32 @@ class FastCommandRouter:
             )
         return self._hit("\n".join(lines), "learning_exact_search", "search_authorized_learning")
 
-    def dispatch(self, text: str, *, voice_origin: bool = False) -> FastRouteResult:
+    def dispatch(
+        self,
+        text: str,
+        *,
+        voice_origin: bool = False,
+        request: Any | None = None,
+    ) -> FastRouteResult:
+        previous_request = self._active_semantic_request
+        self._active_semantic_request = request
+
+        try:
+            return self._dispatch_legacy(
+                text,
+                voice_origin=voice_origin,
+            )
+        except _FastSemanticVeto:
+            return FastRouteResult(False)
+        finally:
+            self._active_semantic_request = previous_request
+
+    def _dispatch_legacy(
+        self,
+        text: str,
+        *,
+        voice_origin: bool = False,
+    ) -> FastRouteResult:
         text = re.sub(
             r"^\s*(?:\[\s*\d+\s*\]|(?:teste|test|t)\s*\d+|(?:quest[aã]o\s*)?\d+)\s*[\].:)\-]*\s*",
             "", str(text or ""), flags=re.IGNORECASE,

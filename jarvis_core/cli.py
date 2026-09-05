@@ -958,7 +958,32 @@ def main() -> None:
                 error=f"{type(exc).__name__}: {exc}",
             )
         voice_origin = str(source).lower() in {"wake", "voice", "manual_voice", "manual"}
-        fast = fast_router.dispatch(user_text, voice_origin=voice_origin)
+
+        # 2F.5A: establish semantic authority before any FastRouter
+        # tool execution. The same immutable request is forwarded.
+        structured_request = resolve_semantic_request(
+            user_text
+        )
+
+        events.emit(
+            "SEMANTIC_REQUEST_RESOLVED",
+            intent=structured_request.intent,
+            domain=structured_request.domain,
+            subject=structured_request.subject,
+            action=structured_request.action,
+            requires_tool=structured_request.requires_tool,
+            preferred_tool=structured_request.preferred_tool,
+            epistemic_learning_eligible=(
+                structured_request.epistemic_learning_eligible
+            ),
+            confidence=structured_request.confidence,
+        )
+
+        fast = fast_router.dispatch(
+            user_text,
+            voice_origin=voice_origin,
+            request=structured_request,
+        )
         if fast.handled:
             # Fast-path text bypasses JarvisBrain, so apply the same final output
             # policy here (pt-PT localization, emoji policy, duplicate cleanup).
@@ -1000,24 +1025,6 @@ def main() -> None:
                     "VOICE_V2_VRAM_TO_REASONING_FAILED",
                     error=f"{type(exc).__name__}: {exc}",
                 )
-
-        structured_request = resolve_semantic_request(
-            user_text
-        )
-
-        events.emit(
-            "SEMANTIC_REQUEST_RESOLVED",
-            intent=structured_request.intent,
-            domain=structured_request.domain,
-            subject=structured_request.subject,
-            action=structured_request.action,
-            requires_tool=structured_request.requires_tool,
-            preferred_tool=structured_request.preferred_tool,
-            epistemic_learning_eligible=(
-                structured_request.epistemic_learning_eligible
-            ),
-            confidence=structured_request.confidence,
-        )
 
         hybrid = hybrid_brain.ask(
             user_text,

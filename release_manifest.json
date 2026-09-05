@@ -120,7 +120,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "eecb192dd8f579849b3e9580cc6a5f4f2c66a3ab5064a99594c1d0e0f28c1edf"
+      "sha256": "dff3fd8820dfc37c45776902d68457a1622bfd21f9e209eb19f2049a68ffb9cb"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -148,7 +148,7 @@
     },
     {
       "path": "jarvis_core/core/fast_router.py",
-      "sha256": "b17726a4269bfedf9e1d71fe78ad054d0003514b5e6d0b91776dee7e5dcfb554"
+      "sha256": "6d7542c9fde1277af1d4d6cca2387829500014462beb041912531aaf47712705"
     },
     {
       "path": "jarvis_core/core/freshness.py",
@@ -348,7 +348,7 @@
     },
     {
       "path": "jarvis_core/services/semantic_intent.py",
-      "sha256": "8c91a04c4f887cea7fbe85882aa51e5788b735867dcae5d2709555b05bd83cc1"
+      "sha256": "6e436b78bd194ef24d6859ebf1e6fab40a960c6182b6fa3ab5361c2e3ef733dd"
     },
     {
       "path": "jarvis_core/services/semantic_request.py",
@@ -605,6 +605,10 @@
     {
       "path": "setup_wakeword.ps1",
       "sha256": "474436a0bd8970b6935e0779acf0aac7143bcee73c9377f57587d84ee05a743b"
+    },
+    {
+      "path": "tests/semantic_stress_cases.json",
+      "sha256": "12562e1ec960426ce14fa0cc7eed812c1090eff8a440527677cdceda27c5375b"
     },
     {
       "path": "tests/test_0278_acceptance_hotfix.py",
@@ -1249,6 +1253,10 @@
     {
       "path": "tests/test_semantic_cli_contract.py",
       "sha256": "ca95463c2b4bbf8a6abe8e2ea5c368e7cc9691d51a2863435eacb553e6d201ca"
+    },
+    {
+      "path": "tests/test_semantic_fast_authority.py",
+      "sha256": "14a41df2ecf79f3a6a10b6d08cc13fe20f22ff5eae34bc0f0bcbddb10fcc0a07"
     },
     {
       "path": "tests/test_semantic_intent.py",

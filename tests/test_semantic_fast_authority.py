@@ -1,0 +1,239 @@
+from __future__ import annotations
+
+import ast
+import json
+import unittest
+from pathlib import Path
+
+from jarvis_core.core.fast_router import FastCommandRouter
+from jarvis_core.services.semantic_intent import (
+    resolve_semantic_request,
+)
+
+
+class _Events:
+    def __init__(self):
+        self.items = []
+
+    def emit(self, event, **kwargs):
+        self.items.append((event, kwargs))
+
+
+class _Tools:
+    def __init__(self):
+        self.calls = []
+        self.request_started_at = None
+        self.names = {
+            "open_application",
+            "get_current_time",
+            "get_synthetic_self_state",
+        }
+
+    def validate_arguments(self, name, arguments):
+        return True, None
+
+    def execute(self, name, arguments=None, *args, **kwargs):
+        arguments = dict(arguments or {})
+        self.calls.append((name, arguments))
+
+        if name == "open_application":
+            return json.dumps({
+                "ok": True,
+                "already_running": False,
+            })
+
+        if name == "get_current_time":
+            return json.dumps({
+                "ok": True,
+                "time": "17:00",
+                "formatted": "17:00",
+            })
+
+        return json.dumps({"ok": True})
+
+
+class _Apps:
+    def list_apps(self):
+        return [
+            {
+                "id": "brave",
+                "name": "brave",
+                "aliases": ["brave"],
+            },
+            {
+                "id": "spotify",
+                "name": "spotify",
+                "aliases": ["spotify"],
+            },
+        ]
+
+
+def _router():
+    events = _Events()
+    tools = _Tools()
+
+    router = FastCommandRouter(
+        events,
+        tools,
+        _Apps(),
+    )
+
+    return router, tools, events
+
+
+class SemanticFastAuthorityTests(unittest.TestCase):
+    def test_capability_question_cannot_execute_fast_tool(self):
+        router, tools, _events = _router()
+
+        text = "Sabes abrir o Spotify?"
+        request = resolve_semantic_request(text)
+
+        result = router.dispatch(
+            text,
+            request=request,
+        )
+
+        self.assertFalse(result.handled)
+        self.assertEqual(tools.calls, [])
+
+    def test_explicit_open_keeps_fast_execution(self):
+        router, tools, _events = _router()
+
+        text = "Abre o Spotify"
+        request = resolve_semantic_request(text)
+
+        result = router.dispatch(
+            text,
+            request=request,
+        )
+
+        self.assertTrue(result.handled)
+        self.assertEqual(
+            tools.calls,
+            [
+                (
+                    "open_application",
+                    {"app_name": "spotify"},
+                )
+            ],
+        )
+
+    def test_compound_negation_fails_closed(self):
+        router, tools, _events = _router()
+
+        text = (
+            "N\u00e3o abras o Spotify, "
+            "abre o Brave."
+        )
+
+        request = resolve_semantic_request(text)
+
+        self.assertEqual(
+            request.intent,
+            "UNKNOWN",
+        )
+        self.assertFalse(
+            request.requires_tool
+        )
+
+        result = router.dispatch(
+            text,
+            request=request,
+        )
+
+        self.assertFalse(result.handled)
+        self.assertEqual(tools.calls, [])
+
+    def test_current_time_has_authoritative_contract(self):
+        request = resolve_semantic_request(
+            "Que horas s\u00e3o?"
+        )
+
+        self.assertTrue(
+            request.requires_tool
+        )
+        self.assertEqual(
+            request.preferred_tool,
+            "get_current_time",
+        )
+        self.assertEqual(
+            request.action,
+            "read_time",
+        )
+
+    def test_cli_resolves_semantics_before_fast_dispatch(self):
+        source = Path(
+            "jarvis_core/cli.py"
+        ).read_text(encoding="utf-8")
+
+        start = source.index(
+            "    def process_request("
+        )
+        end = source.index(
+            "    def handle_voice_command(",
+            start,
+        )
+        block = source[start:end]
+
+        self.assertEqual(
+            block.count(
+                "resolve_semantic_request("
+            ),
+            1,
+        )
+
+        self.assertLess(
+            block.index(
+                "resolve_semantic_request("
+            ),
+            block.index(
+                "fast_router.dispatch("
+            ),
+        )
+
+        self.assertIn(
+            "request=structured_request",
+            block,
+        )
+
+    def test_fast_router_has_single_tool_execution_boundary(self):
+        source = Path(
+            "jarvis_core/core/fast_router.py"
+        ).read_text(encoding="utf-8")
+
+        tree = ast.parse(source)
+        owners = []
+
+        for node in ast.walk(tree):
+            if not isinstance(
+                node,
+                (ast.FunctionDef, ast.AsyncFunctionDef),
+            ):
+                continue
+
+            for child in ast.walk(node):
+                if not isinstance(child, ast.Call):
+                    continue
+
+                func = child.func
+
+                if not (
+                    isinstance(func, ast.Attribute)
+                    and func.attr == "execute"
+                    and isinstance(func.value, ast.Attribute)
+                    and func.value.attr == "tools"
+                    and isinstance(func.value.value, ast.Name)
+                    and func.value.value.id == "self"
+                ):
+                    continue
+
+                owners.append(node.name)
+
+        self.assertEqual(
+            owners,
+            ["_tool"],
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()
