@@ -148,7 +148,7 @@
     },
     {
       "path": "jarvis_core/core/fast_router.py",
-      "sha256": "6d7542c9fde1277af1d4d6cca2387829500014462beb041912531aaf47712705"
+      "sha256": "5a777d4e1d1a1628dda27c57235aa75c6c1237d581747dbfbbe6e6b77aa863ca"
     },
     {
       "path": "jarvis_core/core/freshness.py",
@@ -1268,7 +1268,7 @@
     },
     {
       "path": "tests/test_semantic_fast_authority.py",
-      "sha256": "753bd94cfa9094d6cb8c41ddd8298605ce5012e9bd38b9974b20785ea99a7469"
+      "sha256": "9bb2836f456f2dddf79c3d3acc1cbce019ee9cded112963ee9f84bba19fe093f"
     },
     {
       "path": "tests/test_semantic_intent.py",

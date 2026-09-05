@@ -233,7 +233,7 @@ class FastCommandRouter:
             reason = "semantic_request_forbids_tool"
         elif preferred_tool and preferred_tool != name:
             reason = "semantic_preferred_tool_mismatch"
-        elif not preferred_tool and intent != "OPERATIONAL_ACTION":
+        elif not preferred_tool:
             reason = "semantic_tool_not_resolved"
 
         if reason is not None:
@@ -263,8 +263,10 @@ class FastCommandRouter:
             if semantic_args is not None:
                 return dict(semantic_args)
 
-        # Transitional compatibility for high-confidence operational
-        # requests that still lack a canonical preferred tool.
+        # The semantic tool name is authoritative. If the resolver
+        # selected the tool but supplied no arguments, preserve only
+        # the deterministic arguments already associated with that
+        # exact FastRouter route.
         return dict(args or {})
 
     def _tool(self, name: str, args: dict[str, Any] | None = None) -> dict[str, Any]:

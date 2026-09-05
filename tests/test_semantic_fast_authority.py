@@ -161,6 +161,136 @@ class SemanticFastAuthorityTests(unittest.TestCase):
             "read_time",
         )
 
+    def test_operational_request_without_preferred_tool_is_vetoed(self):
+        import json
+        from types import SimpleNamespace
+
+        from jarvis_core.core.fast_router import (
+            FastCommandRouter,
+        )
+        from jarvis_core.services.semantic_request import (
+            StructuredRequest,
+        )
+
+        class FakeEvents:
+            def __init__(self):
+                self.rows = []
+
+            def emit(self, name, **payload):
+                self.rows.append(
+                    (
+                        name,
+                        dict(payload),
+                    )
+                )
+
+        class FakeTools:
+            def __init__(self):
+                self.execute_calls = []
+
+            def execute(self, name, arguments):
+                self.execute_calls.append(
+                    (
+                        name,
+                        dict(arguments),
+                    )
+                )
+
+                return json.dumps(
+                    {
+                        "ok": True,
+                    }
+                )
+
+        class ProbeRouter(FastCommandRouter):
+            def _dispatch_legacy(
+                self,
+                text,
+                *,
+                voice_origin=False,
+            ):
+                self._tool(
+                    "open_application",
+                    {
+                        "app_name": "spotify",
+                    },
+                )
+
+                return SimpleNamespace(
+                    handled=True,
+                    response="probe",
+                    route="probe_open",
+                )
+
+        events = FakeEvents()
+        tools = FakeTools()
+
+        router = ProbeRouter(
+            events,
+            tools,
+            SimpleNamespace(),
+        )
+
+        request = StructuredRequest(
+            raw_text="Abre o Spotify",
+            effective_text="Abre o Spotify",
+            intent="OPERATIONAL_ACTION",
+            domain="desktop",
+            subject="SYSTEM",
+            action="open",
+            target="spotify",
+            requires_tool=True,
+            preferred_tool=None,
+            tool_arguments=None,
+            epistemic_learning_eligible=False,
+            confidence=0.99,
+        )
+
+        result = router.dispatch(
+            "Abre o Spotify",
+            request=request,
+        )
+
+        self.assertFalse(
+            result.handled
+        )
+
+        self.assertEqual(
+            tools.execute_calls,
+            [],
+        )
+
+        vetoes = [
+            payload
+            for name, payload
+            in events.rows
+            if name
+            == "FAST_PATH_SEMANTIC_VETO"
+        ]
+
+        self.assertEqual(
+            len(vetoes),
+            1,
+        )
+
+        self.assertEqual(
+            vetoes[0]["reason"],
+            "semantic_tool_not_resolved",
+        )
+
+        self.assertEqual(
+            vetoes[0]["intent"],
+            "OPERATIONAL_ACTION",
+        )
+
+        self.assertTrue(
+            vetoes[0]["requires_tool"]
+        )
+
+        self.assertIsNone(
+            vetoes[0]["preferred_tool"]
+        )
+
     def test_cli_resolves_semantics_before_fast_dispatch(self):
         source = Path(
             "jarvis_core/cli.py"
