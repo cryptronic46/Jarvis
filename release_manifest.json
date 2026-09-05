@@ -120,7 +120,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "dff3fd8820dfc37c45776902d68457a1622bfd21f9e209eb19f2049a68ffb9cb"
+      "sha256": "11033d09fb27745bd700086d60d9023e271dee8bbbaea9bb506de0c9114608d4"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -213,6 +213,10 @@
     {
       "path": "jarvis_core/services/companion_presence.py",
       "sha256": "8b08ede1c68457cccefee41f70935bb0823ffc3daa6b000c8d60b816f9171085"
+    },
+    {
+      "path": "jarvis_core/services/context_clause_resolver.py",
+      "sha256": "c2a1343a738825859abc565e5fc77a64cfa4ba1408d96e2a99abe68894463ca9"
     },
     {
       "path": "jarvis_core/services/context_store.py",
@@ -348,7 +352,7 @@
     },
     {
       "path": "jarvis_core/services/semantic_intent.py",
-      "sha256": "6e436b78bd194ef24d6859ebf1e6fab40a960c6182b6fa3ab5361c2e3ef733dd"
+      "sha256": "1a3e2bbf239379056ddfc45d59352aae23bdd0638175e536a733a829391c62d6"
     },
     {
       "path": "jarvis_core/services/semantic_request.py",
@@ -769,6 +773,10 @@
     {
       "path": "tests/test_confirmation_expiry.py",
       "sha256": "d0aab8dff34b519ce3fd0327b80605b95e2597203ffe04e2e9b5495611ea752d"
+    },
+    {
+      "path": "tests/test_context_clause_resolver.py",
+      "sha256": "44cfe951f1215c4da2ce4236e9513661db57c72eda817a72d30bcca90ac9237d"
     },
     {
       "path": "tests/test_context_store.py",

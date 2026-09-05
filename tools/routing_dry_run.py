@@ -499,6 +499,71 @@ def call_target(call):
     return None
 
 
+def semantic_inputs_for_case(case, apps):
+    """
+    Build deterministic semantic inputs for the v3 harness.
+
+    The harness never reads the real persistent ContextStore and
+    never uses the real AppRegistry. Context and catalogue data are
+    supplied only from deterministic dry-run fixtures.
+    """
+
+    app_aliases = {}
+
+    for item in apps.list_apps():
+        if not isinstance(item, dict):
+            continue
+
+        if item.get("enabled") is False:
+            continue
+
+        canonical = str(
+            item.get("id")
+            or ""
+        ).strip()
+
+        if not canonical:
+            continue
+
+        values = [
+            canonical,
+            item.get("name"),
+            *list(
+                item.get("aliases")
+                or []
+            ),
+        ]
+
+        for value in values:
+            alias = str(
+                value
+                or ""
+            ).strip()
+
+            if alias:
+                app_aliases[alias] = canonical
+
+    recent_turns = []
+
+    if str(
+        case.get("category")
+        or ""
+    ) == "self_state_followup":
+        recent_turns = [
+            {
+                "user": "Como te sentes?",
+                "assistant": (
+                    "Estou focada e curiosa."
+                ),
+                "route": (
+                    "FAST/self_state_affect"
+                ),
+            }
+        ]
+
+    return recent_turns, app_aliases
+
+
 def analyse_case(case):
     text = str(
         case.get("text")
@@ -525,8 +590,18 @@ def analyse_case(case):
         apps,
     )
 
+    (
+        semantic_recent_turns,
+        semantic_app_aliases,
+    ) = semantic_inputs_for_case(
+        case,
+        apps,
+    )
+
     semantic = resolve_semantic_request(
-        text
+        text,
+        recent_turns=semantic_recent_turns,
+        app_aliases=semantic_app_aliases,
     )
 
     semantic_data = request_dict(
@@ -757,6 +832,10 @@ def analyse_case(case):
             "tool_calls": calls,
             "direct_app_actions": apps.action_calls,
         },
+        "semantic_inputs": {
+            "recent_turns": semantic_recent_turns,
+            "app_aliases": semantic_app_aliases,
+        },
         "semantic": semantic_data,
         "semantic_planned_call": semantic_call,
         "effective": {
@@ -800,8 +879,9 @@ DEFAULT_CATEGORIES = {
 def main():
     parser = argparse.ArgumentParser(
         description=(
-            "JARVIS routing dry-run: real FastRouter + "
-            "real semantic resolver, zero real tool execution."
+            "JARVIS routing dry-run v3: real FastRouter + "
+            "real semantic/context resolver, simulated context "
+            "and app catalogue, zero real tool execution."
         )
     )
 
@@ -956,14 +1036,19 @@ def main():
         "generated_at": now.isoformat(
             timespec="seconds"
         ),
-        "mode": "routing_dry_run_v2",
+        "mode": "routing_dry_run_v3",
         "safety": {
             "real_tool_registry": False,
             "real_tool_execution": False,
             "real_app_actions": False,
+            "real_persistent_context": False,
+            "real_app_catalogue": False,
             "qwen_called": False,
             "fast_router_real": True,
             "semantic_resolver_real": True,
+            "context_clause_resolver_real": True,
+            "semantic_context_simulated": True,
+            "app_catalogue_simulated": True,
         },
         "summary": {
             "total": total,
@@ -986,7 +1071,7 @@ def main():
 
     out = (
         AUDIT
-        / f"routing_dry_run_v2_{stamp}.json"
+        / f"routing_dry_run_v3_{stamp}.json"
     )
 
     out.write_text(
@@ -1002,7 +1087,7 @@ def main():
 
     print()
     print("=" * 76)
-    print("JARVIS ROUTING DRY RUN V2")
+    print("JARVIS ROUTING DRY RUN V3")
     print("=" * 76)
     print("TOTAL :", total)
     print("PASS  :", passed)

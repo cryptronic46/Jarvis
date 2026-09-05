@@ -3,6 +3,9 @@ from __future__ import annotations
 import re
 import unicodedata
 
+from jarvis_core.services.context_clause_resolver import (
+    resolve_context_clauses,
+)
 from jarvis_core.services.request_intent import classify_request_intent
 from jarvis_core.services.semantic_request import StructuredRequest
 
@@ -83,7 +86,12 @@ def _semantic_text(value: str) -> str:
     return normalized
 
 
-def resolve_semantic_request(text: str) -> StructuredRequest:
+def resolve_semantic_request(
+    text: str,
+    *,
+    recent_turns: list[dict] | None = None,
+    app_aliases: dict[str, str] | None = None,
+) -> StructuredRequest:
     """
     Resolve one OWNER message into the single structured semantic contract.
 
@@ -168,6 +176,46 @@ def resolve_semantic_request(text: str) -> StructuredRequest:
             preferred_tool=None,
             epistemic_learning_eligible=False,
             confidence=0.99,
+        )
+
+    context_resolution = resolve_context_clauses(
+        raw,
+        recent_turns=recent_turns,
+        app_aliases=app_aliases,
+    )
+
+    if context_resolution.kind == "SELF_STATE":
+        return StructuredRequest(
+            raw_text=raw,
+            effective_text=raw,
+            intent="SELF_STATE",
+            domain="jarvis_self",
+            subject="JARVIS",
+            action="read_state",
+            target="JARVIS",
+            referent=context_resolution.referent,
+            requires_tool=True,
+            preferred_tool="get_synthetic_self_state",
+            epistemic_learning_eligible=False,
+            confidence=context_resolution.confidence,
+        )
+
+    if context_resolution.kind == "OPERATIONAL_ACTION":
+        return StructuredRequest(
+            raw_text=raw,
+            effective_text=raw,
+            intent="OPERATIONAL_ACTION",
+            domain="desktop",
+            subject="SYSTEM",
+            action=context_resolution.action,
+            target=context_resolution.target,
+            requires_tool=True,
+            preferred_tool="open_application",
+            tool_arguments={
+                "app_name": context_resolution.target,
+            },
+            epistemic_learning_eligible=False,
+            confidence=context_resolution.confidence,
         )
 
     # Compound or negated operational language needs a clause/modifier

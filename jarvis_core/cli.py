@@ -947,6 +947,74 @@ def main() -> None:
         except Exception:
             return {"ok": False, "error": "INVALID_TOOL_RESULT", "raw": raw}
 
+    def semantic_context_inputs():
+        """
+        Return read-only semantic context inputs.
+
+        Failure to read either source must fail closed:
+        no persisted context and/or no application catalogue
+        means the semantic resolver receives empty data.
+        """
+        recent_turns = []
+
+        if settings.persistent_context_enabled:
+            try:
+                recent_turns = persistent_context.recent(4)
+            except Exception as exc:
+                recent_turns = []
+                events.emit(
+                    "SEMANTIC_CONTEXT_READ_ERROR",
+                    error=f"{type(exc).__name__}: {exc}",
+                )
+
+        app_aliases = {}
+
+        try:
+            app_rows = apps.list_apps()
+
+            for item in app_rows:
+                if not isinstance(item, dict):
+                    continue
+
+                if item.get("enabled") is False:
+                    continue
+
+                canonical = str(
+                    item.get("id")
+                    or ""
+                ).strip()
+
+                if not canonical:
+                    continue
+
+                values = [
+                    canonical,
+                    item.get("name"),
+                    *list(
+                        item.get("aliases")
+                        or []
+                    ),
+                ]
+
+                for value in values:
+                    alias = str(
+                        value
+                        or ""
+                    ).strip()
+
+                    if alias:
+                        app_aliases[alias] = canonical
+
+        except Exception as exc:
+            app_aliases = {}
+            events.emit(
+                "SEMANTIC_APP_CATALOG_READ_ERROR",
+                error=f"{type(exc).__name__}: {exc}",
+            )
+
+        return recent_turns, app_aliases
+
+
     def process_request(user_text: str, *, source: str = "terminal"):
         """Fast Path -> local reasoning or direct-web/local-synthesis research."""
         command_started = monotonic()
@@ -961,8 +1029,14 @@ def main() -> None:
 
         # 2F.5A: establish semantic authority before any FastRouter
         # tool execution. The same immutable request is forwarded.
+        semantic_recent_turns, semantic_app_aliases = (
+            semantic_context_inputs()
+        )
+
         structured_request = resolve_semantic_request(
-            user_text
+            user_text,
+            recent_turns=semantic_recent_turns,
+            app_aliases=semantic_app_aliases,
         )
 
         events.emit(
