@@ -16,12 +16,27 @@ class _ProbeTools:
         self.query_calls = []
         self.validation_calls = []
         self.validation_result = (True, None)
+        self.execute_calls = []
+        self.execute_result = (
+            '{"ok":true,"app_name":"spotify"}'
+        )
+        self.execute_exception = None
 
     def validate_arguments(self, name, arguments):
         self.validation_calls.append(
             (name, dict(arguments))
         )
         return self.validation_result
+
+    def execute(self, name, arguments):
+        self.execute_calls.append(
+            (name, dict(arguments))
+        )
+
+        if self.execute_exception is not None:
+            raise self.execute_exception
+
+        return self.execute_result
 
     def schemas_for_names(self, names, *, max_tools=20):
         self.exact_calls.append(
@@ -61,6 +76,7 @@ class PreferredToolRoutingTests(unittest.TestCase):
         requires_tool,
         preferred_tool=None,
         tool_arguments=None,
+        confidence=0.99,
     ):
         return StructuredRequest(
             raw_text="Abre o Spotify",
@@ -74,7 +90,7 @@ class PreferredToolRoutingTests(unittest.TestCase):
             preferred_tool=preferred_tool,
             tool_arguments=tool_arguments,
             epistemic_learning_eligible=False,
-            confidence=0.99,
+            confidence=confidence,
         )
 
     def test_no_tool_request_exposes_no_tools(self):
@@ -451,6 +467,258 @@ class PreferredToolRoutingTests(unittest.TestCase):
         self.assertLess(
             block_if.lineno,
             execute_call.lineno,
+        )
+
+    def test_high_confidence_semantic_tool_executes_directly(self):
+        tools = _ProbeTools()
+        brain = SimpleNamespace(
+            tools=tools,
+        )
+
+        (
+            name,
+            arguments,
+            result,
+            reason,
+        ) = JarvisBrain._execute_authoritative_semantic_tool(
+            brain,
+            request=self._request(
+                requires_tool=True,
+                preferred_tool="open_application",
+                tool_arguments={
+                    "app_name": "spotify",
+                },
+            ),
+            allowed_tool_names={
+                "open_application",
+            },
+        )
+
+        self.assertIsNone(reason)
+        self.assertEqual(
+            name,
+            "open_application",
+        )
+        self.assertEqual(
+            arguments,
+            {"app_name": "spotify"},
+        )
+        self.assertEqual(
+            tools.execute_calls,
+            [
+                (
+                    "open_application",
+                    {"app_name": "spotify"},
+                )
+            ],
+        )
+        self.assertEqual(
+            result,
+            tools.execute_result,
+        )
+
+    def test_low_confidence_semantic_tool_is_not_auto_executed(self):
+        tools = _ProbeTools()
+        brain = SimpleNamespace(
+            tools=tools,
+        )
+
+        (
+            name,
+            arguments,
+            result,
+            reason,
+        ) = JarvisBrain._execute_authoritative_semantic_tool(
+            brain,
+            request=self._request(
+                requires_tool=True,
+                preferred_tool="open_application",
+                tool_arguments={
+                    "app_name": "spotify",
+                },
+                confidence=0.80,
+            ),
+            allowed_tool_names={
+                "open_application",
+            },
+        )
+
+        self.assertIsNone(name)
+        self.assertEqual(arguments, {})
+        self.assertIsNone(result)
+        self.assertEqual(
+            reason,
+            "confidence_below_threshold",
+        )
+        self.assertEqual(
+            tools.execute_calls,
+            [],
+        )
+
+    def test_unexposed_semantic_tool_fails_closed(self):
+        tools = _ProbeTools()
+        brain = SimpleNamespace(
+            tools=tools,
+        )
+
+        (
+            name,
+            arguments,
+            result,
+            reason,
+        ) = JarvisBrain._execute_authoritative_semantic_tool(
+            brain,
+            request=self._request(
+                requires_tool=True,
+                preferred_tool="open_application",
+                tool_arguments={
+                    "app_name": "spotify",
+                },
+            ),
+            allowed_tool_names=set(),
+        )
+
+        self.assertEqual(
+            name,
+            "open_application",
+        )
+        self.assertEqual(
+            arguments,
+            {"app_name": "spotify"},
+        )
+        self.assertEqual(
+            reason,
+            "tool_not_exposed",
+        )
+        self.assertIn(
+            "SEMANTIC_TOOL_NOT_EXPOSED",
+            result,
+        )
+        self.assertEqual(
+            tools.execute_calls,
+            [],
+        )
+
+    def test_authoritative_execution_exception_fails_closed(self):
+        tools = _ProbeTools()
+        tools.execute_exception = RuntimeError(
+            "forced"
+        )
+
+        brain = SimpleNamespace(
+            tools=tools,
+        )
+
+        (
+            name,
+            arguments,
+            result,
+            reason,
+        ) = JarvisBrain._execute_authoritative_semantic_tool(
+            brain,
+            request=self._request(
+                requires_tool=True,
+                preferred_tool="open_application",
+                tool_arguments={
+                    "app_name": "spotify",
+                },
+            ),
+            allowed_tool_names={
+                "open_application",
+            },
+        )
+
+        self.assertEqual(
+            name,
+            "open_application",
+        )
+        self.assertEqual(
+            arguments,
+            {"app_name": "spotify"},
+        )
+        self.assertEqual(
+            reason,
+            "execution_exception:RuntimeError",
+        )
+        self.assertIn(
+            "SEMANTIC_TOOL_EXECUTION_EXCEPTION",
+            result,
+        )
+        self.assertEqual(
+            tools.execute_calls,
+            [
+                (
+                    "open_application",
+                    {"app_name": "spotify"},
+                )
+            ],
+        )
+
+    def test_authoritative_execution_precedes_model_and_disables_tools(self):
+        tree = ast.parse(
+            Path(
+                "jarvis_core/core/brain.py"
+            ).read_text(encoding="utf-8")
+        )
+
+        method = next(
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "_ask_locked"
+        )
+
+        semantic_call = next(
+            node
+            for node in ast.walk(method)
+            if isinstance(node, ast.Call)
+            and isinstance(
+                node.func,
+                ast.Attribute,
+            )
+            and node.func.attr
+            == "_execute_authoritative_semantic_tool"
+        )
+
+        model_call = next(
+            node
+            for node in ast.walk(method)
+            if isinstance(node, ast.Call)
+            and isinstance(
+                node.func,
+                ast.Attribute,
+            )
+            and node.func.attr == "chat"
+            and isinstance(
+                node.func.value,
+                ast.Attribute,
+            )
+            and node.func.value.attr == "client"
+        )
+
+        self.assertLess(
+            semantic_call.lineno,
+            model_call.lineno,
+        )
+
+        clear_assignment = next(
+            node
+            for node in ast.walk(method)
+            if isinstance(node, ast.Assign)
+            and any(
+                isinstance(target, ast.Name)
+                and target.id == "tool_schemas"
+                for target in node.targets
+            )
+            and isinstance(node.value, ast.List)
+            and not node.value.elts
+            and node.lineno
+            > semantic_call.lineno
+        )
+
+        self.assertLess(
+            clear_assignment.lineno,
+            model_call.lineno,
         )
 
     def test_registry_exact_names_is_fail_closed(self):

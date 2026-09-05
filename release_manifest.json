@@ -128,7 +128,7 @@
     },
     {
       "path": "jarvis_core/core/brain.py",
-      "sha256": "9a8abb98798c958a4484987a8fe32fbd2b49ad85585c51d17f4752e035064220"
+      "sha256": "417eb9bc0a922027b5ea5893d69708fad5313e52a37fb6929e2a0e3afd885903"
     },
     {
       "path": "jarvis_core/core/cloud_brain.py",
@@ -988,7 +988,7 @@
     },
     {
       "path": "tests/test_local_research_architecture.py",
-      "sha256": "4ed93b425fc37d2f274c351291487a5025e9ac165f1d7aa769e6530281338879"
+      "sha256": "3d9b5f935d91a5c60b7cdfb6826ffe547cd4d95b53ef215c9a5fc5195ae4fc13"
     },
     {
       "path": "tests/test_local_voice_retired.py",
@@ -1132,7 +1132,7 @@
     },
     {
       "path": "tests/test_preferred_tool_routing.py",
-      "sha256": "a0c5663158447d1523e0b54fbb9e9e2f0fa974a34cee89c426d5fc1019e384df"
+      "sha256": "9e36623cbd6a4a50383d04f47f0c1a80ee3130cd3db045e963aa3b4ed0b3c435"
     },
     {
       "path": "tests/test_privacy_cloud_gate.py",

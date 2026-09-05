@@ -2039,6 +2039,159 @@ class JarvisBrain:
             None,
         )
 
+    def _execute_authoritative_semantic_tool(
+        self,
+        *,
+        request: StructuredRequest | None,
+        allowed_tool_names: set[str],
+    ) -> tuple[
+        str | None,
+        dict[str, Any],
+        str | None,
+        str | None,
+    ]:
+        """Execute a fully resolved semantic tool call through ToolRegistry."""
+
+        if (
+            request is None
+            or not request.requires_tool
+            or not request.preferred_tool
+        ):
+            return (
+                None,
+                {},
+                None,
+                "not_authoritative",
+            )
+
+        if request.confidence < 0.95:
+            return (
+                None,
+                {},
+                None,
+                "confidence_below_threshold",
+            )
+
+        name = request.preferred_tool
+        arguments = dict(
+            request.as_dict().get(
+                "tool_arguments"
+            )
+            or {}
+        )
+
+        if name not in allowed_tool_names:
+            result = json.dumps(
+                {
+                    "ok": False,
+                    "error": "SEMANTIC_TOOL_NOT_EXPOSED",
+                    "tool": name,
+                    "reason": "tool_not_exposed",
+                },
+                ensure_ascii=False,
+            )
+
+            return (
+                name,
+                arguments,
+                result,
+                "tool_not_exposed",
+            )
+
+        try:
+            valid, reason = (
+                self.tools.validate_arguments(
+                    name,
+                    arguments,
+                )
+            )
+        except Exception as exc:
+            error_reason = (
+                "validation_exception:"
+                f"{type(exc).__name__}"
+            )
+
+            result = json.dumps(
+                {
+                    "ok": False,
+                    "error": (
+                        "SEMANTIC_TOOL_VALIDATION_EXCEPTION"
+                    ),
+                    "tool": name,
+                    "reason": error_reason,
+                },
+                ensure_ascii=False,
+            )
+
+            return (
+                name,
+                arguments,
+                result,
+                error_reason,
+            )
+
+        if not valid:
+            error_reason = (
+                "argument_validation:"
+                f"{reason}"
+            )
+
+            result = json.dumps(
+                {
+                    "ok": False,
+                    "error": (
+                        "SEMANTIC_TOOL_ARGUMENT_VALIDATION_ERROR"
+                    ),
+                    "tool": name,
+                    "reason": error_reason,
+                },
+                ensure_ascii=False,
+            )
+
+            return (
+                name,
+                arguments,
+                result,
+                error_reason,
+            )
+
+        try:
+            result = self.tools.execute(
+                name,
+                arguments,
+            )
+        except Exception as exc:
+            error_reason = (
+                "execution_exception:"
+                f"{type(exc).__name__}"
+            )
+
+            result = json.dumps(
+                {
+                    "ok": False,
+                    "error": (
+                        "SEMANTIC_TOOL_EXECUTION_EXCEPTION"
+                    ),
+                    "tool": name,
+                    "reason": error_reason,
+                },
+                ensure_ascii=False,
+            )
+
+            return (
+                name,
+                arguments,
+                result,
+                error_reason,
+            )
+
+        return (
+            name,
+            arguments,
+            result,
+            None,
+        )
+
     def ask(
         self,
         user_text: str,
@@ -2315,6 +2468,131 @@ class JarvisBrain:
             # turns are still local/fast, but get enough output budget to finish.
             model_num_predict = max(model_num_predict, 320)
 
+        rounds = 0
+        final_route = f"LOCAL/{plan.profile.upper()}"
+        successful_action_calls: dict[str, str] = {}
+        successful_tool_calls = 0
+        non_repeatable_success_tools = {
+            "open_application", "close_application", "set_master_volume",
+            "set_mute", "lock_workstation",
+        }
+
+        (
+            semantic_tool_name,
+            semantic_tool_arguments,
+            semantic_tool_result,
+            semantic_tool_skip_reason,
+        ) = self._execute_authoritative_semantic_tool(
+            request=request,
+            allowed_tool_names=allowed_tool_names,
+        )
+
+        if (
+            semantic_tool_name is not None
+            and semantic_tool_result is not None
+        ):
+            try:
+                semantic_parsed_result = json.loads(
+                    semantic_tool_result
+                )
+            except Exception:
+                semantic_parsed_result = {}
+
+            semantic_confirmation_required = bool(
+                isinstance(
+                    semantic_parsed_result,
+                    dict,
+                )
+                and semantic_parsed_result.get(
+                    "confirmation_required"
+                )
+            )
+
+            semantic_tool_succeeded = (
+                isinstance(
+                    semantic_parsed_result,
+                    dict,
+                )
+                and semantic_parsed_result.get(
+                    "ok"
+                ) is not False
+                and not semantic_parsed_result.get(
+                    "error"
+                )
+                and not semantic_confirmation_required
+            )
+
+            if semantic_tool_succeeded:
+                successful_tool_calls += 1
+
+                semantic_canonical_args = (
+                    json.dumps(
+                        semantic_tool_arguments,
+                        ensure_ascii=False,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    )
+                )
+
+                successful_action_calls[
+                    (
+                        f"{semantic_tool_name}:"
+                        f"{semantic_canonical_args}"
+                    )
+                ] = semantic_tool_result
+
+            semantic_compact_result = (
+                self._compact_tool_result(
+                    semantic_tool_name,
+                    semantic_tool_result,
+                )
+            )
+
+            self.events.emit(
+                "SEMANTIC_TOOL_EXECUTION",
+                tool=semantic_tool_name,
+                ok=semantic_tool_succeeded,
+                confirmation_required=(
+                    semantic_confirmation_required
+                ),
+                reason=semantic_tool_skip_reason,
+            )
+
+            semantic_result_contract = (
+                "AUTHORITATIVE TOOL RESULT\n"
+                f"Tool: {semantic_tool_name}\n"
+                "Arguments: "
+                + json.dumps(
+                    semantic_tool_arguments,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                )
+                + "\n"
+                f"Result: {semantic_compact_result}\n"
+                "The Core already handled this exact "
+                "semantic tool request through the "
+                "authoritative Core path. "
+                "Do not call any tool again for this "
+                "request. Base the answer only on this "
+                "real result. If the result contains an "
+                "error, authorization requirement, or "
+                "confirmation_required, explicitly state "
+                "that the action was not completed."
+            )
+
+            request_contract = (
+                (
+                    request_contract + "\n\n"
+                )
+                if request_contract
+                else ""
+            ) + semantic_result_contract
+
+            # The authoritative Core action has already
+            # happened. Qwen is now synthesis-only.
+            tool_schemas = []
+            allowed_tool_names = set()
+
         self.events.emit(
             "THINKING_STARTED",
             profile=plan.profile,
@@ -2324,15 +2602,6 @@ class JarvisBrain:
             history_messages=plan.history_messages,
             tool_schemas=len(tool_schemas),
         )
-
-        rounds = 0
-        final_route = f"LOCAL/{plan.profile.upper()}"
-        successful_action_calls: dict[str, str] = {}
-        successful_tool_calls = 0
-        non_repeatable_success_tools = {
-            "open_application", "close_application", "set_master_volume",
-            "set_mute", "lock_workstation",
-        }
 
         try:
             # A direct book match that only points to other pages has a fully

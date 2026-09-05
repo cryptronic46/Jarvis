@@ -1,5 +1,6 @@
 import json
 import unittest
+import ast
 from pathlib import Path
 from unittest.mock import patch
 
@@ -69,13 +70,37 @@ class LocalResearchArchitectureTests(unittest.TestCase):
                 engine._validate_public_url("http://router.example/")
 
     def test_research_synthesis_has_no_tool_schema(self):
-        brain = Path("jarvis_core/core/brain.py").read_text(encoding="utf-8")
-        start = brain.index("def synthesize_research(")
-        end = brain.index("def ask(", start)
-        block = brain[start:end]
-        self.assertIn("UNTRUSTED_SOURCE_TEXT", block)
-        self.assertNotIn('kwargs["tools"]', block)
-        self.assertNotIn("self.tools.execute", block)
+        source = Path(
+            "jarvis_core/core/brain.py"
+        ).read_text(encoding="utf-8")
+
+        tree = ast.parse(source)
+
+        method = next(
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "synthesize_research"
+        )
+
+        block = ast.get_source_segment(
+            source,
+            method,
+        )
+
+        self.assertIsNotNone(block)
+        self.assertIn(
+            "UNTRUSTED_SOURCE_TEXT",
+            block,
+        )
+        self.assertNotIn(
+            'kwargs["tools"]',
+            block,
+        )
+        self.assertNotIn(
+            "self.tools.execute",
+            block,
+        )
 
     def test_setup_cloud_cannot_enable_external_ai(self):
         script = Path("setup_cloud.ps1").read_text(encoding="utf-8-sig").lower()
