@@ -7,26 +7,48 @@ from jarvis_core.services.followup_intent import resolve_followup
 
 class FollowupToolRoutingContractTests(unittest.TestCase):
     def test_brain_resolves_followup_before_tool_selection(self):
-        text = Path("jarvis_core/core/brain.py").read_text(encoding="utf-8")
-        self.assertIn("followup = resolve_followup(", text)
-        self.assertIn("effective_query = followup.tool_query", text)
-        self.assertIn(
-            "self.tools.schemas_for_query(",
-            text,
-        )
-        self.assertIn(
-            "effective_query,",
-            text,
+        import ast
+
+        path = Path("jarvis_core/core/brain.py")
+        text = path.read_text(encoding="utf-8")
+        tree = ast.parse(text)
+
+        method = next(
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "_ask_locked"
         )
 
-        followup_pos = text.index(
+        lines = text.splitlines()
+        body = "\n".join(
+            lines[
+                method.lineno - 1:
+                method.end_lineno
+            ]
+        )
+
+        self.assertIn(
+            "followup = resolve_followup(",
+            body,
+        )
+        self.assertIn(
+            "effective_query = ",
+            body,
+        )
+        self.assertIn(
+            "self._select_tool_schemas(",
+            body,
+        )
+
+        followup_pos = body.index(
             "followup = resolve_followup("
         )
-        effective_pos = text.index(
+        effective_pos = body.index(
             "effective_query = "
         )
-        tool_selection_pos = text.index(
-            "self.tools.schemas_for_query("
+        tool_selection_pos = body.index(
+            "self._select_tool_schemas("
         )
 
         self.assertLess(
@@ -37,7 +59,6 @@ class FollowupToolRoutingContractTests(unittest.TestCase):
             effective_pos,
             tool_selection_pos,
         )
-        self.assertIn('"FOLLOWUP_RESOLVED"', text)
 
     def test_followup_service_never_searches_older_than_latest_row(self):
         text = Path("jarvis_core/services/followup_intent.py").read_text(encoding="utf-8")

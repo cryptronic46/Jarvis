@@ -1489,6 +1489,46 @@ class ToolRegistry:
             for name in selected
         ]
 
+    def schemas_for_names(
+        self,
+        names,
+        *,
+        max_tools: int = 20,
+    ) -> list[dict[str, Any]]:
+        """Return schemas only for exact registered tool names."""
+
+        selected: list[str] = []
+        unknown: list[str] = []
+
+        for raw_name in names or []:
+            name = str(raw_name or "").strip()
+
+            if not name or name in selected:
+                continue
+
+            if name not in self._tools:
+                unknown.append(name)
+                continue
+
+            selected.append(name)
+
+        budget = max(0, int(max_tools))
+        selected = selected[:budget]
+
+        self.events.emit(
+            "TOOL_SCHEMA_SELECTION",
+            selected=len(selected),
+            total=len(self._tools),
+            tools=selected,
+            unknown=unknown,
+            mode="exact_names",
+        )
+
+        return [
+            self._tools[name].schema
+            for name in selected
+        ]
+
     @property
     def schemas(self) -> list[dict[str, Any]]:
         return [tool.schema for tool in self._tools.values()]

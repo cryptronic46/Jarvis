@@ -129,7 +129,11 @@ class SemanticIntentResolverTests(unittest.TestCase):
         self.assertEqual(request.target, "spotify")
         self.assertEqual(
             request.preferred_tool,
-            "open_app",
+            "open_application",
+        )
+        self.assertEqual(
+            request.preferred_tool,
+            "open_application",
         )
         self.assertTrue(request.requires_tool)
         self.assertFalse(

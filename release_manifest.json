@@ -128,7 +128,7 @@
     },
     {
       "path": "jarvis_core/core/brain.py",
-      "sha256": "d737719c6e671637652676da15066b4b073597ad15916b9e0bbff22263fdc5bd"
+      "sha256": "5c9ac3f236a77ad6abb9c07169ae5f8e574d6fee7a628948c92fe7bfdbb9620d"
     },
     {
       "path": "jarvis_core/core/cloud_brain.py",
@@ -172,7 +172,7 @@
     },
     {
       "path": "jarvis_core/core/tool_registry.py",
-      "sha256": "390a444e73abb3cd0aff81aa0532819db686ea783599b2b5ace456e96bd737da"
+      "sha256": "c7f81280315f2a538665aa4e33a52eab4bc620b213abf99176f468c33f77385c"
     },
     {
       "path": "jarvis_core/security/__init__.py",
@@ -348,7 +348,7 @@
     },
     {
       "path": "jarvis_core/services/semantic_intent.py",
-      "sha256": "51621e34fd13230f0b62baba01da00ca89edc139b1cbb2e3092417243dd66e9b"
+      "sha256": "9ebde6cf99250b561aed6a5fda9b3431103a245867dd5b4f6a7ec5cd4579cbab"
     },
     {
       "path": "jarvis_core/services/semantic_request.py",
@@ -900,7 +900,7 @@
     },
     {
       "path": "tests/test_followup_tool_routing_contract.py",
-      "sha256": "7953e2d13d3ba29e5b6077c632a8a8442830f06c9a23fccd77ff9dfb0046aaf4"
+      "sha256": "89af9124494d44cf44bcd207b59ef233fac22a909251aa623d297d18640fee95"
     },
     {
       "path": "tests/test_freshness.py",
@@ -1131,6 +1131,10 @@
       "sha256": "16d9916f8c54d7f519d7a77a94a45a9924bb02e4e97d984c30bb0d25bf15b56d"
     },
     {
+      "path": "tests/test_preferred_tool_routing.py",
+      "sha256": "97916819ebda8304867ebaac9c22bd3f458c4f0ab49b8c83ebb2fced92ee8eac"
+    },
+    {
       "path": "tests/test_privacy_cloud_gate.py",
       "sha256": "91aeae1e2ec583d24976d62d641cc7b4a95c6cd5ee898ee90125eb3a31548358"
     },
@@ -1176,7 +1180,7 @@
     },
     {
       "path": "tests/test_response_continuation_contract.py",
-      "sha256": "4c25dfe5269c1d614ade8bec7b77d2a7869c9f5fea2b60c13afe972969d3f6cc"
+      "sha256": "8bc8a2468d6760283678ea478c55481f676a88c055100d334ad13f4b1229e672"
     },
     {
       "path": "tests/test_routine_safety.py",
@@ -1248,7 +1252,7 @@
     },
     {
       "path": "tests/test_semantic_intent.py",
-      "sha256": "1d141da38dee0c1152fe7c8e93ca583784620bbd63a26551066d91ac3dc66768"
+      "sha256": "9dffc35dfe71e6258fc3231e77caf29f8c1e96d2d02a38ed71aff61e9fc4abbe"
     },
     {
       "path": "tests/test_semantic_learning_gate.py",

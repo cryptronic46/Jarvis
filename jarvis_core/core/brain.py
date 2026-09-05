@@ -1926,6 +1926,32 @@ class JarvisBrain:
         rendered = json.dumps(compact(value), ensure_ascii=False, separators=(",", ":"))
         return rendered if len(rendered) <= max_chars else rendered[:max_chars] + "…[compacted]"
 
+    def _select_tool_schemas(
+        self,
+        *,
+        request: StructuredRequest | None,
+        effective_query: str,
+        max_tools: int,
+    ) -> list[dict[str, Any]]:
+        """Select tools from resolved semantics before text heuristics."""
+
+        if request is not None and not request.requires_tool:
+            return []
+
+        if (
+            request is not None
+            and request.preferred_tool
+        ):
+            return self.tools.schemas_for_names(
+                [request.preferred_tool],
+                max_tools=max_tools,
+            )
+
+        return self.tools.schemas_for_query(
+            effective_query,
+            max_tools=max_tools,
+        )
+
     def ask(
         self,
         user_text: str,
@@ -2138,13 +2164,11 @@ class JarvisBrain:
             or request.requires_tool
         )
 
-        if semantic_tools_allowed:
-            tool_schemas = self.tools.schemas_for_query(
-                effective_query,
-                max_tools=plan.max_tools,
-            )
-        else:
-            tool_schemas = []
+        tool_schemas = self._select_tool_schemas(
+            request=request,
+            effective_query=effective_query,
+            max_tools=plan.max_tools,
+        )
 
         self.events.emit(
             "SEMANTIC_TOOL_GATE",

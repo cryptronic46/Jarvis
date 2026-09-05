@@ -230,7 +230,7 @@ def resolve_semantic_request(text: str) -> StructuredRequest:
 
             if verb in {"abre", "inicia", "lanca"}:
                 action = "open"
-                preferred_tool = "open_app"
+                preferred_tool = "open_application"
             elif verb == "fecha":
                 action = "close"
             else:
