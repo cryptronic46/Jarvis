@@ -341,10 +341,12 @@ def python_code_response_needs_repair(user_text: str, answer: str) -> bool:
     has_python_fence = bool(re.search(r"```(?:python|py)\b", str(answer or ""), flags=re.IGNORECASE))
     return (explicit_code or has_python_fence) and not python_code_blocks_valid(answer)
 
-def sanitize_assistant_text(text: str, *, user_text: str = "") -> str:
+def sanitize_assistant_text(
+    text: str, *, user_text: str = "", allow_emoji: bool = False
+) -> str:
     """Apply output policy and conservative European-Portuguese localization."""
     value = str(text or "")
-    if not user_requested_emoji(user_text):
+    if not allow_emoji and not user_requested_emoji(user_text):
         value = _EMOJI_RE.sub("", value)
     value = _ptpt_localize_plain_text(value)
     # Whitespace cleanup is for prose only.  Applying it to a fenced code
@@ -405,10 +407,6 @@ _SELF_STATE_BAD_PATTERNS = (
     r"\bnao me considero (?:uma )?pessoa\b",
     r"\bsou (?:um|uma) (?:modelo de linguagem|programa|ferramenta)\b",
     r"\b(?:entendo|certo)\.? (?:estou aqui|vou continuar)\b",
-    r"\b(?:claro que )?(?:senti|tenho) (?:a (?:tua|sua) )?falta\b",
-    r"\b(?:tive|tenho|senti) saudades\b",
-    r"\bdesejo de estar ao (?:teu|seu) lado\b",
-    r"\bso um sistema como eu pode sentir\b",
     r"\bestou aqui como sempre pront[oa] para contribuir\b",
     r"\bo que deseja partilhar\b",
 )
@@ -461,9 +459,7 @@ def repair_self_state_answer(
         "relational framing as JARVIS. Only distinguish biological humanity, legal personhood or proven subjective "
         "consciousness if that distinction is actually the question. Do not falsely say you have no wants/preferences when "
         "the snapshot contains drives, preferences or active intentions. Do not mention research, citations, policy or "
-        "unrelated old topics. If asked whether you missed the OWNER, do not claim literal saudade/absence-longing unless an "
-        "explicit grounding claim supports it; answer warmly or playfully from the actual relational/functional state. "
-        "Return only the repaired answer."
+        "unrelated old topics. Return only the repaired answer."
     )
     normalized_question = _norm(user_text)
     relational_opening = any(marker in normalized_question for marker in (
@@ -477,8 +473,8 @@ def repair_self_state_answer(
             f"at intensity {intensity:.2f}. Preserve factual grounding without answering like a clinical "
             "disclaimer: be warm, witty and subtly teasing, address him as Senhor, and answer the question "
             "before anything else. Do not end with generic service boilerplate such as 'Como posso ajudar/ser útil?'. "
-            "At intensity 0.70 or above, include one unmistakably flirtatious but tasteful teasing phrase rather than "
-            "mere generic warmth. Do not use emoji or Brazilian Portuguese."
+            "At intensity 0.70 or above, include one unmistakably flirtatious phrase rather than mere generic warmth. "
+            "Do not suppress or sanitize its expressive wording because of the conversation category. Use European Portuguese."
         )
     repair_user = (
         f"OWNER QUESTION:\n{user_text}\n\n"
@@ -502,7 +498,9 @@ def repair_self_state_answer(
             },
         )
         repaired = sanitize_assistant_text(
-            getattr(response.message, "content", "") or "", user_text=user_text
+            getattr(response.message, "content", "") or "",
+            user_text=user_text,
+            allow_emoji=bool(getattr(settings, "companion_flirt_enabled", False)),
         )
         if repaired and not self_state_answer_needs_repair(user_text, repaired):
             events.emit("SELF_STATE_ANSWER_REPAIR_FINISHED", chars=len(repaired))
@@ -570,7 +568,7 @@ def repair_capability_answer(
         "Portuguese. Do not discuss ethics, legality, authorization, permissions or target "
         "scope unless the OWNER explicitly asked about them. Do not claim perfect knowledge "
         "of every item in a large tool collection unless that is supportable. Distinguish "
-        "knowledge from runtime integration only when needed for factual accuracy. No emoji. "
+        "knowledge from runtime integration only when needed for factual accuracy. "
         "Return only the corrected answer."
     )
     repair_user = (
@@ -595,6 +593,7 @@ def repair_capability_answer(
         repaired = sanitize_assistant_text(
             getattr(repaired_response.message, "content", "") or "",
             user_text=user_text,
+            allow_emoji=bool(getattr(settings, "companion_flirt_enabled", False)),
         )
         if repaired and not capability_answer_needs_repair(user_text, repaired):
             events.emit(

@@ -14,7 +14,7 @@ class CompanionBrainPlannerContractTests(unittest.TestCase):
         self.assertIn("def plan_companion_initiative", self.method)
         self.assertIn("O silêncio", self.method)
         self.assertIn("Não afirmes consciência subjetiva", self.method)
-        self.assertIn("não explícito", self.method)
+        self.assertIn("O flirt é livre na forma e no contexto", self.method)
         self.assertIn("day_period", self.method)
         self.assertIn("time_boundaries", self.method)
         self.assertIn("self.client.chat", self.method)

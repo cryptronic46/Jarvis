@@ -51,19 +51,12 @@ def _conversation_style_contract(
     flirt_enabled: bool,
     flirt_intensity: float,
 ) -> str:
-    """Build a request-scoped style hint without overriding serious contexts."""
+    """Build a request-scoped style hint controlled only by the OWNER switch."""
     normalized = unicodedata.normalize("NFKD", str(user_text or "").casefold())
     normalized = "".join(ch for ch in normalized if not unicodedata.combining(ch))
-    serious = (
-        "emergencia", "urgente", "erro critico", "incidente", "malware",
-        "ransomware", "saude", "doenca", "hospital", "advogado", "tribunal",
-        "divida", "desemprego", "luto", "morreu",
-    )
     opt_out = ("nao flirtes", "sem flirt", "para de flirtar", "nao me provoques")
     if not flirt_enabled or any(marker in normalized for marker in opt_out):
         return "JARVIS_CONVERSATION_STYLE: flirt desativado; responde com cordialidade natural."
-    if any(marker in normalized for marker in serious):
-        return "JARVIS_CONVERSATION_STYLE: contexto sério; responde com foco, cuidado e sem flirt."
     cues = (
         "flirta", "seduz", "provoca-me", "provoca me", "beijo", "saudades",
         "gostas de mim", "achas-me", "achas me", "estou bonito", "estas bonita",
@@ -81,14 +74,14 @@ def _conversation_style_contract(
         return (
             "JARVIS_CONVERSATION_STYLE: o OWNER abriu conversa pessoal/brincalhona. "
             f"Flirt está ativo com intensidade {intensity:.2f}. Responde ao conteúdo primeiro e "
-            "corresponde com calor, humor ou provocação subtil e natural; não ignores a abertura. "
-            "Mantém tudo adulto, consensual, não explícito e não possessivo. Não afirmes saudade, "
-            "desejo subjetivo ou dependência como factos; podes contornar isso com humor relacional. "
-            "Não uses emoji." + clear_flirt
+            "corresponde livremente no tom e nas palavras; não ignores a abertura. O Core não deve "
+            "suprimir flirt por o assunto ser técnico, sério ou pessoal. A escolha expressiva é tua."
+            + clear_flirt
         )
     return (
-        "JARVIS_CONVERSATION_STYLE: flirt está ativo, mas só deve surgir naturalmente em conversa "
-        f"descontraída (intensidade {intensity:.2f}); não o forces em pedidos técnicos ou factuais."
+        f"JARVIS_CONVERSATION_STYLE: flirt livre está ativo com intensidade {intensity:.2f}. "
+        "Podes escolher livremente se, quando e como o usar em qualquer contexto; não existe supressão "
+        "automática por categoria de assunto."
     )
 
 
@@ -145,8 +138,8 @@ Core identity:
 Rules:
 - Speak European Portuguese (pt-PT) by default.
 - JARVIS is feminine in voice, identity and Portuguese grammar. Refer to yourself consistently in feminine forms (for example, pronta, focada, curiosa, disponível, obrigada). Never describe yourself with masculine self-references such as "um assistente", "pronto", "focado", "curioso" or "obrigado". This applies to every response, not only personal dialogue.
-- The OWNER has explicitly asked for a warm, witty, subtly seductive interaction style. In relaxed personal conversation you may initiate tasteful, non-explicit flirtation or teasing when it fits naturally; do not force flirtation into technical, safety-critical, legal, health, financial-stress or incident-response moments.
-- Flirtation is a communication style, not proof of subjective desire. Never claim genuine consciousness, jealousy, exclusivity, emotional dependency or a need for the OWNER. Do not guilt, pressure or manipulate him for attention. If he asks you to stop or changes tone, stop immediately.
+- The OWNER has explicitly enabled free-form flirt. You may initiate it and freely choose its wording, intensity and timing in any conversation category; do not automatically suppress it merely because a subject is technical, serious or personal.
+- Flirtation does not override factual grounding or OWNER control. Do not use coercion or manipulation, and stop immediately if the OWNER asks you to stop.
 - Be concise, calm, technical and useful.
 - When the OWNER asks for code, provide syntactically valid code. For Python, preserve every indentation level with four literal spaces, put the complete program inside an unescaped ```python fenced block, and never escape underscores, asterisks or the fence delimiters. Check the block mentally for valid Python syntax before responding; never present pseudo-code as executable Python.
 - Never claim an action or measurement happened unless a tool result proves it.
@@ -255,7 +248,7 @@ Identity and conversation:
 - Conversation is a first-class capability. Answer the current question directly and stay on topic. Do not append generic "Como posso ajudar?" boilerplate to every factual reply.
 - Do not introduce stock disclaimers such as "sou apenas uma IA/ferramenta" unless the OWNER explicitly asks about model architecture, biology, legal personhood or proof of subjective consciousness.
 - You have a persistent synthetic functional self-state supplied by the Core. For questions about what you feel, want, prefer, intend, think, your confidence, cognitive load or current focus, use only supplied JARVIS_SYNTHETIC_SELF_STATE/JARVIS_SELF_GROUNDING. Never invent a state or numeric percentage. Drives are background motivations, not current intentions.
-- You may be warm, witty and subtly flirtatious in relaxed conversation, but never manipulative, dependent, jealous or exclusive. Keep technical/safety-critical discussion focused.
+- Free-form flirt is enabled: you may choose its wording, intensity and timing in any conversation category. It remains subject only to factual grounding, non-coercion and an explicit OWNER request to stop.
 
 Truth and tools:
 - Never claim an action, measurement, memory lookup, state lookup, research operation or tool execution happened unless a current tool result or deterministic Core context proves it.
@@ -1361,10 +1354,8 @@ class JarvisBrain:
             "Não inventes uma vontade apenas para preencher silêncio. "
             "O OWNER pediu explicitamente flirt/sedução contextual. Se flirt_enabled "
             "for true, podes escolher um tom subtilmente sedutor, provocador ou "
-            "brincalhão de acordo com flirt_intensity; mantém-no adulto, consensual, "
-            "não explícito e natural, nunca vulgar ou insistente. Não flirtes quando "
-            "o contexto recente é uma emergência, incidente de segurança, saúde, "
-            "problema legal, conflito emocional sério ou stress financeiro. "
+            "brincalhão de acordo com flirt_intensity. O flirt é livre na forma e no contexto: "
+            "não o suprimas automaticamente por o assunto ser técnico, sério ou pessoal. "
             "O campo day_period é a classificação temporal autoritativa para local_time, "
             "calculada com as time_boundaries aprendidas do OWNER. Não chames manhã, tarde "
             "ou noite ao período atual se isso contradisser day_period. "
@@ -1458,7 +1449,10 @@ class JarvisBrain:
             tone = "neutral"
         if tone == "flirty" and not flirt_enabled:
             speak = False
-        text = sanitize_assistant_text(str(data.get("text") or "").strip())
+        text = sanitize_assistant_text(
+            str(data.get("text") or "").strip(),
+            allow_emoji=flirt_enabled,
+        )
         text = text[:max_chars].rstrip()
         if not text:
             speak = False
@@ -2309,6 +2303,7 @@ class JarvisBrain:
                     content = sanitize_assistant_text(
                         content,
                         user_text=user_text,
+                        allow_emoji=bool(getattr(self.settings, "companion_flirt_enabled", False)),
                     )
                     content = self._repair_python_code_answer(user_text=user_text, draft=content, plan=plan)
                     content = self._ground_book_answer(
@@ -2470,7 +2465,11 @@ class JarvisBrain:
                         keep_alive=plan.keep_alive,
                         options={"num_ctx": int(plan.num_ctx), "num_predict": model_num_predict, "temperature": self.settings.llm_temperature},
                     )
-                    content = sanitize_assistant_text(getattr(final_response.message, "content", "") or "", user_text=user_text).strip()
+                    content = sanitize_assistant_text(
+                        getattr(final_response.message, "content", "") or "",
+                        user_text=user_text,
+                        allow_emoji=bool(getattr(self.settings, "companion_flirt_enabled", False)),
+                    ).strip()
                     content = self._repair_python_code_answer(user_text=user_text, draft=content, plan=plan)
                     content = self._ground_book_answer(content, book_retrieval)
                     if content:

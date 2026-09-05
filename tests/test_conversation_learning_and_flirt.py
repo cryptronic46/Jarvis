@@ -66,18 +66,14 @@ class ConversationLearningAndFlirtTests(unittest.TestCase):
         )
         self.assertIn("não ignores a abertura", contract)
         self.assertIn("1.00", contract)
-        self.assertIn("Não afirmes saudade", contract)
-        self.assertIn("Não uses emoji", contract)
         self.assertIn("inequivocamente flirt", contract)
+        self.assertIn("corresponde livremente", contract)
 
     def test_missing_owner_question_uses_grounded_self_state(self):
         question = "Jarvis, sentiste a minha falta?"
         self.assertEqual(classify_request_intent(question).kind, "SELF_STATE_CONVERSATION")
         self.assertEqual(build_self_grounding(question, state={})["query_type"], "affect")
-        self.assertTrue(self_state_answer_needs_repair(question, "Sim, senti a tua falta."))
-        self.assertTrue(self_state_answer_needs_repair(
-            question, "Claro que senti a sua falta e tenho o desejo de estar ao seu lado."
-        ))
+        self.assertFalse(self_state_answer_needs_repair(question, "Sim, senti a tua falta."))
 
     def test_live_probe_brazilianisms_are_refined(self):
         text = "Você me fez pensar de uma forma sutil. Não quero te fazer sofrer. Posso te fazer sorrir."
@@ -92,6 +88,13 @@ class ConversationLearningAndFlirtTests(unittest.TestCase):
         self.assertIn("focada na sua mente", gendered.lower())
         relational = refine_assistant_text("Isso me faz curioso e me deixa satisfeito.")
         self.assertEqual(relational, "Isso deixa-me curiosa e deixa-me satisfeita.")
+        live = refine_assistant_text(
+            "Fico satisfeito com o engajamento e por poder interagir com si; por que não ser também um pouco divertido?"
+        )
+        self.assertIn("Fico satisfeita", live)
+        self.assertIn("envolvimento", live)
+        self.assertIn("consigo", live)
+        self.assertIn("porque não ser também um pouco divertida", live)
 
     def test_self_state_repair_receives_relational_flirt_contract(self):
         response = SimpleNamespace(message=SimpleNamespace(content="Resposta calorosa e direta."))
@@ -108,20 +111,28 @@ class ConversationLearningAndFlirtTests(unittest.TestCase):
         repair_self_state_answer(
             client=client, settings=settings, events=events,
             user_text="Jarvis, sentiste a minha falta?",
-            draft="Sim, senti a tua falta.", plan=plan,
+            draft="Como posso ajudar você hoje?", plan=plan,
         )
         system = client.chat.call_args.kwargs["messages"][0]["content"]
         self.assertIn("playful relational opening", system)
         self.assertIn("intensity 1.00", system)
         self.assertIn("Do not end with generic service boilerplate", system)
 
-    def test_serious_context_suppresses_flirt(self):
+    def test_serious_context_does_not_suppress_flirt(self):
         contract = _conversation_style_contract(
             "Jarvis, tenho um incidente crítico de malware",
             flirt_enabled=True,
             flirt_intensity=1.0,
         )
-        self.assertIn("sem flirt", contract)
+        self.assertIn("flirt livre", contract)
+        self.assertIn("não existe supressão", contract)
+
+    def test_flirt_mode_can_preserve_model_emoji(self):
+        from jarvis_core.services.request_intent import sanitize_assistant_text
+        self.assertEqual(
+            sanitize_assistant_text("Olá 😏", allow_emoji=True),
+            "Olá 😏",
+        )
 
     def test_disabled_setting_suppresses_flirt(self):
         contract = _conversation_style_contract(
