@@ -5,6 +5,8 @@ from pathlib import Path
 from threading import RLock
 from typing import Any
 import json
+import re
+import unicodedata
 import uuid
 
 from jarvis_core.security.policy import RiskLevel
@@ -50,6 +52,191 @@ class AutonomousTaskPlanner:
         "get_task_plan", "list_task_plans", "adapt_task_plan",
     }
 
+    @staticmethod
+    def _goal_is_observation_only(goal: str) -> bool:
+        """Return True when the OWNER explicitly forbids mutation."""
+        normalized = unicodedata.normalize(
+            "NFKD",
+            str(goal or "").casefold(),
+        ).encode(
+            "ascii",
+            "ignore",
+        ).decode(
+            "ascii"
+        )
+
+        observation_signal = bool(
+            re.search(
+                r"\b(?:verifica|verificar|mostra|mostrar|consulta|consultar|"
+                r"inspeciona|inspecionar|lista|listar|observa|observar|"
+                r"le|ler|estado|status|disponivel)\b",
+                normalized,
+            )
+        )
+
+        mutation_word = (
+            r"(?:abre|abrir|abras|fecha|fechar|feches|"
+            r"altera|alterar|alteres|modifica|modificar|modifiques|"
+            r"atualiza|atualizar|atualizes|etiqueta|etiquetar|etiquetes|"
+            r"indexa|indexar|indexes|sincroniza|sincronizar|sincronizes|"
+            r"silencia|silenciar|silencies|define|definir|muda|mudar|"
+            r"executa|executar|corre|correr|inicia|iniciar|"
+            r"clica|clicar|escreve|escrever|cria|criar|"
+            r"apaga|apagar|remove|remover|adiciona|adicionar|"
+            r"completa|completar|lanca|lancar)"
+        )
+
+        negated_mutation_sequence = (
+            r"\b(?:sem|nao|nem)\s+"
+            + mutation_word
+            + r"\b"
+            + r"(?:(?:\s*,\s*|\s+(?:ou|e|nem)\s+)"
+            + mutation_word
+            + r"\b)*"
+        )
+
+        restrictive_constraint = bool(
+            re.search(
+                r"\b(?:apenas|somente|so)\b",
+                normalized,
+            )
+            or re.search(
+                negated_mutation_sequence,
+                normalized,
+            )
+        )
+
+        without_negated_mutations = re.sub(
+            negated_mutation_sequence,
+            "",
+            normalized,
+        )
+
+        positive_mutation = bool(
+            re.search(
+                r"\b"
+                + mutation_word
+                + r"\b",
+                without_negated_mutations,
+            )
+        )
+
+        return (
+            observation_signal
+            and restrictive_constraint
+            and not positive_mutation
+        )
+
+    @staticmethod
+    def _goal_forbidden_tools(goal: str) -> set[str]:
+        """Map explicit OWNER negative constraints to forbidden tools."""
+        normalized = unicodedata.normalize(
+            "NFKD",
+            str(goal or "").casefold(),
+        ).encode(
+            "ascii",
+            "ignore",
+        ).decode(
+            "ascii"
+        )
+
+        negated_spans = [
+            str(match.group("body") or "")
+            for match in re.finditer(
+                r"\b(?:sem|nao|nem)\b"
+                r"(?P<body>.*?)"
+                r"(?="
+                r"[.;!?]"
+                r"|,?\s*\b(?:mas|porem|contudo|depois|entao)\b"
+                r"|$"
+                r")",
+                normalized,
+            )
+        ]
+
+        forbidden: set[str] = set()
+
+        for body in negated_spans:
+            if re.search(
+                r"\b(?:abre|abrir|abras)\b",
+                body,
+            ):
+                forbidden.update(
+                    {
+                        "open_application",
+                        "open_local_document",
+                        "open_kali_activity_console",
+                    }
+                )
+
+            if re.search(
+                r"\b(?:fecha|fechar|feches)\b",
+                body,
+            ):
+                forbidden.add(
+                    "close_application"
+                )
+
+            if re.search(
+                r"\b(?:atualiza|atualizar|atualizes)\b",
+                body,
+            ):
+                forbidden.add(
+                    "refresh_network_inventory"
+                )
+
+            if re.search(
+                r"\b(?:etiqueta|etiquetar|etiquetes)\b",
+                body,
+            ):
+                forbidden.add(
+                    "label_network_device"
+                )
+
+            if re.search(
+                r"\b(?:indexa|indexar|indexes)\b",
+                body,
+            ):
+                forbidden.add(
+                    "build_local_file_index"
+                )
+
+            if re.search(
+                r"\b(?:sincroniza|sincronizar|sincronizes)\b",
+                body,
+            ):
+                forbidden.add(
+                    "sync_book_library"
+                )
+
+            if re.search(
+                r"\b(?:silencia|silenciar|silencies)\b",
+                body,
+            ):
+                forbidden.add(
+                    "set_mute"
+                )
+
+            if (
+                re.search(
+                    r"\b(?:altera|alterar|alteres|modifica|modificar|"
+                    r"modifiques|muda|mudar|define|definir)\b",
+                    body,
+                )
+                and re.search(
+                    r"\b(?:volume|audio|som)\b",
+                    body,
+                )
+            ):
+                forbidden.update(
+                    {
+                        "set_master_volume",
+                        "set_mute",
+                    }
+                )
+
+        return forbidden
+
     def __init__(self, context: SkillContext) -> None:
         self.context = context
         self.path = Path(getattr(context.settings, "task_planner_state_path", "memory/task_plans.json"))
@@ -94,6 +281,35 @@ class AutonomousTaskPlanner:
                 "description": row.get("description"),
                 "parameters": dict((schema.get("function") or {}).get("parameters") or {}),
             })
+
+        # Explicit negative constraints are authoritative independently of
+        # SecurityPolicy risk. A READ_ONLY tool can still be forbidden by the
+        # OWNER, for example "sem sincronizar" or "sem atualizar".
+        forbidden_tools = self._goal_forbidden_tools(
+            goal
+        )
+
+        if forbidden_tools:
+            out = [
+                row
+                for row in out
+                if str(
+                    row.get("name")
+                    or ""
+                )
+                not in forbidden_tools
+            ]
+
+        # Explicit OWNER observation constraints are authoritative. The registry
+        # router may expose mutation tools because it routes by lexical domain,
+        # but the planner must not hand those tools to the model when the OWNER
+        # explicitly requested observation only.
+        if self._goal_is_observation_only(goal):
+            out = [
+                row
+                for row in out
+                if row.get("risk") == "READ_ONLY"
+            ]
 
         # A vague follow-up such as "resolve isto" may not carry enough lexical
         # detail to route domain tools. In that case expose only READ_ONLY tools
@@ -254,6 +470,23 @@ class AutonomousTaskPlanner:
         if not loaded.get("ok"):
             return loaded
         plan = loaded["plan"]
+
+        goal = str(plan.get("goal") or "").strip()
+        if not goal:
+            plan["status"] = "failed"
+            self._persist_plan(plan)
+            return {
+                "ok": False,
+                "error": "PLAN_GOAL_MISSING",
+                "plan": plan,
+            }
+
+        authorized_tools = {
+            str(row.get("name") or ""): row
+            for row in self._candidate_tools(goal)
+            if str(row.get("name") or "")
+        }
+
         cap = max(1, min(int(max_steps), self.max_steps))
         executed = 0
         plan["status"] = "running"
@@ -267,11 +500,114 @@ class AutonomousTaskPlanner:
                 self._persist_plan(plan)
                 return {"ok": True, "plan": plan, "waiting_confirmation": True, "token": step.get("confirmation_token")}
             tool = str(step.get("tool") or "")
+
+            if tool not in authorized_tools:
+                step["status"] = "failed"
+                step["result"] = {
+                    "ok": False,
+                    "error": "TOOL_OUTSIDE_GOAL_AUTHORITY",
+                }
+                plan["status"] = "failed"
+                self._persist_plan(plan)
+                self.context.events.emit(
+                    "TASK_PLAN_AUTHORITY_BLOCKED",
+                    plan_id=plan["id"],
+                    step=step["id"],
+                    tool=tool,
+                    reason="tool_outside_goal_authority",
+                )
+                return {
+                    "ok": False,
+                    "error": "TOOL_OUTSIDE_GOAL_AUTHORITY",
+                    "plan": plan,
+                    "failed_step": step,
+                }
+
             if tool not in self.context.registry.names:
-                step["status"] = "failed"; step["result"] = {"ok": False, "error": "TOOL_NO_LONGER_AVAILABLE"}
-                plan["status"] = "failed"; self._persist_plan(plan)
-                return {"ok": False, "error": "TOOL_NO_LONGER_AVAILABLE", "plan": plan}
-            raw = self.context.registry.execute(tool, step.get("arguments") or {})
+                step["status"] = "failed"
+                step["result"] = {
+                    "ok": False,
+                    "error": "TOOL_NO_LONGER_AVAILABLE",
+                }
+                plan["status"] = "failed"
+                self._persist_plan(plan)
+                return {
+                    "ok": False,
+                    "error": "TOOL_NO_LONGER_AVAILABLE",
+                    "plan": plan,
+                }
+
+            arguments = step.get("arguments")
+
+            if not isinstance(arguments, dict):
+                step["status"] = "failed"
+                step["result"] = {
+                    "ok": False,
+                    "error": "INVALID_TOOL_ARGUMENTS",
+                    "detail": "arguments_must_be_object",
+                }
+                plan["status"] = "failed"
+                self._persist_plan(plan)
+                return {
+                    "ok": False,
+                    "error": "INVALID_TOOL_ARGUMENTS",
+                    "plan": plan,
+                    "failed_step": step,
+                }
+
+            validate_arguments = getattr(
+                self.context.registry,
+                "validate_arguments",
+                None,
+            )
+
+            if not callable(validate_arguments):
+                step["status"] = "failed"
+                step["result"] = {
+                    "ok": False,
+                    "error": "TOOL_ARGUMENT_VALIDATOR_UNAVAILABLE",
+                }
+                plan["status"] = "failed"
+                self._persist_plan(plan)
+                return {
+                    "ok": False,
+                    "error": "TOOL_ARGUMENT_VALIDATOR_UNAVAILABLE",
+                    "plan": plan,
+                    "failed_step": step,
+                }
+
+            valid, detail = validate_arguments(
+                tool,
+                arguments,
+            )
+
+            if not valid:
+                step["status"] = "failed"
+                step["result"] = {
+                    "ok": False,
+                    "error": "INVALID_TOOL_ARGUMENTS",
+                    "detail": detail,
+                }
+                plan["status"] = "failed"
+                self._persist_plan(plan)
+                self.context.events.emit(
+                    "TASK_PLAN_AUTHORITY_BLOCKED",
+                    plan_id=plan["id"],
+                    step=step["id"],
+                    tool=tool,
+                    reason="invalid_tool_arguments",
+                )
+                return {
+                    "ok": False,
+                    "error": "INVALID_TOOL_ARGUMENTS",
+                    "plan": plan,
+                    "failed_step": step,
+                }
+
+            raw = self.context.registry.execute(
+                tool,
+                arguments,
+            )
             try:
                 result = json.loads(raw)
             except Exception:

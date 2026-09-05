@@ -464,7 +464,7 @@
     },
     {
       "path": "jarvis_core/skills/builtin/task_planner.py",
-      "sha256": "8f3c39fa3e48da3bd19d5d0491533dd08e4ea7c1afe3df7b012c359ea1534b83"
+      "sha256": "a82402917fc1b4feb5bcd3bec00b69e40d760ac14094746a31bef1e112097688"
     },
     {
       "path": "jarvis_core/skills/builtin/vision.py",
@@ -1052,7 +1052,7 @@
     },
     {
       "path": "tests/test_modular_skills_023.py",
-      "sha256": "1eb64cfb2c7b2294e9a133bb6d15147362ef82dd69dc88879f7897dde2c2df91"
+      "sha256": "5de53d3eb66db69561b403ef646bdf6fb30c1cfffc8f34f15b7823ed053bc17b"
     },
     {
       "path": "tests/test_native_brain_0277.py",

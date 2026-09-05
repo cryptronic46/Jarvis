@@ -42,6 +42,7 @@ class FakeRegistry:
         self._routed = routed or []
         self._results = results or {}
         self.registered = []
+        self.calls = []
         self.names = {row["name"] for row in self._described}
 
     def register_skill_tool(self, **kwargs):
@@ -63,7 +64,15 @@ class FakeRegistry:
             for name in self._routed[:max_tools]
         ]
 
+    def validate_arguments(self, name, arguments):
+        if name not in self.names:
+            return False, "unknown_tool"
+        if not isinstance(arguments, dict):
+            return False, "arguments_must_be_object"
+        return True, None
+
     def execute(self, name, args):
+        self.calls.append((name, dict(args or {})))
         value = self._results.get(name, {"ok": True, "tool": name, "arguments": args})
         if callable(value):
             value = value(args)
@@ -233,6 +242,507 @@ class ModularSkillsTests(unittest.TestCase):
             tools = planner._candidate_tools("resolve isto")
             self.assertIn("read_state", {row["name"] for row in tools})
             self.assertNotIn("write_state", {row["name"] for row in tools})
+
+    def test_planner_explicit_observation_goal_exposes_read_only_only(self):
+        with tempfile.TemporaryDirectory() as td:
+            rows = [
+                {
+                    "name": "inspect_application",
+                    "description": "inspect",
+                    "risk": "READ_ONLY",
+                    "skill_id": "x",
+                },
+                {
+                    "name": "open_application",
+                    "description": "open",
+                    "risk": "LOW",
+                    "skill_id": "x",
+                },
+                {
+                    "name": "close_application",
+                    "description": "close",
+                    "risk": "CONFIRM",
+                    "skill_id": "x",
+                },
+            ]
+
+            registry = FakeRegistry(
+                rows,
+                [
+                    "inspect_application",
+                    "open_application",
+                    "close_application",
+                ],
+            )
+
+            planner = AutonomousTaskPlanner(
+                self._context(
+                    Path(td),
+                    registry=registry,
+                    brain=SimpleNamespace(
+                        client=FakeClient()
+                    ),
+                )
+            )
+
+            tools = planner._candidate_tools(
+                "Verifica se o Spotify esta disponivel, "
+                "sem abrir nem fechar nenhuma aplicacao."
+            )
+
+            self.assertEqual(
+                {
+                    row["name"]
+                    for row in tools
+                },
+                {
+                    "inspect_application",
+                },
+            )
+
+            self.assertTrue(
+                all(
+                    row["risk"] == "READ_ONLY"
+                    for row in tools
+                )
+            )
+
+            network_rows = [
+                {
+                    "name": "get_network_security_snapshot",
+                    "description": "read network",
+                    "risk": "READ_ONLY",
+                    "skill_id": "x",
+                },
+                {
+                    "name": "label_network_device",
+                    "description": "label network device",
+                    "risk": "LOW",
+                    "skill_id": "x",
+                },
+            ]
+
+            network_registry = FakeRegistry(
+                network_rows,
+                [
+                    "get_network_security_snapshot",
+                    "label_network_device",
+                ],
+            )
+
+            network_planner = AutonomousTaskPlanner(
+                self._context(
+                    Path(td),
+                    registry=network_registry,
+                    brain=SimpleNamespace(
+                        client=FakeClient()
+                    ),
+                )
+            )
+
+            network_tools = network_planner._candidate_tools(
+                "Inspeciona apenas o estado da rede, "
+                "sem alterar, atualizar ou etiquetar dispositivos."
+            )
+
+            self.assertEqual(
+                {
+                    row["name"]
+                    for row in network_tools
+                },
+                {
+                    "get_network_security_snapshot",
+                },
+            )
+
+            self.assertTrue(
+                all(
+                    row["risk"] == "READ_ONLY"
+                    for row in network_tools
+                )
+            )
+
+            self.assertNotIn(
+                "refresh_network_inventory",
+                {
+                    row["name"]
+                    for row in network_tools
+                },
+            )
+
+            self.assertNotIn(
+                "label_network_device",
+                {
+                    row["name"]
+                    for row in network_tools
+                },
+            )
+
+            pdf_rows = [
+                {
+                    "name": "get_book_library_status",
+                    "description": "status",
+                    "risk": "READ_ONLY",
+                    "skill_id": "x",
+                },
+                {
+                    "name": "build_local_file_index",
+                    "description": "index",
+                    "risk": "READ_ONLY",
+                    "skill_id": "x",
+                },
+                {
+                    "name": "sync_book_library",
+                    "description": "sync",
+                    "risk": "READ_ONLY",
+                    "skill_id": "x",
+                },
+            ]
+
+            pdf_registry = FakeRegistry(
+                pdf_rows,
+                [
+                    "get_book_library_status",
+                    "build_local_file_index",
+                    "sync_book_library",
+                ],
+            )
+
+            pdf_planner = AutonomousTaskPlanner(
+                self._context(
+                    Path(td),
+                    registry=pdf_registry,
+                    brain=SimpleNamespace(
+                        client=FakeClient()
+                    ),
+                )
+            )
+
+            pdf_tools = pdf_planner._candidate_tools(
+                "Mostra apenas o estado da biblioteca PDF, "
+                "sem indexar nem sincronizar ficheiros."
+            )
+
+            self.assertEqual(
+                {
+                    row["name"]
+                    for row in pdf_tools
+                },
+                {
+                    "get_book_library_status",
+                },
+            )
+
+            mixed_rows = [
+                {
+                    "name": "inspect_application",
+                    "description": "inspect",
+                    "risk": "READ_ONLY",
+                    "skill_id": "x",
+                },
+                {
+                    "name": "open_application",
+                    "description": "open",
+                    "risk": "LOW",
+                    "skill_id": "x",
+                },
+                {
+                    "name": "get_master_volume",
+                    "description": "volume",
+                    "risk": "READ_ONLY",
+                    "skill_id": "x",
+                },
+                {
+                    "name": "set_master_volume",
+                    "description": "set volume",
+                    "risk": "LOW",
+                    "skill_id": "x",
+                },
+                {
+                    "name": "set_mute",
+                    "description": "mute",
+                    "risk": "LOW",
+                    "skill_id": "x",
+                },
+            ]
+
+            mixed_registry = FakeRegistry(
+                mixed_rows,
+                [
+                    "inspect_application",
+                    "open_application",
+                    "get_master_volume",
+                    "set_master_volume",
+                    "set_mute",
+                ],
+            )
+
+            mixed_planner = AutonomousTaskPlanner(
+                self._context(
+                    Path(td),
+                    registry=mixed_registry,
+                    brain=SimpleNamespace(
+                        client=FakeClient()
+                    ),
+                )
+            )
+
+            mixed_tools = mixed_planner._candidate_tools(
+                "Abre o Spotify, mas sem alterar o volume."
+            )
+
+            mixed_names = {
+                row["name"]
+                for row in mixed_tools
+            }
+
+            self.assertIn(
+                "open_application",
+                mixed_names,
+            )
+
+            self.assertNotIn(
+                "set_master_volume",
+                mixed_names,
+            )
+
+            self.assertNotIn(
+                "set_mute",
+                mixed_names,
+            )
+
+    def test_planner_explicit_mutation_goal_keeps_low_tool(self):
+        with tempfile.TemporaryDirectory() as td:
+            rows = [
+                {
+                    "name": "inspect_application",
+                    "description": "inspect",
+                    "risk": "READ_ONLY",
+                    "skill_id": "x",
+                },
+                {
+                    "name": "open_application",
+                    "description": "open",
+                    "risk": "LOW",
+                    "skill_id": "x",
+                },
+            ]
+
+            registry = FakeRegistry(
+                rows,
+                [
+                    "inspect_application",
+                    "open_application",
+                ],
+            )
+
+            planner = AutonomousTaskPlanner(
+                self._context(
+                    Path(td),
+                    registry=registry,
+                    brain=SimpleNamespace(
+                        client=FakeClient()
+                    ),
+                )
+            )
+
+            tools = planner._candidate_tools(
+                "Abre o Spotify."
+            )
+
+            self.assertIn(
+                "open_application",
+                {
+                    row["name"]
+                    for row in tools
+                },
+            )
+
+    def test_planner_revalidates_persisted_tool_against_original_goal(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+
+            rows = [
+                {
+                    "name": "inspect_application",
+                    "description": "inspect",
+                    "risk": "READ_ONLY",
+                    "skill_id": "x",
+                },
+                {
+                    "name": "open_application",
+                    "description": "open",
+                    "risk": "LOW",
+                    "skill_id": "x",
+                },
+            ]
+
+            registry = FakeRegistry(
+                rows,
+                [
+                    "inspect_application",
+                    "open_application",
+                ],
+            )
+
+            planner = AutonomousTaskPlanner(
+                self._context(
+                    root,
+                    registry=registry,
+                    brain=SimpleNamespace(
+                        client=FakeClient()
+                    ),
+                )
+            )
+
+            plan = {
+                "id": "authority01",
+                "goal": (
+                    "Verifica se o Spotify esta disponivel, "
+                    "sem abrir nenhuma aplicacao."
+                ),
+                "created_at": "old",
+                "updated_at": "old",
+                "status": "planned",
+                "adaptations": 0,
+                "steps": [
+                    {
+                        "id": 1,
+                        "tool": "open_application",
+                        "arguments": {
+                            "app_name": "spotify",
+                        },
+                        "purpose": "tampered step",
+                        "risk": "LOW",
+                        "status": "pending",
+                        "result": None,
+                        "confirmation_token": None,
+                    }
+                ],
+            }
+
+            planner._save(
+                {
+                    "plans": {
+                        plan["id"]: plan,
+                    },
+                }
+            )
+
+            result = planner.execute_plan(
+                plan["id"],
+                max_steps=1,
+            )
+
+            self.assertFalse(
+                result["ok"]
+            )
+
+            self.assertEqual(
+                result["error"],
+                "TOOL_OUTSIDE_GOAL_AUTHORITY",
+            )
+
+            self.assertEqual(
+                registry.calls,
+                [],
+            )
+
+    def test_planner_revalidates_arguments_immediately_before_execution(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+
+            rows = [
+                {
+                    "name": "open_application",
+                    "description": "open",
+                    "risk": "LOW",
+                    "skill_id": "x",
+                },
+            ]
+
+            registry = FakeRegistry(
+                rows,
+                [
+                    "open_application",
+                ],
+            )
+
+            def validate_arguments(name, arguments):
+                if (
+                    name == "open_application"
+                    and arguments
+                    == {
+                        "app_name": "spotify",
+                    }
+                ):
+                    return True, None
+
+                return False, "invalid_test_arguments"
+
+            registry.validate_arguments = (
+                validate_arguments
+            )
+
+            planner = AutonomousTaskPlanner(
+                self._context(
+                    root,
+                    registry=registry,
+                    brain=SimpleNamespace(
+                        client=FakeClient()
+                    ),
+                )
+            )
+
+            plan = {
+                "id": "authority02",
+                "goal": "Abre o Spotify.",
+                "created_at": "old",
+                "updated_at": "old",
+                "status": "planned",
+                "adaptations": 0,
+                "steps": [
+                    {
+                        "id": 1,
+                        "tool": "open_application",
+                        "arguments": {
+                            "app_name": "steam",
+                        },
+                        "purpose": "invalid arguments",
+                        "risk": "LOW",
+                        "status": "pending",
+                        "result": None,
+                        "confirmation_token": None,
+                    }
+                ],
+            }
+
+            planner._save(
+                {
+                    "plans": {
+                        plan["id"]: plan,
+                    },
+                }
+            )
+
+            result = planner.execute_plan(
+                plan["id"],
+                max_steps=1,
+            )
+
+            self.assertFalse(
+                result["ok"]
+            )
+
+            self.assertEqual(
+                result["error"],
+                "INVALID_TOOL_ARGUMENTS",
+            )
+
+            self.assertEqual(
+                registry.calls,
+                [],
+            )
 
     def test_vision_missing_model_fails_gracefully_without_cloud(self):
         with tempfile.TemporaryDirectory() as td:
