@@ -18,14 +18,13 @@ from jarvis_core.security.policy import SecurityPolicy
 from jarvis_core.skills import SkillContext, SkillManager
 from jarvis_core.services.telemetry import TelemetryService
 from jarvis_core.services.desktop_integration import DesktopIntegrationService
-from jarvis_core.services.speech import SpeechService, SpeechConfig
-from jarvis_core.services.listening import MicrophoneService, ListeningConfig
-from jarvis_core.services.av_devices import webcam_audio_score
-from jarvis_core.services.speaker_verification import SpeakerVerifier, SpeakerConfig
-from jarvis_core.services.wakeword import WakeWordService, WakeWordConfig
-from jarvis_core.services.voice_engine_v2 import VoiceEngineV2
-from jarvis_core.services.voice_pipeline import listening_config_from_settings, voice_v2_config_from_settings, speaker_config_from_settings
-from jarvis_core.services.listening_watchdog import ListeningWatchdogService
+from jarvis_core.services.disabled_voice import (
+    DisabledSpeechService,
+    DisabledMicrophoneService,
+    DisabledSpeakerVerifier,
+    DisabledWakeService,
+    DisabledListeningWatchdog,
+)
 from jarvis_core.services.silence_latch import SilenceLatchService
 from jarvis_core.services.activity_trace import ActivityTraceService
 from jarvis_core.services.idle_mind import IdleMindService
@@ -716,88 +715,112 @@ def main() -> None:
         events,
         telemetry,
     )
-    speech = SpeechService(
-        events,
-        SpeechConfig(
-            enabled=settings.speech_enabled,
-            backend=settings.speech_backend,
-            edge_voice=settings.speech_voice,
-            rate=settings.speech_rate,
-            pitch=settings.speech_pitch,
-            persona_profile=settings.speech_persona_profile,
-            sapi_prefer_gender=settings.speech_sapi_prefer_gender,
-            volume=settings.speech_volume,
-            max_chars=settings.speech_max_chars,
-            fallback_sapi=settings.speech_fallback_sapi,
-            cache_enabled=settings.speech_cache_enabled,
-            cache_dir=settings.speech_cache_dir,
-            cache_max_bytes=settings.speech_cache_max_bytes,
-            cache_max_files=settings.speech_cache_max_files,
-        ),
-    )
-    def build_microphone(*, model: str, stt_device: str) -> MicrophoneService:
-        return MicrophoneService(
+    if local_voice_enabled:
+        # Real PC-local audio dependencies are loaded only when explicitly enabled.
+        from jarvis_core.services.speech import SpeechService, SpeechConfig
+        from jarvis_core.services.listening import MicrophoneService, ListeningConfig
+        from jarvis_core.services.av_devices import webcam_audio_score
+        from jarvis_core.services.speaker_verification import SpeakerVerifier
+        from jarvis_core.services.wakeword import WakeWordService, WakeWordConfig
+        from jarvis_core.services.voice_engine_v2 import VoiceEngineV2
+        from jarvis_core.services.voice_pipeline import (
+            listening_config_from_settings,
+            voice_v2_config_from_settings,
+            speaker_config_from_settings,
+        )
+        from jarvis_core.services.listening_watchdog import ListeningWatchdogService
+
+        speech = SpeechService(
             events,
-            ListeningConfig(
-                device=settings.mic_device,
-                language=settings.stt_language,
-                model=model,
-                stt_device=stt_device,
-                download_root=settings.stt_download_root,
-                calibration_seconds=settings.mic_calibration_seconds,
-                start_timeout_seconds=settings.mic_start_timeout_seconds,
-                max_phrase_seconds=settings.mic_max_phrase_seconds,
-                silence_seconds=settings.mic_silence_seconds,
-                threshold_multiplier=settings.mic_threshold_multiplier,
-                threshold_floor=settings.mic_threshold_floor,
-                beam_size=settings.stt_beam_size,
-                wake_candidate_beam_size=settings.wake_candidate_beam_size,
-                command_beam_size=settings.wake_stt_beam_size,
-                command_retry_beam_size=settings.wake_stt_retry_beam_size,
-                command_low_confidence_avg_logprob=settings.wake_stt_low_confidence_avg_logprob,
-                command_low_confidence_no_speech=settings.wake_stt_low_confidence_no_speech,
-                command_reject_avg_logprob=settings.wake_stt_reject_avg_logprob,
-                command_reject_no_speech=settings.wake_stt_reject_no_speech,
-                wake_reject_avg_logprob=settings.wake_candidate_reject_avg_logprob,
-                wake_reject_no_speech=settings.wake_candidate_reject_no_speech,
-                normalize_command_audio=settings.stt_normalize_command_audio,
-                command_target_rms=settings.stt_command_target_rms,
-                command_max_gain=settings.stt_command_max_gain,
-                command_trim_silence=settings.stt_command_trim_silence,
-                command_trim_padding_ms=settings.stt_command_trim_padding_ms,
-                command_trim_floor_rms=settings.stt_command_trim_floor_rms,
-                command_initial_prompt=settings.wake_stt_initial_prompt,
-                command_hotwords=settings.wake_stt_hotwords,
-                stream_retries=settings.mic_stream_retries,
-                stream_recovery_seconds=settings.mic_stream_recovery_seconds,
-                no_signal_rms=settings.mic_no_signal_rms,
-                cpu_threads=settings.stt_cpu_threads,
-                calibration_cache_seconds=settings.mic_calibration_cache_seconds,
-                cached_calibration_blocks=settings.mic_cached_calibration_blocks,
-                preferred_device_index=settings.mic_device,
-                preferred_device_name=settings.mic_preferred_device_name,
-                preferred_handsfree=settings.mic_preferred_handsfree,
-                preferred_samplerate=settings.mic_preferred_samplerate,
-                prefer_webcam_audio=settings.av_webcam_primary_enabled,
-                webcam_name_hint=settings.av_webcam_name_hint,
-                probe_min_signal_rms=settings.av_probe_min_signal_rms,
-                verified_signal_ttl_seconds=settings.av_verified_signal_ttl_seconds,
+            SpeechConfig(
+                enabled=settings.speech_enabled,
+                backend=settings.speech_backend,
+                edge_voice=settings.speech_voice,
+                rate=settings.speech_rate,
+                pitch=settings.speech_pitch,
+                persona_profile=settings.speech_persona_profile,
+                sapi_prefer_gender=settings.speech_sapi_prefer_gender,
+                volume=settings.speech_volume,
+                max_chars=settings.speech_max_chars,
+                fallback_sapi=settings.speech_fallback_sapi,
+                cache_enabled=settings.speech_cache_enabled,
+                cache_dir=settings.speech_cache_dir,
+                cache_max_bytes=settings.speech_cache_max_bytes,
+                cache_max_files=settings.speech_cache_max_files,
             ),
         )
+        def build_microphone(*, model: str, stt_device: str) -> MicrophoneService:
+            return MicrophoneService(
+                events,
+                ListeningConfig(
+                    device=settings.mic_device,
+                    language=settings.stt_language,
+                    model=model,
+                    stt_device=stt_device,
+                    download_root=settings.stt_download_root,
+                    calibration_seconds=settings.mic_calibration_seconds,
+                    start_timeout_seconds=settings.mic_start_timeout_seconds,
+                    max_phrase_seconds=settings.mic_max_phrase_seconds,
+                    silence_seconds=settings.mic_silence_seconds,
+                    threshold_multiplier=settings.mic_threshold_multiplier,
+                    threshold_floor=settings.mic_threshold_floor,
+                    beam_size=settings.stt_beam_size,
+                    wake_candidate_beam_size=settings.wake_candidate_beam_size,
+                    command_beam_size=settings.wake_stt_beam_size,
+                    command_retry_beam_size=settings.wake_stt_retry_beam_size,
+                    command_low_confidence_avg_logprob=settings.wake_stt_low_confidence_avg_logprob,
+                    command_low_confidence_no_speech=settings.wake_stt_low_confidence_no_speech,
+                    command_reject_avg_logprob=settings.wake_stt_reject_avg_logprob,
+                    command_reject_no_speech=settings.wake_stt_reject_no_speech,
+                    wake_reject_avg_logprob=settings.wake_candidate_reject_avg_logprob,
+                    wake_reject_no_speech=settings.wake_candidate_reject_no_speech,
+                    normalize_command_audio=settings.stt_normalize_command_audio,
+                    command_target_rms=settings.stt_command_target_rms,
+                    command_max_gain=settings.stt_command_max_gain,
+                    command_trim_silence=settings.stt_command_trim_silence,
+                    command_trim_padding_ms=settings.stt_command_trim_padding_ms,
+                    command_trim_floor_rms=settings.stt_command_trim_floor_rms,
+                    command_initial_prompt=settings.wake_stt_initial_prompt,
+                    command_hotwords=settings.wake_stt_hotwords,
+                    stream_retries=settings.mic_stream_retries,
+                    stream_recovery_seconds=settings.mic_stream_recovery_seconds,
+                    no_signal_rms=settings.mic_no_signal_rms,
+                    cpu_threads=settings.stt_cpu_threads,
+                    calibration_cache_seconds=settings.mic_calibration_cache_seconds,
+                    cached_calibration_blocks=settings.mic_cached_calibration_blocks,
+                    preferred_device_index=settings.mic_device,
+                    preferred_device_name=settings.mic_preferred_device_name,
+                    preferred_handsfree=settings.mic_preferred_handsfree,
+                    preferred_samplerate=settings.mic_preferred_samplerate,
+                    prefer_webcam_audio=settings.av_webcam_primary_enabled,
+                    webcam_name_hint=settings.av_webcam_name_hint,
+                    probe_min_signal_rms=settings.av_probe_min_signal_rms,
+                    verified_signal_ttl_seconds=settings.av_verified_signal_ttl_seconds,
+                ),
+            )
 
-    legacy_microphone = build_microphone(
-        model=settings.stt_model,
-        stt_device=settings.stt_device,
-    )
-    # 0.27.6: Voice v2 and full_system_validation share this exact config factory.
-    v2_microphone = MicrophoneService(
-        events,
-        listening_config_from_settings(settings, voice_v2=True),
-    )
-    # Closures below resolve this binding at call time; it is switched to the
-    # v2 transcriber after the voice backend has passed its startup doctor.
-    microphone = legacy_microphone
-    speaker = SpeakerVerifier(events, speaker_config_from_settings(settings))
+        legacy_microphone = build_microphone(
+            model=settings.stt_model,
+            stt_device=settings.stt_device,
+        )
+        # 0.27.6: Voice v2 and full_system_validation share this exact config factory.
+        v2_microphone = MicrophoneService(
+            events,
+            listening_config_from_settings(settings, voice_v2=True),
+        )
+        # Closures below resolve this binding at call time; it is switched to the
+        # v2 transcriber after the voice backend has passed its startup doctor.
+        microphone = legacy_microphone
+        speaker = SpeakerVerifier(events, speaker_config_from_settings(settings))
+    else:
+        # No PC-local audio objects are constructed in retired mode.
+        speech = DisabledSpeechService()
+        legacy_microphone = DisabledMicrophoneService(settings)
+        v2_microphone = DisabledMicrophoneService(settings)
+        microphone = legacy_microphone
+        speaker = DisabledSpeakerVerifier()
+        events.emit("LOCAL_VOICE_SERVICES_NOT_CONSTRUCTED")
+
     # Health baseline: an enabled lock must be usable. If Torch or the
     # configured model is unavailable, disable only the effective runtime lock
     # instead of breaking every voice command or pretending protection is active.
@@ -1199,159 +1222,167 @@ def main() -> None:
         silence_latch.latch(reason="owner_interrupt", source="barge_in")
         events.emit("VOICE_INTERRUPT_APPLIED", phrase="Cala-te", silence_latched=True)
 
-    legacy_wake = WakeWordService(
-        events,
-        WakeWordConfig(
-            enabled=settings.wake_enabled,
-            auto_start=settings.wake_auto_start,
-            keyword=settings.wake_keyword,
-            calibration_seconds=settings.wake_calibration_seconds,
-            threshold_multiplier=settings.wake_threshold_multiplier,
-            threshold_floor=settings.wake_threshold_floor,
-            threshold_ceiling=settings.wake_threshold_ceiling,
-            pre_roll_seconds=settings.wake_pre_roll_seconds,
-            block_seconds=settings.wake_block_seconds,
-            no_signal_rms=settings.wake_no_signal_rms,
-            speech_confirm_blocks=settings.wake_speech_confirm_blocks,
-            preferred_device_index=settings.mic_device,
-            preferred_device_name=settings.mic_preferred_device_name,
-            preferred_handsfree=settings.mic_preferred_handsfree,
-            preferred_samplerate=settings.mic_preferred_samplerate,
-            prefer_webcam_audio=settings.av_webcam_primary_enabled,
-            webcam_name_hint=settings.av_webcam_name_hint,
-            tts_tail_seconds=settings.wake_tts_tail_seconds,
-            rearm_seconds=settings.wake_rearm_seconds,
-            enrollment_samples=settings.wake_enrollment_samples,
-            template_path=settings.wake_template_path,
-            interrupt_template_path=settings.interrupt_template_path,
-            interrupt_enrollment_samples=settings.interrupt_enrollment_samples,
-            interrupt_match_floor=settings.interrupt_match_floor,
-            feature_sample_rate=settings.wake_feature_sample_rate,
-            feature_frame_ms=settings.wake_feature_frame_ms,
-            feature_hop_ms=settings.wake_feature_hop_ms,
-            feature_bands=settings.wake_feature_bands,
-            probe_min_seconds=settings.wake_probe_min_seconds,
-            probe_max_seconds=settings.wake_probe_max_seconds,
-            wake_match_floor=settings.wake_match_floor,
-            wake_match_margin=settings.wake_match_margin,
-            wake_start_slack_seconds=settings.wake_start_slack_seconds,
-            candidate_whisper_confirm=settings.wake_candidate_whisper_confirm,
-            candidate_reject_cooldown_seconds=settings.wake_candidate_reject_cooldown_seconds,
-            candidate_window_seconds=settings.wake_candidate_window_seconds,
-            candidate_tail_seconds=settings.wake_candidate_tail_seconds,
-            candidate_min_avg_logprob=settings.wake_candidate_min_avg_logprob,
-            candidate_max_no_speech_prob=settings.wake_candidate_max_no_speech_prob,
-            candidate_max_words=settings.wake_candidate_max_words,
-            command_start_timeout_seconds=settings.wake_command_start_timeout_seconds,
-            command_silence_seconds=settings.wake_command_silence_seconds,
-            command_max_seconds=settings.wake_command_max_seconds,
-            command_min_seconds=settings.wake_command_min_seconds,
-            command_preroll_seconds=settings.wake_command_preroll_seconds,
-            command_threshold_ratio=settings.wake_command_threshold_ratio,
-        ),
-        on_wake=on_wake,
-        on_interrupt=on_interrupt,
-        on_interrupt_probe_start=on_interrupt_probe_start,
-        on_interrupt_probe_end=on_interrupt_probe_end,
-        transcribe_callback=microphone.transcribe_command_file,
-        wake_transcribe_callback=microphone.transcribe_wake_file,
-        cleanup_callback=microphone.cleanup_capture,
-    )
-    # Voice v2 is independent of legacy device probing. Legacy objects remain
-    # available only for an explicit compatibility selection (/backend legacy).
-    def voice_v2_prepare_stt():
-        if not bool(getattr(settings, "voice_v2_vram_handoff_enabled", True)):
-            return {"ok": True, "enabled": False, "released_count": 0}
+    if local_voice_enabled:
+        legacy_wake = WakeWordService(
+            events,
+            WakeWordConfig(
+                enabled=settings.wake_enabled,
+                auto_start=settings.wake_auto_start,
+                keyword=settings.wake_keyword,
+                calibration_seconds=settings.wake_calibration_seconds,
+                threshold_multiplier=settings.wake_threshold_multiplier,
+                threshold_floor=settings.wake_threshold_floor,
+                threshold_ceiling=settings.wake_threshold_ceiling,
+                pre_roll_seconds=settings.wake_pre_roll_seconds,
+                block_seconds=settings.wake_block_seconds,
+                no_signal_rms=settings.wake_no_signal_rms,
+                speech_confirm_blocks=settings.wake_speech_confirm_blocks,
+                preferred_device_index=settings.mic_device,
+                preferred_device_name=settings.mic_preferred_device_name,
+                preferred_handsfree=settings.mic_preferred_handsfree,
+                preferred_samplerate=settings.mic_preferred_samplerate,
+                prefer_webcam_audio=settings.av_webcam_primary_enabled,
+                webcam_name_hint=settings.av_webcam_name_hint,
+                tts_tail_seconds=settings.wake_tts_tail_seconds,
+                rearm_seconds=settings.wake_rearm_seconds,
+                enrollment_samples=settings.wake_enrollment_samples,
+                template_path=settings.wake_template_path,
+                interrupt_template_path=settings.interrupt_template_path,
+                interrupt_enrollment_samples=settings.interrupt_enrollment_samples,
+                interrupt_match_floor=settings.interrupt_match_floor,
+                feature_sample_rate=settings.wake_feature_sample_rate,
+                feature_frame_ms=settings.wake_feature_frame_ms,
+                feature_hop_ms=settings.wake_feature_hop_ms,
+                feature_bands=settings.wake_feature_bands,
+                probe_min_seconds=settings.wake_probe_min_seconds,
+                probe_max_seconds=settings.wake_probe_max_seconds,
+                wake_match_floor=settings.wake_match_floor,
+                wake_match_margin=settings.wake_match_margin,
+                wake_start_slack_seconds=settings.wake_start_slack_seconds,
+                candidate_whisper_confirm=settings.wake_candidate_whisper_confirm,
+                candidate_reject_cooldown_seconds=settings.wake_candidate_reject_cooldown_seconds,
+                candidate_window_seconds=settings.wake_candidate_window_seconds,
+                candidate_tail_seconds=settings.wake_candidate_tail_seconds,
+                candidate_min_avg_logprob=settings.wake_candidate_min_avg_logprob,
+                candidate_max_no_speech_prob=settings.wake_candidate_max_no_speech_prob,
+                candidate_max_words=settings.wake_candidate_max_words,
+                command_start_timeout_seconds=settings.wake_command_start_timeout_seconds,
+                command_silence_seconds=settings.wake_command_silence_seconds,
+                command_max_seconds=settings.wake_command_max_seconds,
+                command_min_seconds=settings.wake_command_min_seconds,
+                command_preroll_seconds=settings.wake_command_preroll_seconds,
+                command_threshold_ratio=settings.wake_command_threshold_ratio,
+            ),
+            on_wake=on_wake,
+            on_interrupt=on_interrupt,
+            on_interrupt_probe_start=on_interrupt_probe_start,
+            on_interrupt_probe_end=on_interrupt_probe_end,
+            transcribe_callback=microphone.transcribe_command_file,
+            wake_transcribe_callback=microphone.transcribe_wake_file,
+            cleanup_callback=microphone.cleanup_capture,
+        )
+        # Voice v2 is independent of legacy device probing. Legacy objects remain
+        # available only for an explicit compatibility selection (/backend legacy).
+        def voice_v2_prepare_stt():
+            if not bool(getattr(settings, "voice_v2_vram_handoff_enabled", True)):
+                return {"ok": True, "enabled": False, "released_count": 0}
 
-        # 0.26.7: do not evict Qwen for CPU Faster Whisper. The previous v2
-        # handoff unloaded the 8B local model before every voice transcription,
-        # even after CUDA had already fallen back to CPU. That forced a multi-
-        # second Qwen reload on the very next conversational turn.
-        stt_state = v2_microphone.stt_residency_status()
-        preference = str(stt_state.get("device_preference") or "").lower().strip()
-        backend = str(stt_state.get("backend") or "").lower().strip()
-        if preference == "cpu" or backend.startswith("cpu/"):
-            return {
-                "ok": True,
-                "enabled": True,
-                "released_count": 0,
-                "reason": "stt_cpu_keeps_qwen_resident",
-            }
+            # 0.26.7: do not evict Qwen for CPU Faster Whisper. The previous v2
+            # handoff unloaded the 8B local model before every voice transcription,
+            # even after CUDA had already fallen back to CPU. That forced a multi-
+            # second Qwen reload on the very next conversational turn.
+            stt_state = v2_microphone.stt_residency_status()
+            preference = str(stt_state.get("device_preference") or "").lower().strip()
+            backend = str(stt_state.get("backend") or "").lower().strip()
+            if preference == "cpu" or backend.startswith("cpu/"):
+                return {
+                    "ok": True,
+                    "enabled": True,
+                    "released_count": 0,
+                    "reason": "stt_cpu_keeps_qwen_resident",
+                }
 
-        residency = brain.residency_status()
-        if not residency.get("running_configured"):
-            return {"ok": True, "enabled": True, "released_count": 0}
-        return brain.release_all_models(
-            reason="voice_v2_stt_handoff",
-            include_configured=True,
+            residency = brain.residency_status()
+            if not residency.get("running_configured"):
+                return {"ok": True, "enabled": True, "released_count": 0}
+            return brain.release_all_models(
+                reason="voice_v2_stt_handoff",
+                include_configured=True,
+            )
+
+        voice_v2 = VoiceEngineV2(
+            events,
+            voice_v2_config_from_settings(settings),
+            on_wake=on_wake,
+            on_interrupt=on_interrupt,
+            transcribe_callback=v2_microphone.transcribe_command_file,
+            wake_transcribe_callback=v2_microphone.transcribe_wake_file,
+            cleanup_callback=v2_microphone.cleanup_capture,
+            release_stt_callback=v2_microphone.release_stt,
+            before_stt_callback=voice_v2_prepare_stt,
         )
 
-    voice_v2 = VoiceEngineV2(
-        events,
-        voice_v2_config_from_settings(settings),
-        on_wake=on_wake,
-        on_interrupt=on_interrupt,
-        transcribe_callback=v2_microphone.transcribe_command_file,
-        wake_transcribe_callback=v2_microphone.transcribe_wake_file,
-        cleanup_callback=v2_microphone.cleanup_capture,
-        release_stt_callback=v2_microphone.release_stt,
-        before_stt_callback=voice_v2_prepare_stt,
-    )
+        requested_voice_backend = str(settings.voice_input_backend or "v2").strip().lower()
+        voice_engine_state = {
+            "requested": requested_voice_backend,
+            "effective": "v2",
+            "fallback_reason": None,
+        }
+        wake = voice_v2
+        microphone = v2_microphone
 
-    requested_voice_backend = str(settings.voice_input_backend or "v2").strip().lower()
-    voice_engine_state = {
-        "requested": requested_voice_backend,
-        "effective": "v2",
-        "fallback_reason": None,
-    }
-    wake = voice_v2
-    microphone = v2_microphone
+        if requested_voice_backend == "legacy":
+            wake = legacy_wake
+            microphone = legacy_microphone
+            voice_engine_state["effective"] = "legacy"
+            events.emit("VOICE_LEGACY_EXPLICIT_COMPATIBILITY_MODE")
+        else:
+            if requested_voice_backend not in {"v2", "auto"}:
+                voice_engine_state["fallback_reason"] = "INVALID_BACKEND_SETTING_USING_V2"
+            v2_doctor = voice_v2.doctor()
+            if not v2_doctor.get("ok"):
+                voice_engine_state["fallback_reason"] = (
+                    v2_doctor.get("error") or v2_doctor.get("message") or "VOICE_V2_NOT_READY"
+                )
+                # 0.27.6 deliberately does not silently fall back to the old wake/STT
+                # pipeline. A broken v2 health check must remain visible and fail
+                # acceptance rather than changing architecture behind the user's back.
+                events.emit(
+                    "VOICE_V2_UNAVAILABLE_NO_LEGACY_FALLBACK",
+                    requested=requested_voice_backend,
+                    reason=voice_engine_state["fallback_reason"],
+                )
 
-    if not local_voice_enabled:
-        wake = legacy_wake
+        wake_holder["service"] = wake
+
+        listening_watchdog = ListeningWatchdogService(
+            events,
+            wake,
+            speech,
+            enabled=settings.listening_watchdog_enabled,
+            armed=(settings.wake_enabled and settings.wake_auto_start),
+            interval_seconds=settings.listening_watchdog_interval_seconds,
+            stream_grace_seconds=settings.listening_watchdog_stream_grace_seconds,
+            recovery_cooldown_seconds=(
+                settings.listening_watchdog_recovery_cooldown_seconds
+            ),
+        )
+    else:
+        # Retired PC-local voice: no wake engine, Voice v2 or
+        # listening watchdog service is constructed.
+        wake = DisabledWakeService(settings)
         microphone = legacy_microphone
-        voice_engine_state.update({
+        requested_voice_backend = "off"
+        voice_engine_state = {
             "requested": "off",
             "effective": "off",
             "fallback_reason": None,
-        })
+        }
+        listening_watchdog = DisabledListeningWatchdog()
+        wake_holder["service"] = wake
         events.emit("LOCAL_VOICE_DISABLED")
-    elif requested_voice_backend == "legacy":
-        wake = legacy_wake
-        microphone = legacy_microphone
-        voice_engine_state["effective"] = "legacy"
-        events.emit("VOICE_LEGACY_EXPLICIT_COMPATIBILITY_MODE")
-    else:
-        if requested_voice_backend not in {"v2", "auto"}:
-            voice_engine_state["fallback_reason"] = "INVALID_BACKEND_SETTING_USING_V2"
-        v2_doctor = voice_v2.doctor()
-        if not v2_doctor.get("ok"):
-            voice_engine_state["fallback_reason"] = (
-                v2_doctor.get("error") or v2_doctor.get("message") or "VOICE_V2_NOT_READY"
-            )
-            # 0.27.6 deliberately does not silently fall back to the old wake/STT
-            # pipeline. A broken v2 health check must remain visible and fail
-            # acceptance rather than changing architecture behind the user's back.
-            events.emit(
-                "VOICE_V2_UNAVAILABLE_NO_LEGACY_FALLBACK",
-                requested=requested_voice_backend,
-                reason=voice_engine_state["fallback_reason"],
-            )
+        events.emit("LOCAL_VOICE_RUNTIME_NOT_CONSTRUCTED")
 
-    wake_holder["service"] = wake
-
-    listening_watchdog = ListeningWatchdogService(
-        events,
-        wake,
-        speech,
-        enabled=settings.listening_watchdog_enabled,
-        armed=(settings.wake_enabled and settings.wake_auto_start),
-        interval_seconds=settings.listening_watchdog_interval_seconds,
-        stream_grace_seconds=settings.listening_watchdog_stream_grace_seconds,
-        recovery_cooldown_seconds=(
-            settings.listening_watchdog_recovery_cooldown_seconds
-        ),
-    )
 
     def wake_tts_guard(event: Event) -> None:
         """

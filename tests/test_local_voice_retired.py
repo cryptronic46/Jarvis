@@ -81,6 +81,50 @@ class LocalVoiceRetiredTests(unittest.TestCase):
                 with self.subTest(key=key):
                     self.assertIs(repaired.get(key), False)
 
+    def test_cli_import_does_not_load_real_voice_stack(self):
+        import subprocess
+        import sys
+
+        code = r"""
+import sys
+import jarvis_core.cli
+
+forbidden = (
+    "jarvis_core.services.speech",
+    "jarvis_core.services.listening",
+    "jarvis_core.services.av_devices",
+    "jarvis_core.services.speaker_verification",
+    "jarvis_core.services.wakeword",
+    "jarvis_core.services.voice_engine_v2",
+    "jarvis_core.services.voice_pipeline",
+    "jarvis_core.services.listening_watchdog",
+)
+
+loaded = [
+    name
+    for name in forbidden
+    if name in sys.modules
+]
+
+if loaded:
+    raise SystemExit(
+        "real voice modules loaded: " + ", ".join(loaded)
+    )
+"""
+
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(
+            result.returncode,
+            0,
+            msg=result.stdout + result.stderr,
+        )
+
     def test_help_hides_retired_audio_commands(self):
         text = help_text()
 

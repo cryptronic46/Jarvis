@@ -59,28 +59,12 @@
       "sha256": "25aba9b144129b19d2ca386760a3c11526f7f5423652b1d7dfe341c64247fa24"
     },
     {
-      "path": "AUDIT_0.27.8.md",
-      "sha256": "d655033b329f920aa931261825f0dca186d59510381a5177fcc45ec509ce7d27"
-    },
-    {
-      "path": "HOTFIX_0.27.8_PERFORMANCE_AUTONOMY_V11.md",
-      "sha256": "ea970944b6e03288976990f7907ff4548b2ec18f2f94c733aba4ecb572d723b9"
-    },
-    {
-      "path": "JARVIS_FUNCTIONAL_AUDIT.md",
-      "sha256": "fc50298fb32e96a3b885d9ddb9578f9b5f997f15f87e80d4e867781e3b5385dd"
-    },
-    {
-      "path": "JARVIS_REAL_MACHINE_ACCEPTANCE.md",
-      "sha256": "13ca207c8660fa5b020562eaa60f1b8ab42245b5a54cf939a3feaefcddf55fe1"
-    },
-    {
-      "path": "README.md",
-      "sha256": "3b059c771d97c7fe6ca11d9b68e20209f5578aade6d92899e31cad1c4b1eb185"
-    },
-    {
       "path": "acceptance_real_machine.ps1",
       "sha256": "59d023c4a6d984da5e7fefff3bb15513b41400f9842bb791c390b9a98823a2f5"
+    },
+    {
+      "path": "AUDIT_0.27.8.md",
+      "sha256": "d655033b329f920aa931261825f0dca186d59510381a5177fcc45ec509ce7d27"
     },
     {
       "path": "collect_voice_learning.ps1",
@@ -119,6 +103,10 @@
       "sha256": "428b6d3be1eb5949d8df146f21a39670f452a71cce689cf485eb640b35204b06"
     },
     {
+      "path": "HOTFIX_0.27.8_PERFORMANCE_AUTONOMY_V11.md",
+      "sha256": "ea970944b6e03288976990f7907ff4548b2ec18f2f94c733aba4ecb572d723b9"
+    },
+    {
       "path": "install_custom_wake_model.ps1",
       "sha256": "4e7554a079d1f54def931043e936840331af7359579a07e66bda252aa3c55081"
     },
@@ -132,7 +120,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "1617dbeb0ed5c4b026e43f0007a660437d91df4e5c1d17130ce0017551d52996"
+      "sha256": "8bcdbcc41bf269db0cda5bc4a1e2d3a5879848b186d4f2baecd3c20e5b13fb8c"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -249,6 +237,10 @@
     {
       "path": "jarvis_core/services/desktop_integration.py",
       "sha256": "08baa175e364191323d1c0bf014e4fa48778fbabacdd214a89d70088f2913fde"
+    },
+    {
+      "path": "jarvis_core/services/disabled_voice.py",
+      "sha256": "28433fd13b3981214c66ec8edfba6653a21468a7507cff2a0c33135e53847450"
     },
     {
       "path": "jarvis_core/services/file_index.py",
@@ -507,12 +499,24 @@
       "sha256": "7d2196db28de570b986a5988c5dc212702c5bad1c7924e62e0dc40d6344b8cff"
     },
     {
+      "path": "JARVIS_FUNCTIONAL_AUDIT.md",
+      "sha256": "fc50298fb32e96a3b885d9ddb9578f9b5f997f15f87e80d4e867781e3b5385dd"
+    },
+    {
+      "path": "JARVIS_REAL_MACHINE_ACCEPTANCE.md",
+      "sha256": "13ca207c8660fa5b020562eaa60f1b8ab42245b5a54cf939a3feaefcddf55fe1"
+    },
+    {
       "path": "migrate_state.ps1",
       "sha256": "5e6f3427ab7b681edfd6134009eb8e44e5fc400ed7f745b7937305157571bce9"
     },
     {
       "path": "migrate_to_g.ps1",
       "sha256": "3c5428d87055a868b96b8919f3626215e1753b76e21b38c3bc04577a0246a90a"
+    },
+    {
+      "path": "README.md",
+      "sha256": "3b059c771d97c7fe6ca11d9b68e20209f5578aade6d92899e31cad1c4b1eb185"
     },
     {
       "path": "repair_security_baseline.ps1",
@@ -980,7 +984,7 @@
     },
     {
       "path": "tests/test_local_voice_retired.py",
-      "sha256": "38551b040640dfaace66dd97c8739bed51dfa11d7b8d9ee41226876e054a85c2"
+      "sha256": "137288111735b85e439c9106818f4204eb581ccd8919baa4d21f8c853800fb68"
     },
     {
       "path": "tests/test_location_registry_contract.py",
