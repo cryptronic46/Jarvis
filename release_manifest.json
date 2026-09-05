@@ -128,7 +128,7 @@
     },
     {
       "path": "jarvis_core/core/brain.py",
-      "sha256": "5c9ac3f236a77ad6abb9c07169ae5f8e574d6fee7a628948c92fe7bfdbb9620d"
+      "sha256": "417c6ecad6389877a13608a05908709418d249f99b3ed36c1210dce6c8c33bdf"
     },
     {
       "path": "jarvis_core/core/cloud_brain.py",
@@ -348,11 +348,11 @@
     },
     {
       "path": "jarvis_core/services/semantic_intent.py",
-      "sha256": "9ebde6cf99250b561aed6a5fda9b3431103a245867dd5b4f6a7ec5cd4579cbab"
+      "sha256": "8c91a04c4f887cea7fbe85882aa51e5788b735867dcae5d2709555b05bd83cc1"
     },
     {
       "path": "jarvis_core/services/semantic_request.py",
-      "sha256": "8343c1fd8f5d97c2c98725db74a20f4107cbd059e457b5ce08f86b798ae52275"
+      "sha256": "bca05424d9e340efb1c20c7ae56e1eb1f7e6659f65b118ff91d1981750f67a28"
     },
     {
       "path": "jarvis_core/services/silence_latch.py",
@@ -1132,7 +1132,7 @@
     },
     {
       "path": "tests/test_preferred_tool_routing.py",
-      "sha256": "97916819ebda8304867ebaac9c22bd3f458c4f0ab49b8c83ebb2fced92ee8eac"
+      "sha256": "831a65eaff1d41026764312419dfb48484a838701271613813d520eed417f86f"
     },
     {
       "path": "tests/test_privacy_cloud_gate.py",
@@ -1252,7 +1252,7 @@
     },
     {
       "path": "tests/test_semantic_intent.py",
-      "sha256": "9dffc35dfe71e6258fc3231e77caf29f8c1e96d2d02a38ed71aff61e9fc4abbe"
+      "sha256": "a5867d583fd54cd3767017b6e4d82e960f46e69cb2209faf41bf84a445092594"
     },
     {
       "path": "tests/test_semantic_learning_gate.py",
@@ -1260,7 +1260,7 @@
     },
     {
       "path": "tests/test_semantic_request.py",
-      "sha256": "67eb044be7faf32608d1db8b95e0ffc8b5555c19ca1478d0469ebac62046be6f"
+      "sha256": "85d6e310972c1414d73f4308e3f0aabf1288d61546f026ea849890d39c1a9cb3"
     },
     {
       "path": "tests/test_semantic_request_transport.py",

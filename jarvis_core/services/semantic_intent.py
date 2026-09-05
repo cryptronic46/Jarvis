@@ -246,6 +246,14 @@ def resolve_semantic_request(text: str) -> StructuredRequest:
             target=target,
             requires_tool=True,
             preferred_tool=preferred_tool,
+            tool_arguments=(
+                {"app_name": target}
+                if (
+                    preferred_tool == "open_application"
+                    and target
+                )
+                else None
+            ),
             epistemic_learning_eligible=False,
             confidence=0.95,
         )

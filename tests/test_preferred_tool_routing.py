@@ -12,6 +12,14 @@ class _ProbeTools:
     def __init__(self):
         self.exact_calls = []
         self.query_calls = []
+        self.validation_calls = []
+        self.validation_result = (True, None)
+
+    def validate_arguments(self, name, arguments):
+        self.validation_calls.append(
+            (name, dict(arguments))
+        )
+        return self.validation_result
 
     def schemas_for_names(self, names, *, max_tools=20):
         self.exact_calls.append(
@@ -50,6 +58,7 @@ class PreferredToolRoutingTests(unittest.TestCase):
         *,
         requires_tool,
         preferred_tool=None,
+        tool_arguments=None,
     ):
         return StructuredRequest(
             raw_text="Abre o Spotify",
@@ -61,13 +70,17 @@ class PreferredToolRoutingTests(unittest.TestCase):
             target="spotify",
             requires_tool=requires_tool,
             preferred_tool=preferred_tool,
+            tool_arguments=tool_arguments,
             epistemic_learning_eligible=False,
             confidence=0.99,
         )
 
     def test_no_tool_request_exposes_no_tools(self):
         tools = _ProbeTools()
-        brain = SimpleNamespace(tools=tools)
+        brain = SimpleNamespace(
+            tools=tools,
+            events=_Events(),
+        )
 
         result = JarvisBrain._select_tool_schemas(
             brain,
@@ -84,13 +97,19 @@ class PreferredToolRoutingTests(unittest.TestCase):
 
     def test_preferred_tool_uses_exact_name_only(self):
         tools = _ProbeTools()
-        brain = SimpleNamespace(tools=tools)
+        brain = SimpleNamespace(
+            tools=tools,
+            events=_Events(),
+        )
 
         result = JarvisBrain._select_tool_schemas(
             brain,
             request=self._request(
                 requires_tool=True,
                 preferred_tool="open_application",
+                tool_arguments={
+                    "app_name": "spotify",
+                },
             ),
             effective_query="Abre o Spotify",
             max_tools=20,
@@ -106,9 +125,43 @@ class PreferredToolRoutingTests(unittest.TestCase):
             "open_application",
         )
 
+    def test_invalid_semantic_arguments_fail_closed(self):
+        tools = _ProbeTools()
+        tools.validation_result = (
+            False,
+            "required:$.app_name",
+        )
+
+        brain = SimpleNamespace(
+            tools=tools,
+            events=_Events(),
+        )
+
+        result = JarvisBrain._select_tool_schemas(
+            brain,
+            request=self._request(
+                requires_tool=True,
+                preferred_tool="open_application",
+                tool_arguments={},
+            ),
+            effective_query="Abre o Spotify",
+            max_tools=20,
+        )
+
+        self.assertEqual(result, [])
+        self.assertEqual(
+            tools.validation_calls,
+            [("open_application", {})],
+        )
+        self.assertEqual(tools.exact_calls, [])
+        self.assertEqual(tools.query_calls, [])
+
     def test_unresolved_tool_request_uses_query_fallback(self):
         tools = _ProbeTools()
-        brain = SimpleNamespace(tools=tools)
+        brain = SimpleNamespace(
+            tools=tools,
+            events=_Events(),
+        )
 
         result = JarvisBrain._select_tool_schemas(
             brain,

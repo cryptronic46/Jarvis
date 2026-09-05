@@ -65,16 +65,102 @@ class StructuredRequestTests(unittest.TestCase):
             domain="desktop",
             subject="SYSTEM",
             action="open",
-            target="Spotify",
+            target="spotify",
             requires_tool=True,
-            preferred_tool="open_app",
+            preferred_tool="open_application",
+            tool_arguments={"app_name": "spotify"},
             epistemic_learning_eligible=False,
             confidence=0.99,
         )
 
         self.assertTrue(request.operational)
         self.assertTrue(request.requires_tool)
-        self.assertEqual(request.preferred_tool, "open_app")
+        self.assertEqual(
+            request.preferred_tool,
+            "open_application",
+        )
+        self.assertEqual(
+            request.tool_arguments,
+            {"app_name": "spotify"},
+        )
+
+        data = request.as_dict()
+
+        self.assertEqual(
+            data["preferred_tool"],
+            "open_application",
+        )
+        self.assertEqual(
+            data["tool_arguments"],
+            {"app_name": "spotify"},
+        )
+
+    def test_tool_arguments_are_deeply_immutable(self):
+        request = StructuredRequest(
+            raw_text="Abre o Spotify",
+            effective_text="Abre o Spotify",
+            intent="OPERATIONAL_ACTION",
+            domain="desktop",
+            subject="SYSTEM",
+            action="open",
+            target="spotify",
+            requires_tool=True,
+            preferred_tool="open_application",
+            tool_arguments={
+                "app_name": "spotify",
+                "options": {
+                    "flags": ["safe"],
+                },
+            },
+            epistemic_learning_eligible=False,
+            confidence=0.99,
+        )
+
+        with self.assertRaises(TypeError):
+            request.tool_arguments[
+                "app_name"
+            ] = "notepad"
+
+        with self.assertRaises(TypeError):
+            request.tool_arguments[
+                "options"
+            ]["flags"] = ("unsafe",)
+
+        data = request.as_dict()
+
+        data["tool_arguments"][
+            "app_name"
+        ] = "notepad"
+
+        data["tool_arguments"][
+            "options"
+        ]["flags"].append("changed")
+
+        self.assertEqual(
+            request.tool_arguments["app_name"],
+            "spotify",
+        )
+        self.assertEqual(
+            tuple(
+                request.tool_arguments[
+                    "options"
+                ]["flags"]
+            ),
+            ("safe",),
+        )
+
+    def test_tool_arguments_require_preferred_tool(self):
+        with self.assertRaises(ValueError):
+            StructuredRequest(
+                raw_text="teste",
+                effective_text="teste",
+                intent="OPERATIONAL_ACTION",
+                domain="desktop",
+                subject="SYSTEM",
+                requires_tool=True,
+                tool_arguments={"app_name": "spotify"},
+                confidence=0.99,
+            )
 
     def test_invalid_closed_schema_value_is_rejected(self):
         with self.assertRaises(ValueError):

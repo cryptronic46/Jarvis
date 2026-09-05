@@ -1,4 +1,6 @@
 from __future__ import annotations
+from collections.abc import Mapping
+from types import MappingProxyType
 
 from dataclasses import dataclass
 
@@ -40,6 +42,60 @@ SUBJECTS = frozenset({
 })
 
 
+def _freeze_tool_value(value: object) -> object:
+    """Freeze JSON-like semantic tool arguments recursively."""
+
+    if isinstance(value, Mapping):
+        frozen: dict[str, object] = {}
+
+        for key, item in value.items():
+            if not isinstance(key, str):
+                raise TypeError(
+                    "tool_arguments keys must be strings"
+                )
+
+            frozen[key] = _freeze_tool_value(item)
+
+        return MappingProxyType(frozen)
+
+    if isinstance(value, list):
+        return tuple(
+            _freeze_tool_value(item)
+            for item in value
+        )
+
+    if (
+        value is None
+        or isinstance(
+            value,
+            (str, int, float, bool),
+        )
+    ):
+        return value
+
+    raise TypeError(
+        "tool_arguments values must be JSON-compatible"
+    )
+
+
+def _thaw_tool_value(value: object) -> object:
+    """Return a detached JSON-like copy of frozen arguments."""
+
+    if isinstance(value, Mapping):
+        return {
+            key: _thaw_tool_value(item)
+            for key, item in value.items()
+        }
+
+    if isinstance(value, tuple):
+        return [
+            _thaw_tool_value(item)
+            for item in value
+        ]
+
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class StructuredRequest:
     """
@@ -61,6 +117,7 @@ class StructuredRequest:
 
     requires_tool: bool = False
     preferred_tool: str | None = None
+    tool_arguments: Mapping[str, object] | None = None
 
     epistemic_learning_eligible: bool = False
     confidence: float = 0.0
@@ -93,8 +150,35 @@ class StructuredRequest:
             # preferred_tool is therefore optional even when execution is needed.
             pass
 
+        if (
+            self.tool_arguments is not None
+            and not isinstance(self.tool_arguments, Mapping)
+        ):
+            raise TypeError("tool_arguments must be a dict or None")
+
+        if (
+            self.tool_arguments is not None
+            and not self.preferred_tool
+        ):
+            raise ValueError(
+                "tool_arguments require preferred_tool"
+            )
+
+        tool_arguments = (
+            None
+            if self.tool_arguments is None
+            else _freeze_tool_value(
+                self.tool_arguments
+            )
+        )
+
         object.__setattr__(self, "raw_text", raw_text)
         object.__setattr__(self, "effective_text", effective_text)
+        object.__setattr__(
+            self,
+            "tool_arguments",
+            tool_arguments,
+        )
         object.__setattr__(self, "confidence", confidence)
 
     @property
@@ -126,6 +210,13 @@ class StructuredRequest:
             "referent": self.referent,
             "requires_tool": self.requires_tool,
             "preferred_tool": self.preferred_tool,
+            "tool_arguments": (
+                _thaw_tool_value(
+                    self.tool_arguments
+                )
+                if self.tool_arguments is not None
+                else None
+            ),
             "epistemic_learning_eligible": self.epistemic_learning_eligible,
             "confidence": self.confidence,
         }

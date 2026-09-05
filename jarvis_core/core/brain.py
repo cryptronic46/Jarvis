@@ -1942,6 +1942,26 @@ class JarvisBrain:
             request is not None
             and request.preferred_tool
         ):
+            arguments = (
+                request.as_dict().get("tool_arguments")
+                or {}
+            )
+
+            valid, reason = self.tools.validate_arguments(
+                request.preferred_tool,
+                arguments,
+            )
+
+            self.events.emit(
+                "SEMANTIC_TOOL_ARGUMENT_VALIDATION",
+                tool=request.preferred_tool,
+                valid=valid,
+                reason=reason,
+            )
+
+            if not valid:
+                return []
+
             return self.tools.schemas_for_names(
                 [request.preferred_tool],
                 max_tools=max_tools,
