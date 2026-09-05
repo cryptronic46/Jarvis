@@ -99,7 +99,10 @@ from jarvis_core.services.kali_bridge import (
     format_kali_scan,
 )
 from jarvis_core.services.companion_presence import CompanionPresenceService
-from jarvis_core.services.semantic_intent import resolve_semantic_request
+from jarvis_core.services.semantic_intent import (
+    local_pdf_library_sync_requested,
+    resolve_semantic_request,
+)
 from jarvis_core.services.synthetic_self import synthetic_self
 from jarvis_core.services.personal_cognition import (
     personal_cognition,
@@ -142,12 +145,8 @@ BANNER_TEMPLATE = """
 
 
 def local_pdf_library_learning_requested(text: str) -> bool:
-    value = str(text or "").casefold()
-    asks_to_learn = bool(re.search(r"\b(?:aprende|aprender|estuda|estudar|indexa|indexar)\b", value))
-    targets_pdfs = bool(re.search(r"\bpdfs?\b", value))
-    targets_collection = bool(re.search(r"\b(?:todos|todas|documentos|livros|biblioteca)\b", value))
-    external_source = bool(re.search(r"https?://|\b(?:web|internet|online)\b", value))
-    return asks_to_learn and targets_pdfs and targets_collection and not external_source
+    """Compatibility wrapper around the semantic PDF-library classifier."""
+    return local_pdf_library_sync_requested(text)
 
 
 VISIBLE_EVENTS = {
@@ -2584,13 +2583,6 @@ def main() -> None:
                     lower = text.lower()
                 else:
                     silence_latch.release(source="explicit_terminal_input")
-
-            if local_pdf_library_learning_requested(text):
-                result = read_tool("sync_book_library", {"force": False})
-                message = format_book_library_sync(result)
-                print(f"JARVIS >\n{message}")
-                speech.say(message)
-                continue
 
             direct_learning = parse_direct_external_learning_order(
                 text

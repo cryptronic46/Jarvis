@@ -120,7 +120,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "0094664980aec1159449d6790b1c363b5cadb4269edd1ff00305ab060a3c9c31"
+      "sha256": "ffe65407930c11fde6a0c1efe3a52a0ea03f2457ed348e236f7b3bb10b76bb31"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -352,7 +352,7 @@
     },
     {
       "path": "jarvis_core/services/semantic_intent.py",
-      "sha256": "6301540c206f9814bc1f36954fc36474628a26f93fa1ee03bd9bdd24a91e9c46"
+      "sha256": "f0eea332ed742441657414660106cba9c9ed5c643a6b0f7decc99525fd36efc2"
     },
     {
       "path": "jarvis_core/services/semantic_request.py",
@@ -876,7 +876,7 @@
     },
     {
       "path": "tests/test_direct_url_learning_cli_contract.py",
-      "sha256": "734f49160165d07256e0f0af427f63dd358501861d15a3ac28172514c08cef6f"
+      "sha256": "d54f92ce10d452bb889ba0f2505223a7534cad3c3bb58ce5de814ad8d6416583"
     },
     {
       "path": "tests/test_environment_tools.py",

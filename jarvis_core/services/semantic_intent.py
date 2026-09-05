@@ -201,6 +201,48 @@ def _subject_hint(
     return None
 
 
+def local_pdf_library_sync_requested(
+    text: str,
+) -> bool:
+    """Detect an explicit request to synchronize the local PDF library."""
+    value = str(text or "").casefold()
+
+    asks_to_learn = bool(
+        re.search(
+            r"\b(?:aprende|aprender|estuda|estudar|indexa|indexar)\b",
+            value,
+        )
+    )
+
+    targets_pdfs = bool(
+        re.search(
+            r"\bpdfs?\b",
+            value,
+        )
+    )
+
+    targets_collection = bool(
+        re.search(
+            r"\b(?:todos|todas|documentos|livros|biblioteca)\b",
+            value,
+        )
+    )
+
+    external_source = bool(
+        re.search(
+            r"https?://|\b(?:web|internet|online)\b",
+            value,
+        )
+    )
+
+    return (
+        asks_to_learn
+        and targets_pdfs
+        and targets_collection
+        and not external_source
+    )
+
+
 def resolve_semantic_request(
     text: str,
     *,
@@ -271,6 +313,24 @@ def resolve_semantic_request(
             requires_tool=True,
             preferred_tool="get_current_time",
             tool_arguments={},
+            epistemic_learning_eligible=False,
+            confidence=0.99,
+        )
+
+    if local_pdf_library_sync_requested(raw):
+        return StructuredRequest(
+            raw_text=raw,
+            effective_text=raw,
+            intent="OPERATIONAL_ACTION",
+            domain="knowledge",
+            subject="SYSTEM",
+            action="sync_library",
+            target="local_pdf_library",
+            requires_tool=True,
+            preferred_tool="sync_book_library",
+            tool_arguments={
+                "force": False,
+            },
             epistemic_learning_eligible=False,
             confidence=0.99,
         )

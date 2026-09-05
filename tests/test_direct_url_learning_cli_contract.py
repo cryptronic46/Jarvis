@@ -21,13 +21,98 @@ class DirectUrlLearningCliContractTests(unittest.TestCase):
     def setUpClass(cls):
         cls.text = Path("jarvis_core/cli.py").read_text(encoding="utf-8")
 
-    def test_direct_url_intent_is_intercepted_before_normal_model_routing(self):
+    def test_local_pdf_sync_no_longer_bypasses_semantic_routing(self):
         loop = self.text.index("while True:")
-        local_pdfs = self.text.index("if local_pdf_library_learning_requested(text):", loop)
-        direct = self.text.index("parse_direct_external_learning_order(", loop)
-        generic = self.text.index("process_request(", direct)
-        self.assertLess(local_pdfs, direct)
-        self.assertLess(direct, generic)
+        direct = self.text.index(
+            "parse_direct_external_learning_order(",
+            loop,
+        )
+        generic = self.text.index(
+            "process_request(",
+            direct,
+        )
+
+        pre_pipeline = self.text[
+            loop:generic
+        ]
+
+        self.assertNotIn(
+            'read_tool("sync_book_library"',
+            pre_pipeline,
+        )
+
+        self.assertNotIn(
+            "if local_pdf_library_learning_requested(text):",
+            pre_pipeline,
+        )
+
+        self.assertLess(
+            direct,
+            generic,
+        )
+
+    def test_local_pdf_sync_resolves_to_authoritative_tool(self):
+        from jarvis_core.services.semantic_intent import (
+            resolve_semantic_request,
+        )
+
+        cases = (
+            "Jarvis, aprende todos os PDFs da biblioteca.",
+            "Estuda todos os documentos PDF.",
+            "Indexa todos os PDFs.",
+        )
+
+        for text in cases:
+            with self.subTest(text=text):
+                request = resolve_semantic_request(
+                    text
+                )
+
+                self.assertEqual(
+                    request.intent,
+                    "OPERATIONAL_ACTION",
+                )
+
+                self.assertEqual(
+                    request.domain,
+                    "knowledge",
+                )
+
+                self.assertEqual(
+                    request.subject,
+                    "SYSTEM",
+                )
+
+                self.assertEqual(
+                    request.action,
+                    "sync_library",
+                )
+
+                self.assertEqual(
+                    request.target,
+                    "local_pdf_library",
+                )
+
+                self.assertTrue(
+                    request.requires_tool
+                )
+
+                self.assertEqual(
+                    request.preferred_tool,
+                    "sync_book_library",
+                )
+
+                self.assertEqual(
+                    request.tool_arguments,
+                    {
+                        "force": False,
+                    },
+                )
+
+                self.assertEqual(
+                    request.confidence,
+                    0.99,
+                )
 
     def test_learning_followup_clock_uses_imported_monotonic(self):
         self.assertNotIn('learning_followup_state["created_at"] = time()', self.text)
