@@ -11,12 +11,55 @@ class AcceptanceHotfixV5Tests(unittest.TestCase):
         self.assertIn("Remove-Item -LiteralPath $SettingsHelper", text)
         self.assertNotIn("& $Python -c $SettingsCode", text)
 
-    def test_direct_url_returns_local_synthesis_before_learning_note(self):
-        text = Path("jarvis_core/cli.py").read_text(encoding="utf-8")
-        self.assertIn('final_answer = str(result.text or "").strip()', text)
-        self.assertIn('print(f"\\nJARVIS > {final_answer}\\n")', text)
-        self.assertIn('speech.say(final_answer)', text)
-        self.assertIn('learning_note = (', text)
+    def test_direct_external_learning_exposes_local_synthesis_after_validated_store(self):
+        text = Path(
+            "jarvis_core/services/external_learning.py"
+        ).read_text(
+            encoding="utf-8"
+        )
+
+        start = text.index(
+            "def execute_authorized_external_learning("
+        )
+
+        block = text[
+            start:
+        ]
+
+        store = block.index(
+            "stored = authorized_learning().add("
+        )
+
+        rejection = block.index(
+            'not stored.get("ok")',
+            store,
+        )
+
+        summary = block.rindex(
+            '"summary": str('
+        )
+
+        self.assertLess(
+            store,
+            rejection,
+        )
+
+        self.assertLess(
+            rejection,
+            summary,
+        )
+
+        self.assertIn(
+            "result.text",
+            block[
+                summary:
+            ],
+        )
+
+        self.assertNotIn(
+            "cloud_brain.ask(",
+            block,
+        )
 
     def test_cli_has_no_literal_backslash_n_jarvis_wrappers(self):
         text = Path("jarvis_core/cli.py").read_text(encoding="utf-8")

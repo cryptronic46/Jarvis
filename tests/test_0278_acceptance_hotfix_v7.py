@@ -163,10 +163,27 @@ class AcceptanceHotfixV7Tests(unittest.TestCase):
             self.assertEqual(found["count"], 1)
             self.assertEqual(found["results"][0]["grounding_schema"], "source_claim_v2")
 
-    def test_cli_writes_grounded_direct_web_source_type(self):
-        text = Path("jarvis_core/cli.py").read_text(encoding="utf-8")
-        self.assertNotIn('source_type="authorized_direct_web_local_model_summary"', text)
-        self.assertGreaterEqual(text.count('source_type="authorized_direct_web_local_model_summary_v2"'), 2)
+    def test_external_learning_writes_grounded_web_source_types(self):
+        text = Path(
+            "jarvis_core/services/external_learning.py"
+        ).read_text(
+            encoding="utf-8"
+        )
+
+        self.assertNotIn(
+            '"authorized_direct_web_local_model_summary"',
+            text,
+        )
+
+        self.assertIn(
+            '"authorized_direct_web_local_model_summary_v2"',
+            text,
+        )
+
+        self.assertIn(
+            '"authorized_followup_url_local_model_summary_v2"',
+            text,
+        )
 
     def test_brain_research_prompt_forbids_internal_freshness_guessing(self):
         text = Path("jarvis_core/core/brain.py").read_text(encoding="utf-8")

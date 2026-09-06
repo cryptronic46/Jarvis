@@ -59,12 +59,28 @@
       "sha256": "25aba9b144129b19d2ca386760a3c11526f7f5423652b1d7dfe341c64247fa24"
     },
     {
-      "path": "acceptance_real_machine.ps1",
-      "sha256": "59d023c4a6d984da5e7fefff3bb15513b41400f9842bb791c390b9a98823a2f5"
-    },
-    {
       "path": "AUDIT_0.27.8.md",
       "sha256": "d655033b329f920aa931261825f0dca186d59510381a5177fcc45ec509ce7d27"
+    },
+    {
+      "path": "HOTFIX_0.27.8_PERFORMANCE_AUTONOMY_V11.md",
+      "sha256": "ea970944b6e03288976990f7907ff4548b2ec18f2f94c733aba4ecb572d723b9"
+    },
+    {
+      "path": "JARVIS_FUNCTIONAL_AUDIT.md",
+      "sha256": "fc50298fb32e96a3b885d9ddb9578f9b5f997f15f87e80d4e867781e3b5385dd"
+    },
+    {
+      "path": "JARVIS_REAL_MACHINE_ACCEPTANCE.md",
+      "sha256": "13ca207c8660fa5b020562eaa60f1b8ab42245b5a54cf939a3feaefcddf55fe1"
+    },
+    {
+      "path": "README.md",
+      "sha256": "3b059c771d97c7fe6ca11d9b68e20209f5578aade6d92899e31cad1c4b1eb185"
+    },
+    {
+      "path": "acceptance_real_machine.ps1",
+      "sha256": "59d023c4a6d984da5e7fefff3bb15513b41400f9842bb791c390b9a98823a2f5"
     },
     {
       "path": "collect_voice_learning.ps1",
@@ -103,10 +119,6 @@
       "sha256": "428b6d3be1eb5949d8df146f21a39670f452a71cce689cf485eb640b35204b06"
     },
     {
-      "path": "HOTFIX_0.27.8_PERFORMANCE_AUTONOMY_V11.md",
-      "sha256": "ea970944b6e03288976990f7907ff4548b2ec18f2f94c733aba4ecb572d723b9"
-    },
-    {
       "path": "install_custom_wake_model.ps1",
       "sha256": "4e7554a079d1f54def931043e936840331af7359579a07e66bda252aa3c55081"
     },
@@ -120,7 +132,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "ffe65407930c11fde6a0c1efe3a52a0ea03f2457ed348e236f7b3bb10b76bb31"
+      "sha256": "7b8c4e599109b1e8a1f75c22d7188acb764daec5b2e0d2e17efb5a7fd4f3d951"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -172,7 +184,7 @@
     },
     {
       "path": "jarvis_core/core/tool_registry.py",
-      "sha256": "c7f81280315f2a538665aa4e33a52eab4bc620b213abf99176f468c33f77385c"
+      "sha256": "e65a5c810d5fbb0450bdb103eeee71733760daf68eb8ed08525be1cb633b5c82"
     },
     {
       "path": "jarvis_core/security/__init__.py",
@@ -200,7 +212,7 @@
     },
     {
       "path": "jarvis_core/services/autonomy.py",
-      "sha256": "330567ba868317bfb8d63e831cc49013af71a7e5a5ea4c111a9c4b588e4c5f04"
+      "sha256": "1059b1cca10708b728e28e5c4d9fc5121ec0aa80140465d05e9044d8372914ae"
     },
     {
       "path": "jarvis_core/services/av_devices.py",
@@ -247,6 +259,10 @@
       "sha256": "28433fd13b3981214c66ec8edfba6653a21468a7507cff2a0c33135e53847450"
     },
     {
+      "path": "jarvis_core/services/external_learning.py",
+      "sha256": "e01a68ee91499a963fec27b51948b8416cdb65ad26797779388fa08d10fd28e3"
+    },
+    {
       "path": "jarvis_core/services/file_index.py",
       "sha256": "f4a382e8b2fb417479c465e55bb255534a851a2f96bacd7bae9c9062dc967f29"
     },
@@ -275,6 +291,10 @@
       "sha256": "e30b73e25fb484e28179b72480fa0abae323fc4b00d0ca37ab51df5b521474a0"
     },
     {
+      "path": "jarvis_core/services/learning_followup.py",
+      "sha256": "c73d8183a664420ddaf8117d7a7d02f5cb17a5dd43dcb1047730477f835d42ef"
+    },
+    {
       "path": "jarvis_core/services/learning_gap.py",
       "sha256": "bfdddf635ae4e18eac4f278bd4e187ca64db2dd4961052e29c631b539d25b6f3"
     },
@@ -288,7 +308,7 @@
     },
     {
       "path": "jarvis_core/services/local_research.py",
-      "sha256": "ad0a3cb5a48cdb27aeda7e43da2a957d4e21c25f2a07b4ed19c0e881026efe69"
+      "sha256": "f527cbd6a63e14347c3ac776a6a36f45082e66b5b4e4eb6c1133cf205a381d65"
     },
     {
       "path": "jarvis_core/services/network_inventory.py",
@@ -308,7 +328,7 @@
     },
     {
       "path": "jarvis_core/services/personal_cognition.py",
-      "sha256": "90e3f18a852b0446e5547c52a67a22ea0bba423052ca9548aec924203ed172a5"
+      "sha256": "0556b21cce5010136cd43fa4cd3f51cf2ed5715039edefe99e50f314446bf197"
     },
     {
       "path": "jarvis_core/services/presentation.py",
@@ -352,7 +372,7 @@
     },
     {
       "path": "jarvis_core/services/semantic_intent.py",
-      "sha256": "f0eea332ed742441657414660106cba9c9ed5c643a6b0f7decc99525fd36efc2"
+      "sha256": "3e08f5accb0e755d56ee62ae1b58c10fc761c97e8b5ee794df6cf9dac5ae6c17"
     },
     {
       "path": "jarvis_core/services/semantic_request.py",
@@ -511,24 +531,12 @@
       "sha256": "7d2196db28de570b986a5988c5dc212702c5bad1c7924e62e0dc40d6344b8cff"
     },
     {
-      "path": "JARVIS_FUNCTIONAL_AUDIT.md",
-      "sha256": "fc50298fb32e96a3b885d9ddb9578f9b5f997f15f87e80d4e867781e3b5385dd"
-    },
-    {
-      "path": "JARVIS_REAL_MACHINE_ACCEPTANCE.md",
-      "sha256": "13ca207c8660fa5b020562eaa60f1b8ab42245b5a54cf939a3feaefcddf55fe1"
-    },
-    {
       "path": "migrate_state.ps1",
       "sha256": "5e6f3427ab7b681edfd6134009eb8e44e5fc400ed7f745b7937305157571bce9"
     },
     {
       "path": "migrate_to_g.ps1",
       "sha256": "3c5428d87055a868b96b8919f3626215e1753b76e21b38c3bc04577a0246a90a"
-    },
-    {
-      "path": "README.md",
-      "sha256": "3b059c771d97c7fe6ca11d9b68e20209f5578aade6d92899e31cad1c4b1eb185"
     },
     {
       "path": "repair_security_baseline.ps1",
@@ -632,7 +640,7 @@
     },
     {
       "path": "tests/test_0278_acceptance_hotfix_v5.py",
-      "sha256": "3c4876dc03d4b46d4add2a2eb6cd0b7a7ef671136ae498b732dcbf53b94b6dc0"
+      "sha256": "2b994495a331e90a4af01506d6b0d315a102d15c9df0eb89f26a5079b42cf39b"
     },
     {
       "path": "tests/test_0278_acceptance_hotfix_v6.py",
@@ -640,7 +648,7 @@
     },
     {
       "path": "tests/test_0278_acceptance_hotfix_v7.py",
-      "sha256": "b7ea3e3dac7c14871451832c5bc0f8ec86cd4ee87e0851bdb6b24be77b3a3729"
+      "sha256": "f3e4f1a2331bd5e31210bd2c8962331f772d966dd22d82cf279c08bed75deed9"
     },
     {
       "path": "tests/test_0278_acceptance_hotfix_v9.py",
@@ -704,7 +712,7 @@
     },
     {
       "path": "tests/test_autonomy_guardian.py",
-      "sha256": "d49c23eee881df6ec7e030f89fe5e8bd78f1aa940a7f195c7e0f6964ee8b7f26"
+      "sha256": "852e79fb82af1eea1ddfc07bfd616b7ae7a23b99ca989eaef93ea1af312ba273"
     },
     {
       "path": "tests/test_bargein_v2_contract.py",
@@ -744,7 +752,7 @@
     },
     {
       "path": "tests/test_cloud_auth_retry_contract.py",
-      "sha256": "7da8cb30e0b16c11f760fc0971062e113a19951d6bc0756aa23d4d761c2a0f84"
+      "sha256": "3d685092fabbff19c63d78323944e529bda5dda112d74d9f071e09ea5412804a"
     },
     {
       "path": "tests/test_cloud_credential_diagnostics.py",
@@ -868,7 +876,7 @@
     },
     {
       "path": "tests/test_direct_learning_execution_contract.py",
-      "sha256": "aa2514779f40de76b6802750c3a2e3b9181de233de33d9566a1259e93ecbcdbe"
+      "sha256": "cff4de02a8068c59799d5a60855e65342f1f75fe77dd2dadaf4c5709b0e7af84"
     },
     {
       "path": "tests/test_direct_url_learning.py",
@@ -876,7 +884,7 @@
     },
     {
       "path": "tests/test_direct_url_learning_cli_contract.py",
-      "sha256": "d54f92ce10d452bb889ba0f2505223a7534cad3c3bb58ce5de814ad8d6416583"
+      "sha256": "af7bc3c729920737e4b53a998bf674f3495f0537b0b5295a28404ae0a0733620"
     },
     {
       "path": "tests/test_environment_tools.py",
@@ -889,6 +897,14 @@
     {
       "path": "tests/test_external_expert_privacy_0278.py",
       "sha256": "0244898240a40dd6048c95d8b5838f61d3ee660682a573b8ab30055c1eb91502"
+    },
+    {
+      "path": "tests/test_external_learning_approved_grant.py",
+      "sha256": "141427995c44bd88a4cf3e96789c90b4719dda6ceab91a6f39da4f3694304c7e"
+    },
+    {
+      "path": "tests/test_external_learning_semantic_authority.py",
+      "sha256": "ad40c68aed3dce5e4fdeb4bb07056d25d179a4ef7879ccfa8cef6ca2a588a141"
     },
     {
       "path": "tests/test_false_wake_hardening_0254.py",
@@ -967,12 +983,16 @@
       "sha256": "f93550da9f083a665f66d166e6a5ad9db6eba13683277fd9188eae6f3f4643d6"
     },
     {
+      "path": "tests/test_learning_followup_semantic_authority.py",
+      "sha256": "31fe88bc55798c2155a041feb40d12f4be1c18c8d1f7d16b000aedb727b08ee6"
+    },
+    {
       "path": "tests/test_learning_goal_permission_contract.py",
-      "sha256": "1f794dfb9e1e876ef51867db19c780f1c7309a487537ebb00c77be2223c3a51b"
+      "sha256": "a185ce103df1fa36e22a73ab9dbbdd37e3174be9deff11f9532bd1b7b8df9049"
     },
     {
       "path": "tests/test_learning_relevance_quarantine.py",
-      "sha256": "40f021715076c875b4dbfbfe22c299266d5c161ea5a61bb43d4152d75895eb1d"
+      "sha256": "0e9879402cb47b5851abe7d6a04f5db0844dfd0f1d2a3558a5b83756cf918c35"
     },
     {
       "path": "tests/test_listening_contract.py",
@@ -999,8 +1019,16 @@
       "sha256": "47558bf87dc7d78b05a2805d3346630f4fd4b910adfb9f2271c8bce5d9480140"
     },
     {
+      "path": "tests/test_local_learning_semantic_authority.py",
+      "sha256": "48d88311fd477a1b9c56b4f48d6bcce88ae3242b965ff8d2016ebea37312994c"
+    },
+    {
       "path": "tests/test_local_research_architecture.py",
       "sha256": "3d9b5f935d91a5c60b7cdfb6826ffe547cd4d95b53ef215c9a5fc5195ae4fc13"
+    },
+    {
+      "path": "tests/test_local_research_dns_pinning.py",
+      "sha256": "63b56b3ddbdbb591e0f00de83a4423235876f1bff16690119ea2c8113262a46b"
     },
     {
       "path": "tests/test_local_voice_retired.py",
@@ -1088,7 +1116,7 @@
     },
     {
       "path": "tests/test_owner_authority_python_0263.py",
-      "sha256": "e03f02a196ff16f6960368d3a82fd078bfae09b2270555b4c1ba9acaf89e7e5b"
+      "sha256": "e75c91d46ccd556cfad9a6f9e0ce1e3880ca3805bb11f19066b0064f0baade7f"
     },
     {
       "path": "tests/test_owner_wake_profile_0264.py",

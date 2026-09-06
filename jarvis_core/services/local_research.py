@@ -6,12 +6,13 @@ from ipaddress import ip_address
 from time import monotonic
 from typing import Any
 from urllib.parse import parse_qs, quote, quote_plus, unquote, urljoin, urlparse
-from urllib.request import Request, build_opener, HTTPRedirectHandler
+from urllib.request import Request, build_opener, HTTPRedirectHandler, HTTPHandler, HTTPSHandler, ProxyHandler
 from urllib.error import HTTPError, URLError
 from io import BytesIO
 import json
 import re
 import socket
+import http.client
 import unicodedata
 import xml.etree.ElementTree as ET
 
@@ -198,6 +199,136 @@ class _SafeRedirectHandler(HTTPRedirectHandler):
         target = urljoin(req.full_url, newurl)
         self._validator(target)
         return super().redirect_request(req, fp, code, msg, headers, target)
+
+
+
+def _pinned_connection_factory(
+    connection_class,
+    resolved_ips,
+):
+    pinned_ips = tuple(
+        str(value).strip()
+        for value in resolved_ips
+        if str(value).strip()
+    )
+
+    if not pinned_ips:
+        raise ValueError(
+            "NO_VALIDATED_PUBLIC_ADDRESS"
+        )
+
+    def factory(
+        host,
+        timeout=socket._GLOBAL_DEFAULT_TIMEOUT,
+        **kwargs,
+    ):
+        connection = connection_class(
+            host,
+            timeout=timeout,
+            **kwargs,
+        )
+
+        def create_connection(
+            address,
+            connection_timeout=socket._GLOBAL_DEFAULT_TIMEOUT,
+            source_address=None,
+        ):
+            port = int(
+                address[1]
+            )
+
+            last_error = None
+
+            for pinned_ip in pinned_ips:
+                try:
+                    return socket.create_connection(
+                        (
+                            pinned_ip,
+                            port,
+                        ),
+                        connection_timeout,
+                        source_address,
+                    )
+                except OSError as exc:
+                    last_error = exc
+
+            if last_error is not None:
+                raise last_error
+
+            raise OSError(
+                "NO_VALIDATED_PUBLIC_ADDRESS"
+            )
+
+        connection._create_connection = (
+            create_connection
+        )
+
+        connection._jarvis_pinned_ips = (
+            pinned_ips
+        )
+
+        return connection
+
+    return factory
+
+
+class _PinnedHTTPHandler(
+    HTTPHandler
+):
+    def __init__(
+        self,
+        resolver,
+    ):
+        super().__init__()
+        self._resolver = resolver
+
+    def http_open(
+        self,
+        req,
+    ):
+        _, resolved_ips = (
+            self._resolver(
+                req.full_url
+            )
+        )
+
+        return self.do_open(
+            _pinned_connection_factory(
+                http.client.HTTPConnection,
+                resolved_ips,
+            ),
+            req,
+        )
+
+
+class _PinnedHTTPSHandler(
+    HTTPSHandler
+):
+    def __init__(
+        self,
+        resolver,
+    ):
+        super().__init__()
+        self._resolver = resolver
+
+    def https_open(
+        self,
+        req,
+    ):
+        _, resolved_ips = (
+            self._resolver(
+                req.full_url
+            )
+        )
+
+        return self.do_open(
+            _pinned_connection_factory(
+                http.client.HTTPSConnection,
+                resolved_ips,
+            ),
+            req,
+            context=self._context,
+        )
 
 
 class LocalResearchEngine:
@@ -614,24 +745,84 @@ class LocalResearchEngine:
         return len(str(source.text or "").strip()) >= 80
 
     @staticmethod
-    def _validate_public_url(url: str) -> str:
-        parsed = urlparse(str(url or "").strip())
-        if parsed.scheme.lower() not in {"http", "https"}:
-            raise ValueError("UNSUPPORTED_URL_SCHEME")
-        if parsed.username or parsed.password:
-            raise ValueError("URL_CREDENTIALS_BLOCKED")
-        host = (parsed.hostname or "").strip().lower().rstrip(".")
-        if not host or host in {"localhost", "localhost.localdomain"}:
-            raise ValueError("LOCAL_TARGET_BLOCKED")
+    def _resolve_public_target(
+        url: str,
+    ) -> tuple[str, tuple[str, ...]]:
+        parsed = urlparse(
+            str(
+                url
+                or ""
+            ).strip()
+        )
+
+        if parsed.scheme.lower() not in {
+            "http",
+            "https",
+        }:
+            raise ValueError(
+                "UNSUPPORTED_URL_SCHEME"
+            )
+
+        if (
+            parsed.username
+            or parsed.password
+        ):
+            raise ValueError(
+                "URL_CREDENTIALS_BLOCKED"
+            )
+
+        host = (
+            parsed.hostname
+            or ""
+        ).strip().lower().rstrip(".")
+
+        if (
+            not host
+            or host in {
+                "localhost",
+                "localhost.localdomain",
+            }
+        ):
+            raise ValueError(
+                "LOCAL_TARGET_BLOCKED"
+            )
+
+        port = (
+            parsed.port
+            or (
+                443
+                if parsed.scheme.lower()
+                == "https"
+                else 80
+            )
+        )
 
         try:
-            infos = socket.getaddrinfo(host, parsed.port or (443 if parsed.scheme == "https" else 80), type=socket.SOCK_STREAM)
+            infos = socket.getaddrinfo(
+                host,
+                port,
+                type=socket.SOCK_STREAM,
+            )
         except socket.gaierror as exc:
-            raise ValueError("DNS_RESOLUTION_FAILED") from exc
+            raise ValueError(
+                "DNS_RESOLUTION_FAILED"
+            ) from exc
+
+        resolved = []
 
         for info in infos:
-            address = info[4][0].split("%", 1)[0]
-            ip = ip_address(address)
+            address = (
+                info[4][0]
+                .split(
+                    "%",
+                    1,
+                )[0]
+            )
+
+            ip = ip_address(
+                address
+            )
+
             if (
                 ip.is_private
                 or ip.is_loopback
@@ -640,49 +831,91 @@ class LocalResearchEngine:
                 or ip.is_reserved
                 or ip.is_unspecified
             ):
-                raise ValueError("PRIVATE_OR_LOCAL_TARGET_BLOCKED")
-        return parsed.geturl()
+                raise ValueError(
+                    "PRIVATE_OR_LOCAL_TARGET_BLOCKED"
+                )
+
+            normalized = str(ip)
+
+            if normalized not in resolved:
+                resolved.append(
+                    normalized
+                )
+
+        if not resolved:
+            raise ValueError(
+                "DNS_RESOLUTION_FAILED"
+            )
+
+        return (
+            parsed.geturl(),
+            tuple(resolved),
+        )
+
+    @staticmethod
+    def _validate_public_url(
+        url: str,
+    ) -> str:
+        safe, _ = (
+            LocalResearchEngine
+            ._resolve_public_target(
+                url
+            )
+        )
+
+        return safe
 
     def _get(self, url: str, *, max_bytes: int, timeout: float) -> tuple[bytes, str, str]:
-        safe = self._validate_public_url(url)
-        opener = build_opener(_SafeRedirectHandler(self._validate_public_url))
-        request = Request(
-            safe,
-            headers={
-                "User-Agent": f"JARVIS-Core/{__version__} (+local-research; no-external-ai)",
-                "Accept": "application/json,text/html,application/xhtml+xml,application/xml,text/plain;q=0.9,*/*;q=0.1",
-            },
-        )
-        with opener.open(request, timeout=timeout) as response:
-            content_type = _media_type(response.headers.get("Content-Type") or "")
-            final_url = str(response.geturl() or safe)
-            self._validate_public_url(final_url)
-            standard_limit = max(
-                64_000,
-                min(int(max_bytes), STANDARD_FETCH_HARD_LIMIT_BYTES),
+            safe = self._validate_public_url(url)
+            opener = build_opener(
+                ProxyHandler({}),
+                _SafeRedirectHandler(
+                    self._validate_public_url
+                ),
+                _PinnedHTTPHandler(
+                    self._resolve_public_target
+                ),
+                _PinnedHTTPSHandler(
+                    self._resolve_public_target
+                ),
             )
-            response_limit = (
-                max(standard_limit, JSON_FETCH_LIMIT_BYTES)
-                if _routes_as_json(content_type, final_url)
-                else standard_limit
+            request = Request(
+                safe,
+                headers={
+                    "User-Agent": f"JARVIS-Core/{__version__} (+local-research; no-external-ai)",
+                    "Accept": "application/json,text/html,application/xhtml+xml,application/xml,text/plain;q=0.9,*/*;q=0.1",
+                },
             )
-            length = response.headers.get("Content-Length")
-            try:
-                declared_length = int(length) if length else None
-            except (TypeError, ValueError):
-                declared_length = None
-            if declared_length is not None and declared_length > response_limit:
-                raise LocalResearchFetchError(
-                    "LOCAL_RESEARCH_RESPONSE_TOO_LARGE",
-                    f"Tamanho declarado {declared_length} excede o limite {response_limit}",
+            with opener.open(request, timeout=timeout) as response:
+                content_type = _media_type(response.headers.get("Content-Type") or "")
+                final_url = str(response.geturl() or safe)
+                self._validate_public_url(final_url)
+                standard_limit = max(
+                    64_000,
+                    min(int(max_bytes), STANDARD_FETCH_HARD_LIMIT_BYTES),
                 )
-            raw = response.read(response_limit + 1)
-            if len(raw) > response_limit:
-                raise LocalResearchFetchError(
-                    "LOCAL_RESEARCH_RESPONSE_TOO_LARGE",
-                    f"A resposta excede o limite {response_limit}",
+                response_limit = (
+                    max(standard_limit, JSON_FETCH_LIMIT_BYTES)
+                    if _routes_as_json(content_type, final_url)
+                    else standard_limit
                 )
-        return raw, content_type, final_url
+                length = response.headers.get("Content-Length")
+                try:
+                    declared_length = int(length) if length else None
+                except (TypeError, ValueError):
+                    declared_length = None
+                if declared_length is not None and declared_length > response_limit:
+                    raise LocalResearchFetchError(
+                        "LOCAL_RESEARCH_RESPONSE_TOO_LARGE",
+                        f"Tamanho declarado {declared_length} excede o limite {response_limit}",
+                    )
+                raw = response.read(response_limit + 1)
+                if len(raw) > response_limit:
+                    raise LocalResearchFetchError(
+                        "LOCAL_RESEARCH_RESPONSE_TOO_LARGE",
+                        f"A resposta excede o limite {response_limit}",
+                    )
+            return raw, content_type, final_url
 
     @staticmethod
     def _dedupe(results: list[ResearchSource], limit: int) -> list[ResearchSource]:

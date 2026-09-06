@@ -16,6 +16,9 @@ from jarvis_core.core.hybrid_brain import HybridBrain
 from jarvis_core.core.cloud_brain import CloudBrain
 from jarvis_core.security.policy import SecurityPolicy
 from jarvis_core.skills import SkillContext, SkillManager
+from jarvis_core.services.learning_followup import (
+    get_learning_followup_context,
+)
 from jarvis_core.services.telemetry import TelemetryService
 from jarvis_core.services.desktop_integration import DesktopIntegrationService
 from jarvis_core.services.disabled_voice import (
@@ -122,9 +125,9 @@ from jarvis_core.services.autonomy import (
     AutonomyGuardian,
     authorized_learning,
     set_autonomy_guardian,
-    parse_direct_external_learning_order,
-    parse_learning_goal,
-    parse_local_teaching_statement,
+)
+from jarvis_core.services.external_learning import (
+    configure_external_learning_runtime,
 )
 from jarvis_core.tools.security_audit import (
     format_security_overview,
@@ -664,15 +667,42 @@ def route_runtime_request(
     Persistence, cognition, performance accounting, voice lifecycle,
     and other runtime side effects remain owned by main().
     """
-    (
-        semantic_recent_turns,
-        semantic_app_aliases,
-    ) = semantic_context_inputs()
+    semantic_inputs = tuple(
+        semantic_context_inputs()
+    )
+
+    if len(
+        semantic_inputs
+    ) == 2:
+        (
+            semantic_recent_turns,
+            semantic_app_aliases,
+        ) = semantic_inputs
+
+        semantic_learning_followup = None
+
+    elif len(
+        semantic_inputs
+    ) == 3:
+        (
+            semantic_recent_turns,
+            semantic_app_aliases,
+            semantic_learning_followup,
+        ) = semantic_inputs
+
+    else:
+        raise ValueError(
+            "semantic_context_inputs must return "
+            "2 or 3 values"
+        )
 
     structured_request = resolve_semantic_request(
         user_text,
         recent_turns=semantic_recent_turns,
         app_aliases=semantic_app_aliases,
+        learning_followup=(
+            semantic_learning_followup
+        ),
     )
 
     events.emit(
@@ -962,6 +992,10 @@ def main() -> None:
     # object only; HybridBrain must never route execution to it.
     cloud_brain = CloudBrain(settings, events, tools)
     research_engine = LocalResearchEngine(settings, events, brain)
+    configure_external_learning_runtime(
+        research_engine,
+        events,
+    )
 
     skill_context = SkillContext(
         settings=settings,
@@ -1024,7 +1058,6 @@ def main() -> None:
 
     wake_holder = {"service": None}
     wake_followup_state = {"pending": False}
-    learning_followup_state = {"topic": "", "created_at": 0.0}
 
     def read_tool(name: str, arguments: dict | None = None):
         raw = tools.execute(name, arguments or {})
@@ -1098,7 +1131,26 @@ def main() -> None:
                 error=f"{type(exc).__name__}: {exc}",
             )
 
-        return recent_turns, app_aliases
+        learning_followup = None
+
+    try:
+        learning_followup = (
+            get_learning_followup_context(
+                max_age_seconds=300.0
+            )
+        )
+    except Exception as exc:
+        learning_followup = None
+        events.emit(
+            "SEMANTIC_LEARNING_FOLLOWUP_READ_ERROR",
+            error=f"{type(exc).__name__}: {exc}",
+        )
+
+    return (
+        recent_turns,
+        app_aliases,
+        learning_followup,
+    )
 
 
     def process_request(user_text: str, *, source: str = "terminal"):
@@ -1905,6 +1957,8 @@ def main() -> None:
                     "topic": topic,
                     "query": query,
                     "deep": False,
+                    "scope":
+                        "single_research_session",
                 },
                 reason=reason,
                 description=(
@@ -2037,308 +2091,6 @@ def main() -> None:
         skills.start_all()
 
 
-    def queue_external_learning_retry(
-        *,
-        payload: dict,
-        topic: str,
-        error: str | None,
-    ) -> None:
-        failure = str(error or "").strip() or "RESEARCH_FAILED"
-        reason_map = {
-            "RESEARCH_UNAVAILABLE": "direct_research_unavailable_before_learning",
-            "SEARCH_FAILED": "web_search_failed_before_learning",
-            "SEARCH_RESULTS_IRRELEVANT": "web_search_irrelevant_before_learning",
-            "FETCH_FAILED": "web_fetch_failed_before_learning",
-            "FETCHED_SOURCES_IRRELEVANT": "web_sources_irrelevant_before_learning",
-            "LOCAL_SYNTHESIS_FAILED": "local_synthesis_failed_before_learning",
-            "LOCAL_SYNTHESIS_RELEVANCE_REJECTED": "local_synthesis_relevance_rejected_before_learning",
-            "LEARNING_TOPIC_MISMATCH": "learning_store_topic_mismatch",
-            "DIRECT_URL_FETCH_FAILED": "direct_url_fetch_failed_before_learning",
-            "DIRECT_URL_TOPIC_MISMATCH": "direct_url_topic_mismatch_before_learning",
-            "DIRECT_URL_BLOCKED": "direct_url_blocked_before_learning",
-        }
-        reason = reason_map.get(failure, "external_research_failed_before_learning")
-
-        retry = autonomy.request(
-            capability="external_learning",
-            payload=payload,
-            reason=reason,
-            description=(
-                "repetir a mesma sessão de aprendizagem externa sobre "
-                f"{topic[:220]} depois de resolver a falha de pesquisa local/web"
-            ),
-            action=(
-                "external_learning_resume_query"
-                if str(payload.get("original_query") or "").strip()
-                else "external_learning"
-            ),
-            source="local_research_retry",
-        )
-        if retry.get("pending"):
-            if failure in {"SEARCH_RESULTS_IRRELEVANT", "FETCHED_SOURCES_IRRELEVANT"}:
-                guidance = "Depois de existirem fontes públicas relevantes para o tópico"
-            elif failure in {"LOCAL_SYNTHESIS_RELEVANCE_REJECTED", "LEARNING_TOPIC_MISMATCH"}:
-                guidance = "Depois de obter uma síntese local que corresponda ao tópico autorizado"
-            elif failure in {"RESEARCH_UNAVAILABLE", "SEARCH_FAILED", "FETCH_FAILED", "DIRECT_URL_FETCH_FAILED"}:
-                guidance = "Depois de a pesquisa direta/local voltar a estar disponível"
-            elif failure in {"DIRECT_URL_TOPIC_MISMATCH", "DIRECT_URL_BLOCKED"}:
-                guidance = "Depois de o URL autorizado passar a validação segura e corresponder ao tópico"
-            else:
-                guidance = "Depois de resolver a falha de síntese local"
-            print(
-                "JARVIS > A aprendizagem não foi concluída. "
-                f"{guidance}, esta ação exata ficou novamente pendente: "
-                f"/authorize {retry.get('token')}."
-            )
-
-    def execute_direct_external_learning(
-        intent: dict,
-        *,
-        source_text: str,
-    ) -> None:
-        topic = str(
-            intent.get("topic")
-            or ""
-        ).strip()
-        query = str(
-            intent.get("query")
-            or ""
-        ).strip()
-        source_url = str(
-            intent.get("source_url")
-            or ""
-        ).strip()
-
-        if not topic or not query:
-            print(
-                "JARVIS > Não consegui determinar o âmbito exato "
-                "da aprendizagem autorizada. Não vou pesquisar."
-            )
-            return
-
-        if not research_engine.available():
-            print(
-                "JARVIS > Recebi a sua autorização, mas a pesquisa direta na Internet "
-                "está indisponível ou bloqueada pelo modo de privacidade. Não executei a pesquisa."
-            )
-            return
-
-        payload = {
-            "topic": topic,
-            "query": query,
-            "deep": bool(
-                intent.get("deep", True)
-            ),
-            "scope": "single_research_session",
-            "source_url": source_url or None,
-        }
-        using_standing = bool(intent.get("standing_public_web_read_only")) or autonomy.has_standing_public_web_learning()
-        if using_standing:
-            if not autonomy.has_standing_public_web_learning():
-                print(
-                    "JARVIS > A permissão persistente de pesquisa pública não está ativa. "
-                    "Não iniciei a pesquisa externa."
-                )
-                return
-            authorization = {"ok": True, "authorized": True, "standing": True}
-        else:
-            authorization = autonomy.record_direct_authorization(
-                capability="external_learning",
-                payload=payload,
-                description=(
-                    "pesquisar e aprender externamente sobre "
-                    f"{topic[:220]}"
-                ),
-                source_text=source_text,
-            )
-            if not authorization.get("ok"):
-                print(
-                    "JARVIS > Não consegui registar a autorização. "
-                    "A pesquisa não foi executada."
-                )
-                return
-
-            if bool(intent.get("standing_public_web_read_only_grant")):
-                standing_result = autonomy.grant_standing_public_web_learning(source_text)
-                if standing_result.get("ok"):
-                    events.emit(
-                        "OWNER_STANDING_PUBLIC_WEB_LEARNING_GRANTED",
-                        scope="public_web_read_only_learning",
-                    )
-
-        if source_url:
-            print(
-                ("JARVIS > Permissão persistente de pesquisa pública ativa. " if using_standing else "JARVIS > Autorização direta reconhecida. ")
-                + f"Vou estudar o URL indicado sobre {topic} numa sessão limitada e segura. "
-                + (
-                    "A permissão persistente mantém-se ativa; esta execução limita-se ao conteúdo público do pedido atual. "
-                    if using_standing
-                    else "Esta autorização direta vale apenas para esta execução. "
-                )
-                + "Não executo downloads arbitrários, comandos, ações autenticadas ou acesso a alvos locais/privados."
-            )
-            result = research_engine.research_url(
-                source_url,
-                query=query,
-                topic=topic,
-                deep=bool(intent.get("deep", True)),
-            )
-        else:
-            print(
-                ("JARVIS > Permissão persistente de pesquisa pública ativa. " if using_standing else "JARVIS > Autorização direta reconhecida. ")
-                + f"Vou fazer uma sessão de pesquisa sobre {topic}. "
-                + (
-                    "A permissão persistente mantém-se ativa; a execução atual é apenas leitura pública."
-                    if using_standing
-                    else "Esta autorização direta vale apenas para esta execução de leitura pública."
-                )
-            )
-            result = research_engine.research(
-                query,
-                topic=topic,
-                deep=bool(intent.get("deep", True)),
-                search_query=topic,
-            )
-        if not result.ok:
-            print(
-                f"JARVIS > {result.text}"
-            )
-            if using_standing:
-                reason_code = str(result.reason_code or result.error or "UNKNOWN")
-                print(
-                    "JARVIS > A permissão persistente continua válida. "
-                    f"Esta execução terminou sem aprendizagem (motivo: {reason_code}) e não criou uma nova autorização pendente."
-                )
-            else:
-                queue_external_learning_retry(
-                    payload=payload,
-                    topic=topic,
-                    error=result.error,
-                )
-            return
-
-        stored = authorized_learning().add(
-            topic=topic,
-            query=query,
-            summary=result.text,
-            model=result.model,
-            authorization_token=("STANDING" if using_standing else "DIRECT"),
-            sources=result.sources or [],
-            source_type="authorized_direct_web_local_model_summary_v2",
-        )
-        if not stored.get("ok") or not stored.get("stored"):
-            print(
-                "JARVIS > A síntese obtida não passou a validação final do tópico. "
-                "Não guardei esta aprendizagem."
-            )
-            if using_standing:
-                print(
-                    "JARVIS > A permissão persistente continua válida; esta falha de validação "
-                    "não cria uma nova autorização pendente."
-                )
-            else:
-                queue_external_learning_retry(
-                    payload=payload,
-                    topic=topic,
-                    error=str(stored.get("error") or "LEARNING_STORE_REJECTED"),
-                )
-            return
-        events.emit(
-            "DIRECT_AUTHORIZED_EXTERNAL_LEARNING_STORED",
-            topic=topic,
-            stored=stored,
-        )
-
-        learning_note = (
-            f"Aprendizagem sobre {topic} guardada localmente. "
-            + (
-                "A permissão persistente de pesquisa pública continua ativa."
-                if using_standing
-                else "A autorização desta sessão foi consumida."
-            )
-        )
-        final_answer = str(result.text or "").strip()
-        if final_answer:
-            print(f"\nJARVIS > {final_answer}\n")
-            print(f"JARVIS > {learning_note}")
-            speech.say(final_answer)
-        else:
-            print(f"\nJARVIS > {learning_note}\n")
-            speech.say(learning_note)
-
-    def request_external_learning_for_goal(
-        intent: dict,
-        *,
-        source_text: str,
-    ) -> None:
-        """Register a local learning objective; never infer Web authority.
-
-        A sentence such as "quero que aprendas comportamento humano" says
-        what JARVIS should learn.  It is not a Web instruction, and an old
-        standing Web permission must not turn it into one.
-        """
-        topic = str(intent.get("topic") or "").strip()
-        if not topic:
-            return
-
-        local_teaching = parse_local_teaching_statement(source_text)
-        if local_teaching is not None:
-            statement = str(local_teaching.get("statement") or "").strip()
-            recorded = cognition.record_local_teaching(statement, source_text=source_text)
-            if recorded.get("ok"):
-                message = (
-                    "Senhor, aprendi essa informação na nossa conversa e guardei-a "
-                    "localmente, separada de fontes Web/PDF verificadas. Não usei a Internet."
-                )
-            else:
-                reason = str(recorded.get("reason_code") or "LOCAL_TEACHING_REJECTED")
-                message = (
-                    "Senhor, não guardei essa informação na aprendizagem conversacional "
-                    f"(motivo: {reason}). Não usei a Internet."
-                )
-            events.emit(
-                "LOCAL_CONVERSATION_TEACHING_RECORDED",
-                stored=bool(recorded.get("stored")),
-                reason_code=str(recorded.get("reason_code") or "OK"),
-                web_used=False,
-            )
-            persistent_context.record(
-                source_text,
-                message,
-                "LOCAL/local_conversation_teaching",
-            )
-            print(f"JARVIS > {message}")
-            speech.say(message)
-            return
-
-        recorded = cognition.record_jarvis_learning_goal(
-            topic,
-            source_text=source_text,
-        )
-        if not recorded.get("ok"):
-            message = (
-                "Senhor, percebi que isso é um objetivo de aprendizagem meu, "
-                "mas não consegui registá-lo localmente. Não usei a Internet."
-            )
-        else:
-            learning_followup_state["topic"] = topic
-            learning_followup_state["created_at"] = monotonic()
-            message = (
-                f"Senhor, registei {topic} como um objetivo de aprendizagem meu. "
-                "Não usei a Internet e uma permissão Web anterior não autoriza "
-                "pesquisa automática neste pedido. Posso usar o conhecimento local "
-                "que já tenho; só farei pesquisa pública quando me pedir explicitamente "
-                "para pesquisar, estudar na Web/Internet ou indicar um URL."
-            )
-        events.emit(
-            "LOCAL_LEARNING_GOAL_RECORDED",
-            topic=topic[:220],
-            stored=bool(recorded.get("stored")),
-            web_used=False,
-        )
-        print(f"JARVIS > {message}")
-        speech.say(message)
-
     def execute_owner_authorization(
         token: str,
     ) -> None:
@@ -2425,114 +2177,143 @@ def main() -> None:
             return
 
         if action in {"external_learning", "external_learning_resume_query"}:
-            # Consume the exact one-shot grant before making the external call.
-            gate = autonomy.request(
-                capability="external_learning",
-                payload=payload,
-                reason="owner_authorized_learning",
-                description=(
-                    "executar a pesquisa externa previamente autorizada"
-                ),
-                action="external_learning",
-                source="authorization_executor",
-            )
-            if not gate.get("allowed"):
-                print(
-                    "JARVIS > Não consegui consumir a autorização exata. "
-                    "A pesquisa não será feita."
-                )
-                return
-
             topic = str(
                 payload.get("topic")
                 or ""
             ).strip()
+
             query = str(
                 payload.get("query")
                 or ""
             ).strip()
+
             source_url = str(
                 payload.get("source_url")
                 or ""
             ).strip()
+
             if not topic or not query:
-                return
-
-            if source_url:
-                result = research_engine.research_url(
-                    source_url,
-                    query=query,
-                    topic=topic,
-                    deep=bool(payload.get("deep")),
-                )
-            else:
-                result = research_engine.research(
-                    query,
-                    topic=topic,
-                    deep=bool(payload.get("deep")),
-                    search_query=topic,
-                )
-            if not result.ok:
                 print(
-                    f"JARVIS > {result.text}"
-                )
-                queue_external_learning_retry(
-                    payload=payload,
-                    topic=topic,
-                    error=result.error,
+                    "JARVIS > A autorizacao aprovada nao contem um "
+                    "escopo de aprendizagem externa valido."
                 )
                 return
 
-            stored = authorized_learning().add(
-                topic=topic,
-                query=query,
-                summary=result.text,
-                model=result.model,
-                authorization_token=str(
+            tool_arguments = {
+                "topic": topic,
+                "query": query,
+                "source_text": "",
+                "deep": bool(
+                    payload.get("deep")
+                ),
+                "scope": str(
+                    payload.get("scope")
+                    or "single_research_session"
+                ),
+                "source_url": source_url,
+                "standing_public_web_read_only_grant":
+                    False,
+                "authority_mode":
+                    "approved_grant",
+                "authorization_token": str(
                     grant.get("token")
                     or token
-                ),
-                sources=result.sources or [],
-                source_type="authorized_direct_web_local_model_summary_v2",
-            )
-            if not stored.get("ok") or not stored.get("stored"):
-                print(
-                    "JARVIS > A síntese obtida não passou a validação final do tópico. "
-                    "Não guardei esta aprendizagem."
-                )
-                queue_external_learning_retry(
-                    payload=payload,
-                    topic=topic,
-                    error=str(stored.get("error") or "LEARNING_STORE_REJECTED"),
-                )
-                return
-            message = (
-                "Aprendizagem externa autorizada concluída e guardada "
-                f"localmente sobre: {topic}. "
-                "O registo é identificado como síntese produzida pelo Qwen local a partir de fontes web públicas, "
-                "não como prova primária."
-            )
-            print(
-                f"\nJARVIS > {message}\n"
-            )
-            speech.say(message)
-            events.emit(
-                "AUTHORIZED_EXTERNAL_LEARNING_STORED",
-                topic=topic,
-                stored=stored,
+                ).strip().upper(),
+                "authorization_action":
+                    action,
+                "authorized_payload":
+                    dict(payload),
+            }
+
+            raw_result = tools.execute(
+                "execute_authorized_external_learning",
+                tool_arguments,
+                bypass_confirmation=True,
+                bypass_profile_permission=True,
             )
 
-            if action == "external_learning_resume_query":
-                original_query = str(payload.get("original_query") or "").strip()
+            try:
+                result = json.loads(
+                    raw_result
+                )
+            except Exception:
+                result = {
+                    "ok": False,
+                    "error":
+                        "INVALID_EXTERNAL_LEARNING_TOOL_RESULT",
+                    "raw": raw_result,
+                }
+
+            if not result.get("ok"):
+                print(
+                    "JARVIS >",
+                    json.dumps(
+                        result,
+                        ensure_ascii=False,
+                        indent=2,
+                    ),
+                )
+                return
+
+            summary = str(
+                result.get("summary")
+                or ""
+            ).strip()
+
+            message = (
+                "Aprendizagem externa autorizada concluida e "
+                "guardada localmente sobre: "
+                f"{topic}. "
+                "A execucao passou pelo ToolRegistry e consumiu "
+                "o grant exato aprovado pelo OWNER."
+            )
+
+            if summary:
+                print(
+                    f"\nJARVIS > {summary}\n"
+                )
+
+            print(
+                f"JARVIS > {message}"
+            )
+            speech.say(message)
+
+            if (
+                action
+                == "external_learning_resume_query"
+            ):
+                original_query = str(
+                    payload.get(
+                        "original_query"
+                    )
+                    or ""
+                ).strip()
+
                 if original_query:
                     print(
-                        "JARVIS > Estudo local atualizado. Vou tentar novamente o pedido original "
-                        "usando o conhecimento que acabei de validar."
+                        "JARVIS > Estudo local atualizado. "
+                        "Vou tentar novamente o pedido original "
+                        "usando o conhecimento validado."
                     )
+
                     with command_lock:
-                        answer, route, command_ms, hybrid = process_request(original_query)
-                        print(f"\nJARVIS > {answer}\n")
-                        speech.say(answer)
+                        (
+                            answer,
+                            route,
+                            command_ms,
+                            hybrid,
+                        ) = process_request(
+                            original_query
+                        )
+
+                        print(
+                            f"\nJARVIS > {answer}\n"
+                        )
+
+                        speech.say(
+                            answer
+                        )
+
             return
 
         if action == "cloud_reasoning":
@@ -2583,49 +2364,6 @@ def main() -> None:
                     lower = text.lower()
                 else:
                     silence_latch.release(source="explicit_terminal_input")
-
-            direct_learning = parse_direct_external_learning_order(
-                text
-            )
-            if (
-                direct_learning is None
-                and learning_followup_state.get("topic")
-                and monotonic() - float(learning_followup_state.get("created_at") or 0.0) <= 300.0
-            ):
-                url_match = re.search(r"(?i)https?://[^\s<>\"']+", text)
-                url_only = bool(url_match) and not re.search(r"(?i)\b(?:aprende|estuda|pesquisa|consulta|visita|investiga)\b", text)
-                if url_only:
-                    source_url = url_match.group(0).rstrip(").,;!?]}")
-                    topic = str(learning_followup_state.get("topic") or "").strip()
-                    direct_learning = {
-                        "kind": "direct_external_learning",
-                        "topic": topic,
-                        "query": f"Estuda a fonte indicada para o objetivo de aprendizagem sobre {topic}.",
-                        "deep": True,
-                        "scope": "single_research_session",
-                        "direct_user_authority": True,
-                        "source_url": source_url,
-                        "followup_bound": True,
-                    }
-            if direct_learning is not None:
-                execute_direct_external_learning(
-                    direct_learning,
-                    source_text=text,
-                )
-                if direct_learning.get("followup_bound"):
-                    learning_followup_state["topic"] = ""
-                    learning_followup_state["created_at"] = 0.0
-                continue
-
-            learning_goal = parse_learning_goal(
-                text
-            )
-            if learning_goal is not None:
-                request_external_learning_for_goal(
-                    learning_goal,
-                    source_text=text,
-                )
-                continue
 
             if is_silence_command(text):
                 speech.stop(clear_queue=True)

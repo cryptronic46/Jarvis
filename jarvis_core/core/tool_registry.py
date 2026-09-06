@@ -8,6 +8,9 @@ import re
 
 from jarvis_core.core.events import EventBus
 from jarvis_core.security.policy import SecurityPolicy, RiskLevel
+from jarvis_core.services.learning_followup import (
+    record_jarvis_learning_goal,
+)
 from jarvis_core.services.telemetry import TelemetryService
 from jarvis_core.tools.system_tools import get_current_time, get_system_status, list_top_processes
 from jarvis_core.tools.location_tools import get_configured_location, get_precise_location
@@ -89,6 +92,7 @@ from jarvis_core.services.personal_cognition import (
     reflect_personal_context,
     get_last_proactive_reason,
     set_personal_cognition_mode,
+    record_local_teaching,
 )
 from jarvis_core.services.synthetic_self import get_synthetic_self_state
 from jarvis_core.services.windows_block_audit import (
@@ -101,6 +105,9 @@ from jarvis_core.services.autonomy import (
     get_authorized_learning_status,
     list_quarantined_learning,
     autonomy_guardian,
+)
+from jarvis_core.services.external_learning import (
+    execute_authorized_external_learning,
 )
 from jarvis_core.tools.dashboard_tools import get_dashboard_snapshot
 from jarvis_core.tools.windows_actions import (
@@ -830,6 +837,68 @@ class ToolRegistry:
             RiskLevel.READ_ONLY,
         ))
         self._register(ToolDef(
+            "execute_authorized_external_learning",
+            "Execute one bounded external-learning session from exact OWNER current-turn authority, one exact live follow-up URL context, or an exact approved OWNER grant.",
+            execute_authorized_external_learning,
+            {"type":"function","function":{
+                "name":"execute_authorized_external_learning",
+                "description":"Research public sources and store a validated local learning summary only from exact current-turn OWNER authority, one exact live follow-up URL context, or an exact token-bound approved grant.",
+                "parameters":{"type":"object","properties":{
+                    "topic":{"type":"string"},
+                    "query":{"type":"string"},
+                    "source_text":{"type":"string"},
+                    "deep":{"type":"boolean"},
+                    "scope":{
+                        "type":"string",
+                        "enum":["single_research_session"]
+                    },
+                    "source_url":{"type":"string"},
+                    "standing_public_web_read_only_grant":{
+                        "type":"boolean"
+                    },
+                    "authority_mode":{
+                        "type":"string",
+                        "enum":[
+"current_turn",
+"approved_grant",
+"followup_url"
+]
+                    },
+                    "authorization_token":{
+                        "type":"string"
+                    },
+                    "authorization_action":{
+                        "type":"string",
+                        "enum":[
+                            "external_learning",
+                            "external_learning_resume_query"
+                        ]
+                    },
+                    "authorized_payload":{
+                        "type":"object"
+                    }
+                },"required":[
+                    "topic",
+                    "query",
+                    "source_text",
+                    "deep",
+                    "scope",
+                    "source_url",
+                    "standing_public_web_read_only_grant"
+                ]}
+            }},
+            RiskLevel.LOW,
+            keywords=(
+                "aprende",
+                "aprender",
+                "estuda",
+                "estudar",
+                "internet",
+                "web",
+            ),
+        ))
+
+        self._register(ToolDef(
             "search_authorized_learning",
             "Search the local journal of web research explicitly authorized by the owner.",
             search_authorized_learning,
@@ -881,6 +950,42 @@ class ToolRegistry:
                 }}
             }},
             RiskLevel.READ_ONLY,
+        ))
+
+        self._register(ToolDef(
+            "record_jarvis_learning_goal",
+            "Record one explicit OWNER learning objective locally without granting Web access.",
+            record_jarvis_learning_goal,
+            {"type":"function","function":{
+                "name":"record_jarvis_learning_goal",
+                "description":"Store an exact OWNER learning objective locally. This never grants or performs Web access.",
+                "parameters":{"type":"object","properties":{
+                    "topic":{"type":"string"},
+                    "source_text":{"type":"string"}
+                },"required":[
+                    "topic",
+                    "source_text"
+                ]}
+            }},
+            RiskLevel.LOW,
+        ))
+
+        self._register(ToolDef(
+            "record_local_teaching",
+            "Store explicit OWNER-taught conversational knowledge locally after cognition validation.",
+            record_local_teaching,
+            {"type":"function","function":{
+                "name":"record_local_teaching",
+                "description":"Store exact conversational knowledge explicitly taught by the OWNER. No Web access.",
+                "parameters":{"type":"object","properties":{
+                    "statement":{"type":"string"},
+                    "source_text":{"type":"string"}
+                },"required":[
+                    "statement",
+                    "source_text"
+                ]}
+            }},
+            RiskLevel.LOW,
         ))
 
         self._register(ToolDef(

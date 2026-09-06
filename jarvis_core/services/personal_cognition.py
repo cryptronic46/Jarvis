@@ -1097,6 +1097,28 @@ class ProactivePresenceService:
 _STORE: PersonalCognitionStore | None = None
 
 
+def record_jarvis_learning_goal(
+    topic: str,
+    source_text: str = "",
+) -> dict[str, Any]:
+    """Persist one explicit OWNER learning objective locally."""
+    return personal_cognition().record_jarvis_learning_goal(
+        topic,
+        source_text=source_text,
+    )
+
+
+def record_local_teaching(
+    statement: str,
+    source_text: str = "",
+) -> dict[str, Any]:
+    """Persist explicit OWNER-taught conversational knowledge locally."""
+    return personal_cognition().record_local_teaching(
+        statement,
+        source_text=source_text,
+    )
+
+
 def personal_cognition() -> PersonalCognitionStore:
     global _STORE
     if _STORE is None:

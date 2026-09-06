@@ -860,59 +860,87 @@ class AutonomyGuardian:
         now = _now()
 
         pending = []
-        cooldowns = list(state.get("cooldowns") or [])
-        for row in state.get(
-            "pending"
-        ) or []:
+        cooldowns = list(
+            state.get("cooldowns")
+            or []
+        )
+
+        for row in state.get("pending") or []:
             expiry = self._parse_dt(
                 row.get("expires_at")
             )
+
             if expiry and expiry >= now:
                 pending.append(row)
+
             else:
                 self._audit(
                     "expired",
                     token=row.get("token"),
-                    capability=row.get(
-                        "capability"
-                    ),
-                    scope_hash=row.get(
-                        "scope_hash"
-                    ),
+                    capability=row.get("capability"),
+                    scope_hash=row.get("scope_hash"),
                     kind="pending",
                 )
-                # Expiring a prompt must not immediately recreate the exact
-                # same request. Keep a narrow scope-hash cooldown.
-                wanted_hash = str(row.get("scope_hash") or "")
+
+                wanted_hash = str(
+                    row.get("scope_hash")
+                    or ""
+                )
+
+                wanted_action = str(
+                    row.get("action")
+                    or ""
+                ).strip()
+
                 if wanted_hash:
-                    mins = max(1.0, float(getattr(
-                        self.settings, "autonomy_expired_cooldown_minutes", 180.0
-                    )))
-                    cooldowns.append({
-                        "scope_hash": wanted_hash,
-                        "capability": row.get("capability"),
-                        "reason": "expired",
-                        "created_at": _iso(),
-                        "until": _iso(now + timedelta(minutes=mins)),
-                    })
+                    mins = max(
+                        1.0,
+                        float(
+                            getattr(
+                                self.settings,
+                                "autonomy_expired_cooldown_minutes",
+                                180.0,
+                            )
+                        ),
+                    )
+
+                    cooldowns.append(
+                        {
+                            "scope_hash": wanted_hash,
+                            "capability": row.get(
+                                "capability"
+                            ),
+                            "action": wanted_action,
+                            "reason": "expired",
+                            "created_at": _iso(),
+                            "until": _iso(
+                                now
+                                + timedelta(
+                                    minutes=mins
+                                )
+                            ),
+                        }
+                    )
 
         grants = []
-        for row in state.get(
-            "grants"
-        ) or []:
+
+        for row in state.get("grants") or []:
             expiry = self._parse_dt(
                 row.get("expires_at")
             )
+
             remaining = int(
                 row.get("remaining_uses")
                 or 0
             )
+
             if (
                 expiry
                 and expiry >= now
                 and remaining > 0
             ):
                 grants.append(row)
+
             elif remaining > 0:
                 self._audit(
                     "expired",
@@ -930,23 +958,32 @@ class AutonomyGuardian:
             hours=max(
                 1.0,
                 float(
-                    self.settings.autonomy_denial_cooldown_hours
+                    self.settings
+                    .autonomy_denial_cooldown_hours
                 ),
             )
         )
+
         denied = []
-        for row in state.get(
-            "denied"
-        ) or []:
+
+        for row in state.get("denied") or []:
             when = self._parse_dt(
                 row.get("denied_at")
             )
-            if when and now - when <= cooldown:
+
+            if (
+                when
+                and now - when <= cooldown
+            ):
                 denied.append(row)
 
         active_cooldowns = []
+
         for row in cooldowns:
-            until = self._parse_dt(row.get("until"))
+            until = self._parse_dt(
+                row.get("until")
+            )
+
             if until and until >= now:
                 active_cooldowns.append(row)
 
@@ -954,6 +991,7 @@ class AutonomyGuardian:
         state["grants"] = grants
         state["denied"] = denied
         state["cooldowns"] = active_cooldowns
+
         return state
 
     def _ttl(
@@ -974,37 +1012,53 @@ class AutonomyGuardian:
         self,
         state: dict[str, Any],
         wanted_hash: str,
+        wanted_action: str,
     ) -> dict[str, Any] | None:
-        for row in state.get(
-            "pending"
-        ) or []:
-            if row.get(
-                "scope_hash"
-            ) == wanted_hash:
+        for row in state.get("pending") or []:
+            if (
+                row.get("scope_hash") == wanted_hash
+                and str(
+                    row.get("action")
+                    or ""
+                ).strip() == wanted_action
+            ):
                 return row
+
         return None
 
     def _recently_denied(
         self,
         state: dict[str, Any],
         wanted_hash: str,
+        wanted_action: str,
     ) -> bool:
         return any(
-            row.get("scope_hash")
-            == wanted_hash
-            for row in state.get(
-                "denied"
-            ) or []
+            (
+                row.get("scope_hash") == wanted_hash
+                and str(
+                    row.get("action")
+                    or ""
+                ).strip() == wanted_action
+            )
+            for row in state.get("denied") or []
         )
 
     def _active_cooldown(
         self,
         state: dict[str, Any],
         wanted_hash: str,
+        wanted_action: str,
     ) -> dict[str, Any] | None:
         for row in state.get("cooldowns") or []:
-            if row.get("scope_hash") == wanted_hash:
+            if (
+                row.get("scope_hash") == wanted_hash
+                and str(
+                    row.get("action")
+                    or ""
+                ).strip() == wanted_action
+            ):
                 return row
+
         return None
 
     def request(
@@ -1017,15 +1071,29 @@ class AutonomyGuardian:
         action: str = "resume_query",
         source: str = "autonomous",
     ) -> dict[str, Any]:
-        cap = str(capability or "").strip()
+        cap = str(
+            capability
+            or ""
+        ).strip()
+
         if cap not in CAPABILITIES:
             return {
                 "ok": False,
-                "error": "UNKNOWN_AUTONOMY_CAPABILITY",
+                "error":
+                    "UNKNOWN_AUTONOMY_CAPABILITY",
                 "capability": cap,
             }
 
-        payload = dict(payload or {})
+        requested_action = str(
+            action
+            or ""
+        ).strip()[:80]
+
+        payload = dict(
+            payload
+            or {}
+        )
+
         wanted_hash = scope_hash(
             cap,
             payload,
@@ -1036,15 +1104,17 @@ class AutonomyGuardian:
                 self._load()
             )
 
-            # Existing exact grant: consume it immediately.
-            for row in state.get(
-                "grants"
-            ) or []:
+            for row in state.get("grants") or []:
                 if (
                     row.get("scope_hash")
                     == wanted_hash
                     and row.get("capability")
                     == cap
+                    and str(
+                        row.get("action")
+                        or ""
+                    ).strip()
+                    == requested_action
                     and int(
                         row.get(
                             "remaining_uses"
@@ -1062,8 +1132,11 @@ class AutonomyGuardian:
                         )
                         - 1
                     )
+
                     row["consumed_at"] = _iso()
+
                     self._save(state)
+
                     self._audit(
                         "grant_consumed",
                         token=row.get("token"),
@@ -1071,6 +1144,7 @@ class AutonomyGuardian:
                         scope_hash=wanted_hash,
                         reason=reason,
                     )
+
                     return {
                         "ok": True,
                         "allowed": True,
@@ -1080,7 +1154,9 @@ class AutonomyGuardian:
             existing = self._matching_pending(
                 state,
                 wanted_hash,
+                requested_action,
             )
+
             if existing:
                 return {
                     "ok": True,
@@ -1095,16 +1171,24 @@ class AutonomyGuardian:
                     ),
                 }
 
-            cooldown = self._active_cooldown(state, wanted_hash)
+            cooldown = self._active_cooldown(
+                state,
+                wanted_hash,
+                requested_action,
+            )
+
             if cooldown:
                 self._save(state)
+
                 return {
                     "ok": True,
                     "allowed": False,
                     "pending": False,
                     "cooldown": True,
-                    "cooldown_reason": cooldown.get("reason"),
-                    "cooldown_until": cooldown.get("until"),
+                    "cooldown_reason":
+                        cooldown.get("reason"),
+                    "cooldown_until":
+                        cooldown.get("until"),
                     "message": (
                         "Senhor, já lhe pedi autorização para esta pesquisa recentemente. "
                         "Não vou repetir o pedido por agora."
@@ -1114,6 +1198,7 @@ class AutonomyGuardian:
             if self._recently_denied(
                 state,
                 wanted_hash,
+                requested_action,
             ):
                 return {
                     "ok": True,
@@ -1132,61 +1217,66 @@ class AutonomyGuardian:
             ) >= max(
                 1,
                 int(
-                    self.settings.autonomy_max_pending
+                    self.settings
+                    .autonomy_max_pending
                 ),
             ):
                 return {
                     "ok": False,
                     "allowed": False,
-                    "error": "AUTONOMY_PENDING_LIMIT",
+                    "error":
+                        "AUTONOMY_PENDING_LIMIT",
                 }
 
             token = token_hex(3).upper()
+
             row = {
                 "token": token,
                 "capability": cap,
                 "payload": payload,
                 "scope_hash": wanted_hash,
-                "reason": str(reason or "")[
-                    :240
-                ],
+                "reason": str(
+                    reason
+                    or ""
+                )[:240],
                 "description": str(
-                    description or ""
+                    description
+                    or ""
                 )[:500],
-                "action": str(action or "")[
-                    :80
-                ],
-                "source": str(source or "")[
-                    :80
-                ],
+                "action": requested_action,
+                "source": str(
+                    source
+                    or ""
+                )[:80],
                 "created_at": _iso(),
                 "expires_at": self._ttl(
                     int(
-                        self.settings.autonomy_pending_ttl_seconds
+                        self.settings
+                        .autonomy_pending_ttl_seconds
                     )
                 ),
             }
+
             state["pending"].append(row)
+
             self._save(state)
+
             self._audit(
                 "permission_requested",
                 token=token,
                 capability=cap,
                 scope_hash=wanted_hash,
                 reason=row["reason"],
-                description=row[
-                    "description"
-                ],
+                description=row["description"],
                 source=row["source"],
             )
+
             return {
                 "ok": True,
                 "allowed": False,
                 "pending": True,
                 "token": token,
-                "message": self._message(
-                    row
-                ),
+                "message": self._message(row),
             }
 
     def _message(
@@ -1301,6 +1391,197 @@ class AutonomyGuardian:
                 "authorization": authorization,
                 "cleared_matching_pending": cleared,
             }
+
+    def consume_authorized_grant(
+        self,
+        *,
+        token: str,
+        capability: str,
+        payload: dict[str, Any],
+        action: str,
+    ) -> dict[str, Any]:
+        """
+        Consume exactly one previously approved OWNER grant.
+
+        Matching is strict on token, capability, payload scope hash
+        and action. This prevents a caller from using an approved token
+        for a different external action.
+        """
+        wanted_token = str(
+            token
+            or ""
+        ).strip().upper()
+
+        cap = str(
+            capability
+            or ""
+        ).strip()
+
+        wanted_action = str(
+            action
+            or ""
+        ).strip()[:80]
+
+        if not wanted_token:
+            return {
+                "ok": False,
+                "allowed": False,
+                "error":
+                    "MISSING_AUTHORIZATION_TOKEN",
+            }
+
+        if cap not in CAPABILITIES:
+            return {
+                "ok": False,
+                "allowed": False,
+                "error":
+                    "UNKNOWN_AUTONOMY_CAPABILITY",
+                "capability": cap,
+            }
+
+        if not wanted_action:
+            return {
+                "ok": False,
+                "allowed": False,
+                "error":
+                    "MISSING_AUTHORIZATION_ACTION",
+            }
+
+        exact_payload = dict(
+            payload
+            or {}
+        )
+
+        wanted_hash = scope_hash(
+            cap,
+            exact_payload,
+        )
+
+        with self._lock:
+            state = self._purge(
+                self._load()
+            )
+
+            matched_token = None
+
+            for row in (
+                state.get("grants")
+                or []
+            ):
+                row_token = str(
+                    row.get("token")
+                    or ""
+                ).strip().upper()
+
+                if row_token != wanted_token:
+                    continue
+
+                matched_token = row
+
+                if (
+                    row.get("capability")
+                    != cap
+                ):
+                    self._save(state)
+
+                    return {
+                        "ok": False,
+                        "allowed": False,
+                        "error":
+                            "AUTHORIZATION_CAPABILITY_MISMATCH",
+                    }
+
+                if (
+                    str(
+                        row.get("action")
+                        or ""
+                    ).strip()
+                    != wanted_action
+                ):
+                    self._save(state)
+
+                    return {
+                        "ok": False,
+                        "allowed": False,
+                        "error":
+                            "AUTHORIZATION_ACTION_MISMATCH",
+                    }
+
+                if (
+                    row.get("scope_hash")
+                    != wanted_hash
+                ):
+                    self._save(state)
+
+                    return {
+                        "ok": False,
+                        "allowed": False,
+                        "error":
+                            "AUTHORIZATION_SCOPE_MISMATCH",
+                    }
+
+                if int(
+                    row.get(
+                        "remaining_uses"
+                    )
+                    or 0
+                ) <= 0:
+                    self._save(state)
+
+                    return {
+                        "ok": False,
+                        "allowed": False,
+                        "error":
+                            "AUTHORIZATION_ALREADY_CONSUMED",
+                    }
+
+                row["remaining_uses"] = (
+                    int(
+                        row.get(
+                            "remaining_uses"
+                        )
+                        or 0
+                    )
+                    - 1
+                )
+
+                row["consumed_at"] = _iso()
+
+                self._save(state)
+
+                self._audit(
+                    "grant_consumed",
+                    token=row.get("token"),
+                    capability=cap,
+                    scope_hash=wanted_hash,
+                    reason=(
+                        "exact_token_bound_execution"
+                    ),
+                )
+
+                return {
+                    "ok": True,
+                    "allowed": True,
+                    "authorization": dict(row),
+                }
+
+            self._save(state)
+
+            if matched_token is None:
+                return {
+                    "ok": False,
+                    "allowed": False,
+                    "error":
+                        "UNKNOWN_OR_EXPIRED_AUTHORIZATION",
+                }
+
+            return {
+                "ok": False,
+                "allowed": False,
+                "error":
+                    "AUTHORIZATION_NOT_CONSUMABLE",
+            }
+
 
     def authorize(
         self,

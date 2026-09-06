@@ -83,13 +83,69 @@ class LearningRelevanceQuarantineTests(unittest.TestCase):
             self.assertTrue(result["stored"])
             self.assertEqual(len(store.rows()), 1)
 
-    def test_cli_never_announces_learning_stored_after_store_rejection(self):
-        text = Path("jarvis_core/cli.py").read_text(encoding="utf-8")
-        self.assertGreaterEqual(text.count('if not stored.get("ok") or not stored.get("stored"):'), 2)
-        self.assertIn("LEARNING_STORE_REJECTED", text)
-        self.assertIn("Não guardei esta aprendizagem", text)
-        self.assertIn("SEARCH_RESULTS_IRRELEVANT", text)
-        self.assertIn("FETCHED_SOURCES_IRRELEVANT", text)
+    def test_external_service_never_emits_success_before_store_acceptance(self):
+        text = Path(
+            "jarvis_core/services/external_learning.py"
+        ).read_text(
+            encoding="utf-8"
+        )
+
+        start = text.index(
+            "def execute_authorized_external_learning("
+        )
+
+        block = text[
+            start:
+        ]
+
+        store = block.index(
+            "stored = authorized_learning().add("
+        )
+
+        reject_ok = block.index(
+            'not stored.get("ok")',
+            store,
+        )
+
+        reject_stored = block.index(
+            'not stored.get("stored")',
+            reject_ok,
+        )
+
+        success_event = block.index(
+            "if _EVENTS is not None:",
+            reject_stored,
+        )
+
+        self.assertLess(
+            store,
+            reject_ok,
+        )
+
+        self.assertLess(
+            reject_ok,
+            reject_stored,
+        )
+
+        self.assertLess(
+            reject_stored,
+            success_event,
+        )
+
+        self.assertIn(
+            "LEARNING_STORE_REJECTED",
+            text,
+        )
+
+        self.assertIn(
+            "SEARCH_RESULTS_IRRELEVANT",
+            text,
+        )
+
+        self.assertIn(
+            "FETCHED_SOURCES_IRRELEVANT",
+            text,
+        )
 
 
 if __name__ == "__main__":

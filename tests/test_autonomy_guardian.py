@@ -171,6 +171,347 @@ class AutonomyGuardianTests(unittest.TestCase):
         finally:
             tmp.cleanup()
 
+    def test_pending_reuse_requires_exact_action(self):
+        tmp, guardian = self.make_guardian()
+
+        try:
+            guardian.settings.autonomy_max_pending = max(
+                2,
+                int(
+                    guardian.settings.autonomy_max_pending
+                ),
+            )
+
+            payload = {
+                "topic": "Python",
+                "query": "estudar Python",
+                "deep": False,
+            }
+
+            first = guardian.request(
+                capability="external_learning",
+                payload=payload,
+                reason="owner_request",
+                description="estudar",
+                action="external_learning",
+            )
+
+            second = guardian.request(
+                capability="external_learning",
+                payload=payload,
+                reason="owner_request",
+                description="estudar e retomar",
+                action="external_learning_resume_query",
+            )
+
+            self.assertTrue(
+                first["pending"]
+            )
+
+            self.assertTrue(
+                second["pending"]
+            )
+
+            self.assertFalse(
+                second.get(
+                    "reused_pending",
+                    False,
+                )
+            )
+
+            self.assertNotEqual(
+                first["token"],
+                second["token"],
+            )
+
+        finally:
+            tmp.cleanup()
+
+
+    def test_grant_auto_consumption_requires_exact_action(self):
+        tmp, guardian = self.make_guardian()
+
+        try:
+            payload = {
+                "topic": "Python",
+                "query": "estudar Python",
+                "deep": False,
+            }
+
+            requested = guardian.request(
+                capability="external_learning",
+                payload=payload,
+                reason="owner_request",
+                description="estudar",
+                action="external_learning",
+            )
+
+            approved = guardian.authorize(
+                requested["token"]
+            )
+
+            self.assertTrue(
+                approved["authorized"]
+            )
+
+            wrong_action = guardian.request(
+                capability="external_learning",
+                payload=payload,
+                reason="owner_request",
+                description="estudar e retomar",
+                action="external_learning_resume_query",
+            )
+
+            self.assertFalse(
+                wrong_action["allowed"]
+            )
+
+            self.assertTrue(
+                wrong_action["pending"]
+            )
+
+            exact_action = guardian.request(
+                capability="external_learning",
+                payload=payload,
+                reason="owner_request",
+                description="estudar",
+                action="external_learning",
+            )
+
+            self.assertTrue(
+                exact_action["allowed"]
+            )
+
+            replay = guardian.request(
+                capability="external_learning",
+                payload=payload,
+                reason="owner_request",
+                description="estudar",
+                action="external_learning",
+            )
+
+            self.assertFalse(
+                replay["allowed"]
+            )
+
+        finally:
+            tmp.cleanup()
+
+
+    def test_exact_token_consumption_requires_exact_action(self):
+        tmp, guardian = self.make_guardian()
+
+        try:
+            payload = {
+                "topic": "Python",
+                "query": "estudar Python",
+                "deep": False,
+                "scope":
+                    "single_research_session",
+            }
+
+            requested = guardian.request(
+                capability="external_learning",
+                payload=payload,
+                reason="owner_request",
+                description="estudar",
+                action="external_learning",
+            )
+
+            approved = guardian.authorize(
+                requested["token"]
+            )
+
+            self.assertTrue(
+                approved["authorized"]
+            )
+
+            wrong_action = (
+                guardian.consume_authorized_grant(
+                    token=requested["token"],
+                    capability="external_learning",
+                    payload=payload,
+                    action=(
+                        "external_learning_resume_query"
+                    ),
+                )
+            )
+
+            self.assertFalse(
+                wrong_action["allowed"]
+            )
+
+            self.assertEqual(
+                wrong_action["error"],
+                "AUTHORIZATION_ACTION_MISMATCH",
+            )
+
+            exact_action = (
+                guardian.consume_authorized_grant(
+                    token=requested["token"],
+                    capability="external_learning",
+                    payload=payload,
+                    action="external_learning",
+                )
+            )
+
+            self.assertTrue(
+                exact_action["allowed"]
+            )
+
+            replay = (
+                guardian.consume_authorized_grant(
+                    token=requested["token"],
+                    capability="external_learning",
+                    payload=payload,
+                    action="external_learning",
+                )
+            )
+
+            self.assertFalse(
+                replay["allowed"]
+            )
+
+        finally:
+            tmp.cleanup()
+
+
+    def test_denial_requires_exact_action(self):
+        tmp, guardian = self.make_guardian()
+
+        try:
+            payload = {
+                "topic": "Python",
+                "query": "estudar Python",
+                "deep": False,
+            }
+
+            requested = guardian.request(
+                capability="external_learning",
+                payload=payload,
+                reason="owner_request",
+                description="estudar",
+                action="external_learning",
+            )
+
+            denied = guardian.deny(
+                requested["token"]
+            )
+
+            self.assertTrue(
+                denied["denied"]
+            )
+
+            other_action = guardian.request(
+                capability="external_learning",
+                payload=payload,
+                reason="owner_request",
+                description="estudar e retomar",
+                action="external_learning_resume_query",
+            )
+
+            self.assertFalse(
+                other_action.get(
+                    "denied_recently",
+                    False,
+                )
+            )
+
+            self.assertTrue(
+                other_action["pending"]
+            )
+
+            exact_action = guardian.request(
+                capability="external_learning",
+                payload=payload,
+                reason="owner_request",
+                description="estudar",
+                action="external_learning",
+            )
+
+            self.assertTrue(
+                exact_action[
+                    "denied_recently"
+                ]
+            )
+
+            self.assertFalse(
+                exact_action["allowed"]
+            )
+
+        finally:
+            tmp.cleanup()
+
+
+    def test_expired_cooldown_requires_exact_action(self):
+        tmp, guardian = self.make_guardian()
+
+        try:
+            payload = {
+                "topic": "Python",
+                "query": "estudar Python",
+                "deep": False,
+            }
+
+            guardian.request(
+                capability="external_learning",
+                payload=payload,
+                reason="owner_request",
+                description="estudar",
+                action="external_learning",
+            )
+
+            state = guardian._load()
+
+            state["pending"][0][
+                "expires_at"
+            ] = (
+                "2000-01-01T00:00:00+00:00"
+            )
+
+            guardian._save(
+                state
+            )
+
+            other_action = guardian.request(
+                capability="external_learning",
+                payload=payload,
+                reason="owner_request",
+                description="estudar e retomar",
+                action="external_learning_resume_query",
+            )
+
+            self.assertFalse(
+                other_action.get(
+                    "cooldown",
+                    False,
+                )
+            )
+
+            self.assertTrue(
+                other_action["pending"]
+            )
+
+            exact_action = guardian.request(
+                capability="external_learning",
+                payload=payload,
+                reason="owner_request",
+                description="estudar",
+                action="external_learning",
+            )
+
+            self.assertTrue(
+                exact_action["cooldown"]
+            )
+
+            self.assertFalse(
+                exact_action["allowed"]
+            )
+
+        finally:
+            tmp.cleanup()
+
+
 
 if __name__ == "__main__":
     unittest.main()

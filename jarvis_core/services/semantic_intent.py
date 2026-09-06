@@ -3,6 +3,14 @@ from __future__ import annotations
 import re
 import unicodedata
 
+from jarvis_core.services.learning_followup import (
+    isolated_public_url,
+)
+from jarvis_core.services.autonomy import (
+    parse_direct_external_learning_order,
+    parse_learning_goal,
+    parse_local_teaching_statement,
+)
 from jarvis_core.services.context_clause_resolver import (
     resolve_context_clauses,
 )
@@ -248,6 +256,7 @@ def resolve_semantic_request(
     *,
     recent_turns: list[dict] | None = None,
     app_aliases: dict[str, str] | None = None,
+    learning_followup: dict | None = None,
 ) -> StructuredRequest:
     """
     Resolve one OWNER message into the single structured semantic contract.
@@ -332,6 +341,193 @@ def resolve_semantic_request(
                 "force": False,
             },
             epistemic_learning_eligible=False,
+            confidence=0.99,
+        )
+
+    direct_external_learning = (
+        parse_direct_external_learning_order(
+            raw
+        )
+    )
+
+    if direct_external_learning is not None:
+        topic = str(
+            direct_external_learning.get("topic")
+            or ""
+        ).strip()
+
+        query = str(
+            direct_external_learning.get("query")
+            or ""
+        ).strip()
+
+        source_url = str(
+            direct_external_learning.get("source_url")
+            or ""
+        ).strip()
+
+        if topic and query:
+            return StructuredRequest(
+                raw_text=raw,
+                effective_text=raw,
+                intent="RESEARCH",
+                domain="web",
+                subject="EXTERNAL",
+                action="learn_external",
+                target=topic,
+                requires_tool=True,
+                preferred_tool=(
+                    "execute_authorized_external_learning"
+                ),
+                tool_arguments={
+                    "topic": topic,
+                    "query": query,
+                    "source_text": raw,
+                    "deep": bool(
+                        direct_external_learning.get(
+                            "deep",
+                            True,
+                        )
+                    ),
+                    "scope": (
+                        "single_research_session"
+                    ),
+                    "source_url": source_url,
+                    "standing_public_web_read_only_grant": bool(
+                        direct_external_learning.get(
+                            "standing_public_web_read_only_grant"
+                        )
+                    ),
+                },
+                epistemic_learning_eligible=True,
+                confidence=0.99,
+            )
+
+    local_teaching = (
+        parse_local_teaching_statement(
+            raw
+        )
+    )
+
+    if local_teaching is not None:
+        statement = str(
+            local_teaching.get("statement")
+            or ""
+        ).strip()
+
+        if statement:
+            return StructuredRequest(
+                raw_text=raw,
+                effective_text=raw,
+                intent="OPERATIONAL_ACTION",
+                domain="knowledge",
+                subject="JARVIS",
+                action="record_local_teaching",
+                target=statement,
+                requires_tool=True,
+                preferred_tool="record_local_teaching",
+                tool_arguments={
+                    "statement": statement,
+                    "source_text": raw,
+                },
+                epistemic_learning_eligible=False,
+                confidence=0.99,
+            )
+
+    learning_goal = (
+        parse_learning_goal(
+            raw
+        )
+    )
+
+    if learning_goal is not None:
+        topic = str(
+            learning_goal.get("topic")
+            or ""
+        ).strip()
+
+        if topic:
+            return StructuredRequest(
+                raw_text=raw,
+                effective_text=raw,
+                intent="OPERATIONAL_ACTION",
+                domain="knowledge",
+                subject="JARVIS",
+                action="record_learning_goal",
+                target=topic,
+                requires_tool=True,
+                preferred_tool="record_jarvis_learning_goal",
+                tool_arguments={
+                    "topic": topic,
+                    "source_text": raw,
+                },
+                epistemic_learning_eligible=True,
+                confidence=0.99,
+            )
+
+    followup_url = (
+        isolated_public_url(
+            raw
+        )
+    )
+
+    followup_topic = str(
+        (
+            learning_followup
+            or {}
+        ).get(
+            "topic"
+        )
+        or ""
+    ).strip()
+
+    followup_created_at = (
+        (
+            learning_followup
+            or {}
+        ).get(
+            "created_at"
+        )
+    )
+
+    if (
+        followup_url
+        and followup_topic
+        and isinstance(
+            followup_created_at,
+            (int, float),
+        )
+        and float(
+            followup_created_at
+        ) > 0.0
+    ):
+        return StructuredRequest(
+            raw_text=raw,
+            effective_text=raw,
+            intent="RESEARCH",
+            domain="web",
+            subject="EXTERNAL",
+            action="learn_external",
+            target=followup_topic,
+            referent=followup_topic,
+            requires_tool=True,
+            preferred_tool=(
+                "execute_authorized_external_learning"
+            ),
+            tool_arguments={
+                "topic": followup_topic,
+                "query": followup_topic,
+                "source_text": raw,
+                "deep": True,
+                "scope":
+                    "single_research_session",
+                "source_url": followup_url,
+                "standing_public_web_read_only_grant":
+                    False,
+                "authority_mode":
+                    "followup_url",
+            },
+            epistemic_learning_eligible=True,
             confidence=0.99,
         )
 

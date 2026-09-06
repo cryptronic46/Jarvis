@@ -6,10 +6,55 @@ class DirectLearningExecutionContractTests(unittest.TestCase):
     def setUp(self):
         self.cli = Path("jarvis_core/cli.py").read_text(encoding="utf-8")
 
-    def test_direct_learning_is_intercepted_before_normal_router(self):
-        direct = self.cli.index("parse_direct_external_learning_order(")
-        normal = self.cli.rindex("process_request(text)")
-        self.assertLess(direct, normal)
+    def test_direct_learning_is_resolved_by_semantic_authority(self):
+        from jarvis_core.services.semantic_intent import (
+            resolve_semantic_request,
+        )
+
+        text = (
+            "Jarvis, pesquisa na Internet "
+            "e aprende sobre HTTP caching"
+        )
+
+        request = resolve_semantic_request(
+            text,
+            recent_turns=[],
+            app_aliases={},
+        )
+
+        self.assertEqual(
+            request.intent,
+            "RESEARCH",
+        )
+
+        self.assertEqual(
+            request.domain,
+            "web",
+        )
+
+        self.assertEqual(
+            request.subject,
+            "EXTERNAL",
+        )
+
+        self.assertEqual(
+            request.action,
+            "learn_external",
+        )
+
+        self.assertTrue(
+            request.requires_tool
+        )
+
+        self.assertEqual(
+            request.preferred_tool,
+            "execute_authorized_external_learning",
+        )
+
+        self.assertEqual(
+            request.confidence,
+            0.99,
+        )
 
     def test_direct_authority_is_logged_not_granted_reusably(self):
         autonomy = Path("jarvis_core/services/autonomy.py").read_text(encoding="utf-8")
@@ -20,21 +65,171 @@ class DirectLearningExecutionContractTests(unittest.TestCase):
         self.assertIn('"remaining_uses": 0', block)
         self.assertNotIn('state["grants"].append', block)
 
-    def test_isolated_url_can_bind_only_to_explicit_recent_learning_goal(self):
-        self.assertIn('learning_followup_state = {"topic": "", "created_at": 0.0}', self.cli)
-        self.assertIn('learning_followup_state["topic"] = topic', self.cli)
-        self.assertIn('<= 300.0', self.cli)
-        self.assertIn('"followup_bound": True', self.cli)
-        self.assertIn('learning_followup_state["topic"] = ""', self.cli)
-    def test_direct_learning_runs_direct_web_local_synthesis_and_stores_result(self):
-        start = self.cli.index("def execute_direct_external_learning(")
-        end = self.cli.index("def request_external_learning_for_goal(", start)
-        block = self.cli[start:end]
-        self.assertIn("research_engine.research(", block)
-        self.assertIn("authorized_learning().add(", block)
-        self.assertIn('source_type="authorized_direct_web_local_model_summary_v2"', block)
-        self.assertIn("Esta autorização direta vale apenas para esta execução", block)
-        self.assertNotIn("cloud_brain.ask(", block)
+    def test_isolated_url_binds_only_to_live_explicit_learning_context(self):
+        from jarvis_core.services.learning_followup import (
+            clear_learning_followup_context,
+            get_learning_followup_context,
+            set_learning_followup_context,
+        )
+        from jarvis_core.services.semantic_intent import (
+            resolve_semantic_request,
+        )
+
+        url = "https://example.com/docs"
+
+        clear_learning_followup_context()
+
+        try:
+            without_context = (
+                resolve_semantic_request(
+                    url,
+                    recent_turns=[],
+                    app_aliases={},
+                    learning_followup=None,
+                )
+            )
+
+            self.assertNotEqual(
+                without_context.preferred_tool,
+                "execute_authorized_external_learning",
+            )
+
+            set_learning_followup_context(
+                "HTTP caching",
+                now=100.0,
+            )
+
+            live = (
+                get_learning_followup_context(
+                    now=120.0,
+                )
+            )
+
+            self.assertIsNotNone(
+                live
+            )
+
+            request = (
+                resolve_semantic_request(
+                    url,
+                    recent_turns=[],
+                    app_aliases={},
+                    learning_followup=live,
+                )
+            )
+
+            args = dict(
+                request.tool_arguments
+            )
+
+            self.assertEqual(
+                request.preferred_tool,
+                "execute_authorized_external_learning",
+            )
+
+            self.assertEqual(
+                args["authority_mode"],
+                "followup_url",
+            )
+
+            self.assertEqual(
+                args["topic"],
+                "HTTP caching",
+            )
+
+            self.assertEqual(
+                args["source_url"],
+                url,
+            )
+
+            expired = (
+                get_learning_followup_context(
+                    now=401.0,
+                )
+            )
+
+            self.assertIsNone(
+                expired
+            )
+
+        finally:
+            clear_learning_followup_context()
+    def test_direct_learning_uses_authoritative_external_service_contract(self):
+        external = Path(
+            "jarvis_core/services/external_learning.py"
+        ).read_text(
+            encoding="utf-8"
+        )
+
+        start = external.index(
+            "def execute_authorized_external_learning("
+        )
+
+        block = external[
+            start:
+        ]
+
+        current_turn = block.index(
+            'if mode == "current_turn":'
+        )
+
+        revalidation = block.index(
+            "parse_direct_external_learning_order(",
+            current_turn,
+        )
+
+        network_candidates = [
+            position
+            for position in (
+                block.find(
+                    "_RESEARCH_ENGINE.research_url(",
+                    revalidation,
+                ),
+                block.find(
+                    "_RESEARCH_ENGINE.research(",
+                    revalidation,
+                ),
+            )
+            if position >= 0
+        ]
+
+        self.assertTrue(
+            network_candidates
+        )
+
+        network = min(
+            network_candidates
+        )
+
+        store = block.index(
+            "authorized_learning().add(",
+            network,
+        )
+
+        self.assertLess(
+            current_turn,
+            revalidation,
+        )
+
+        self.assertLess(
+            revalidation,
+            network,
+        )
+
+        self.assertLess(
+            network,
+            store,
+        )
+
+        self.assertIn(
+            "authorized_direct_web_local_model_summary_v2",
+            block,
+        )
+
+        self.assertNotIn(
+            "cloud_brain.ask(",
+            block,
+        )
 
 
 if __name__ == "__main__":
