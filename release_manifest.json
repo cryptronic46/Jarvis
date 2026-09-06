@@ -132,7 +132,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "b38b381e5f0fde05dcf227448b0ebab26fa8d1007d899baf4b3eaec798cfbe93"
+      "sha256": "08798ad23fc4f65148c1f36c04b28d26fe48536f57478ca847155aaf9df93c93"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -168,7 +168,7 @@
     },
     {
       "path": "jarvis_core/core/hybrid_brain.py",
-      "sha256": "a677bc87e28a4b2dc5f139d2d1ced879805aec10c6bde0e7039493098da5cdf6"
+      "sha256": "163e8348e04d37e25d254c53c5efdd6e72dca91740b5dc4a065e04f2320249ad"
     },
     {
       "path": "jarvis_core/core/local_llm.py",

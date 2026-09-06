@@ -218,7 +218,6 @@ class HybridBrain:
         settings,
         events,
         local_brain,
-        cloud_brain=None,
         performance=None,
         autonomy=None,
         research_engine=None,
@@ -226,7 +225,6 @@ class HybridBrain:
         self.settings = settings
         self.events = events
         self.local = local_brain
-        self.cloud = cloud_brain  # retained only for legacy diagnostics/migration
         self.performance = performance
         self.autonomy = autonomy
         self.research = research_engine
@@ -234,11 +232,6 @@ class HybridBrain:
 
     def clear_history(self) -> None:
         self.local.clear_history()
-        if self.cloud is not None:
-            try:
-                self.cloud.clear_history()
-            except Exception:
-                pass
 
     def _autonomy_gate(
         self,
@@ -285,40 +278,6 @@ class HybridBrain:
             elapsed_ms=0,
             reason="owner_authorization_required",
             used_web=False,
-        )
-
-    def _cloud_gate(self, decision: HybridDecision, reason: str) -> HybridAnswer | None:
-        if self.cloud is None or not self.cloud.available():
-            return HybridAnswer(
-                text="A camada externa não está configurada/disponível; vou manter o processamento local.",
-                route="CLOUD/UNAVAILABLE", model=None, elapsed_ms=0, reason="cloud_unavailable",
-            )
-        if self.autonomy is None or not bool(getattr(self.settings, "autonomy_enabled", True)):
-            return HybridAnswer(
-                text="A consulta a IA externa exige o Autonomy Guardian ativo e autorização explícita do Senhor.",
-                route="CLOUD/BLOCKED", model=None, elapsed_ms=0, reason="owner_guardian_required",
-            )
-        gate = self.autonomy.request(
-            capability="cloud_reasoning",
-            payload={
-                "query": decision.text,
-                "deep": bool(decision.deep),
-                "reason": reason,
-                "isolated": True,
-            },
-            reason=reason,
-            description=(
-                "consultar uma IA externa enviando apenas o texto deste pedido, "
-                "sem memória pessoal, histórico, telemetria ou ferramentas locais: "
-                f"{decision.text[:180]}"
-            ),
-            action="cloud_reasoning", source="learning_first_expert_escalation",
-        )
-        if gate.get("allowed"):
-            return None
-        return HybridAnswer(
-            text=str(gate.get("message") or "Senhor, preciso da sua autorização para usar recursos externos neste pedido."),
-            route="AUTH/PENDING", model=None, elapsed_ms=0, reason="owner_authorization_required",
         )
 
     def _learning_gap_offer(
@@ -401,25 +360,6 @@ class HybridBrain:
             reason="epistemic_learning_authorization_required",
             used_web=False,
         ), assessment
-
-    def _expert_offer(
-        self,
-        decision: HybridDecision,
-        *,
-        assessment: object | None,
-    ) -> HybridAnswer | None:
-        if not bool(getattr(self.settings, "expert_escalation_enabled", True)):
-            return None
-        if self.cloud is None or not self.cloud.available():
-            return None
-        if contains_secret_hints(decision.text):
-            self.events.emit("EXPERT_ESCALATION_SKIPPED", reason="possible_secret_in_query")
-            return None
-        # Learning-first invariant: if the gap has not yet been studied, do not
-        # jump directly to another AI. The web-study authorization comes first.
-        if assessment is not None and bool(getattr(assessment, "needs_learning", False)):
-            return None
-        return self._cloud_gate(decision, "studied_knowledge_still_insufficient")
 
     @staticmethod
     def _local_result_insufficient(text: str, *, complex_request: bool = False) -> bool:
@@ -578,7 +518,7 @@ class HybridBrain:
             complexity_score=decision.complexity_score,
             insufficient=local_insufficient,
             local_failed=local_failed,
-            external_ai_enabled=bool(self.cloud is not None and self.cloud.available()),
+            external_ai_enabled=False,
         )
 
         epistemic_learning_allowed = (

@@ -13,7 +13,6 @@ from jarvis_core.core.tool_registry import ToolRegistry
 from jarvis_core.core.brain import JarvisBrain
 from jarvis_core.core.fast_router import FastCommandRouter
 from jarvis_core.core.hybrid_brain import HybridBrain
-from jarvis_core.core.cloud_brain import CloudBrain
 from jarvis_core.security.policy import SecurityPolicy
 from jarvis_core.skills import SkillContext, SkillManager
 from jarvis_core.services.learning_followup import (
@@ -995,9 +994,8 @@ def main() -> None:
         tools,
         performance=performance,
     )
-    # External AI is structurally blocked. CloudBrain remains a compatibility
-    # object only; HybridBrain must never route execution to it.
-    cloud_brain = CloudBrain(settings, events, tools)
+    # External AI is not part of the live runtime. HybridBrain orchestrates
+    # only local JARVIS/Qwen reasoning and bounded public-web research.
     research_engine = LocalResearchEngine(settings, events, brain)
     configure_external_learning_runtime(
         research_engine,
@@ -1031,7 +1029,6 @@ def main() -> None:
         settings,
         events,
         local_brain=brain,
-        cloud_brain=cloud_brain,
         performance=performance,
         autonomy=autonomy,
         research_engine=research_engine,
