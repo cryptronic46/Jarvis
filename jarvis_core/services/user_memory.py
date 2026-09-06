@@ -101,7 +101,15 @@ class UserMemoryStore:
             # Relational memory is a secondary local index. It receives only
             # facts that have already passed the explicit-memory/secret guard.
             from jarvis_core.skills.builtin.memory_graph import ingest_explicit_memory_fact
-            graph_result = ingest_explicit_memory_fact(text, record["category"])
+            # USER_MEMORY_GRAPH_ISOLATION_V1
+            graph_result = ingest_explicit_memory_fact(
+                text,
+                record["category"],
+                path=(
+                    self.memory_dir
+                    / "memory_graph.json"
+                ),
+            )
         except Exception:
             graph_result = {"ok": False, "error": "MEMORY_GRAPH_INDEX_FAILED"}
         return {"ok": True, "stored": record, "graph": graph_result}

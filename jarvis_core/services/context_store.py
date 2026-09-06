@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 from datetime import datetime, timedelta
+import hashlib
 import json
 import re
+from threading import RLock
 import unicodedata
+from uuid import uuid4
 
 
 def _norm(value: str) -> str:
@@ -13,33 +16,243 @@ def _norm(value: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def _content_hash(
+    user_text: str,
+    assistant_text: str,
+    route: str = "",
+) -> str:
+    """Stable content identity for one persisted conversation turn.
+
+    This is an integrity/deduplication fingerprint, not a semantic identity.
+    Two legitimate repetitions at different times remain separate turns.
+    """
+    payload = json.dumps(
+        [
+            str(user_text or ""),
+            str(assistant_text or ""),
+            str(route or ""),
+        ],
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+
+    return hashlib.sha256(
+        payload.encode("utf-8")
+    ).hexdigest()
+
+
 class ContextStore:
-    def __init__(self, path='memory/context.jsonl'):
+    def __init__(
+        self,
+        path='memory/context.jsonl',
+        *,
+        dedupe_window_seconds: float = 2.0,
+    ):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._lock = RLock()
+        self.dedupe_window_seconds = max(
+            0.0,
+            float(dedupe_window_seconds),
+        )
+
+    def _last_row(self) -> dict | None:
+        """Read only the tail needed for adjacent-write deduplication."""
+        if not self.path.exists():
+            return None
+
+        try:
+            with self.path.open('rb') as f:
+                f.seek(0, 2)
+                size = f.tell()
+
+                if size <= 0:
+                    return None
+
+                span = min(
+                    size,
+                    16384,
+                )
+
+                f.seek(
+                    -span,
+                    2,
+                )
+
+                tail = f.read().decode(
+                    'utf-8',
+                    errors='replace',
+                )
+        except OSError:
+            return None
+
+        for line in reversed(
+            tail.splitlines()
+        ):
+            if not line.strip():
+                continue
+
+            try:
+                item = json.loads(
+                    line
+                )
+            except json.JSONDecodeError:
+                continue
+
+            if isinstance(
+                item,
+                dict,
+            ):
+                return item
+
+        return None
+
+    def _is_recent_exact_duplicate(
+        self,
+        previous: dict | None,
+        candidate: dict,
+    ) -> bool:
+        if (
+            previous is None
+            or self.dedupe_window_seconds <= 0.0
+        ):
+            return False
+
+        previous_hash = str(
+            previous.get(
+                'content_hash'
+            )
+            or ''
+        ).strip()
+
+        if not previous_hash:
+            previous_hash = _content_hash(
+                str(
+                    previous.get('user')
+                    or ''
+                ),
+                str(
+                    previous.get('assistant')
+                    or ''
+                ),
+                str(
+                    previous.get('route')
+                    or ''
+                ),
+            )
+
+        if previous_hash != str(
+            candidate.get(
+                'content_hash'
+            )
+            or ''
+        ):
+            return False
+
+        previous_stamp = self._timestamp(
+            previous
+        )
+
+        candidate_stamp = self._timestamp(
+            candidate
+        )
+
+        if (
+            previous_stamp is None
+            or candidate_stamp is None
+        ):
+            return False
+
+        age_seconds = (
+            candidate_stamp
+            - previous_stamp
+        ).total_seconds()
+
+        return (
+            0.0
+            <= age_seconds
+            <= self.dedupe_window_seconds
+        )
 
     def record(self, user_text, assistant_text, route=''):
+        stored_user = str(
+            user_text
+            or ''
+        )[:2000]
+
+        stored_assistant = str(
+            assistant_text
+            or ''
+        )[:4000]
+
+        stored_route = str(
+            route
+            or ''
+        )[:64]
+
         row = {
-            'timestamp': datetime.now().astimezone().isoformat(timespec='seconds'),
-            'user': str(user_text)[:2000],
-            'assistant': str(assistant_text)[:4000],
-            'route': str(route)[:64],
+            'turn_id': uuid4().hex,
+            'timestamp': datetime.now().astimezone().isoformat(
+                timespec='microseconds'
+            ),
+            'user': stored_user,
+            'assistant': stored_assistant,
+            'route': stored_route,
+            'content_hash': _content_hash(
+                stored_user,
+                stored_assistant,
+                stored_route,
+            ),
         }
-        with self.path.open('a', encoding='utf-8') as f:
-            f.write(json.dumps(row, ensure_ascii=False) + '\n')
+
+        with self._lock:
+            previous = self._last_row()
+
+            if self._is_recent_exact_duplicate(
+                previous,
+                row,
+            ):
+                return
+
+            with self.path.open(
+                'a',
+                encoding='utf-8',
+            ) as f:
+                f.write(
+                    json.dumps(
+                        row,
+                        ensure_ascii=False,
+                    )
+                    + '\n'
+                )
 
     def _all(self) -> list[dict]:
-        if not self.path.exists():
-            return []
-        rows = []
-        for line in self.path.read_text(encoding='utf-8', errors='replace').splitlines():
-            try:
-                item = json.loads(line)
-                if isinstance(item, dict):
-                    rows.append(item)
-            except json.JSONDecodeError:
-                pass
-        return rows
+        with self._lock:
+            if not self.path.exists():
+                return []
+
+            rows = []
+
+            for line in self.path.read_text(
+                encoding='utf-8',
+                errors='replace',
+            ).splitlines():
+                try:
+                    item = json.loads(
+                        line
+                    )
+
+                    if isinstance(
+                        item,
+                        dict,
+                    ):
+                        rows.append(
+                            item
+                        )
+                except json.JSONDecodeError:
+                    pass
+
+            return rows
 
     def recent(self, limit=6):
         rows = self._all()

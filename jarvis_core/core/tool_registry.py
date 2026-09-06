@@ -1781,6 +1781,14 @@ class ToolRegistry:
             if isinstance(result, dict):
                 if result.get("ok") is False or result.get("error"):
                     result_ok = False
+            # MEMORY_RUNTIME_TOOL_REFRESH_V1
+            if result_ok:
+                try:
+                    from jarvis_core.services.memory_maintenance import refresh_after_tool
+                    refresh_after_tool(name)
+                except Exception:
+                    pass
+
             self.events.emit(
                 "TOOL_FINISHED",
                 tool=name,

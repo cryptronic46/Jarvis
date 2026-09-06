@@ -813,6 +813,13 @@ def main() -> None:
         chunk_overlap=settings.book_library_chunk_overlap,
     )
     cognition = personal_cognition()
+
+    # MEMORY_RUNTIME_STARTUP_REFRESH_V1
+    try:
+        from jarvis_core.services.memory_maintenance import refresh_runtime_personal_memory
+        refresh_runtime_personal_memory()
+    except Exception:
+        pass
     self_engine = synthetic_self()
 
     user_profile = memory.profile()
@@ -1223,11 +1230,18 @@ def main() -> None:
                     route,
                 )
 
-            cognition.observe_interaction(
+            _memory_observation_result = cognition.observe_interaction(
                 user_text,
                 answer,
                 route,
             )
+
+            # MEMORY_RUNTIME_COGNITION_REFRESH_V1
+            try:
+                from jarvis_core.services.memory_maintenance import refresh_after_personal_cognition
+                refresh_after_personal_cognition(_memory_observation_result)
+            except Exception:
+                pass
 
             try:
                 self_engine.observe_outcome(
@@ -1264,11 +1278,18 @@ def main() -> None:
                 hybrid.route,
             )
 
-        cognition.observe_interaction(
+        _memory_observation_result = cognition.observe_interaction(
             user_text,
             hybrid.text,
             hybrid.route,
         )
+
+        # MEMORY_RUNTIME_COGNITION_REFRESH_V1
+        try:
+            from jarvis_core.services.memory_maintenance import refresh_after_personal_cognition
+            refresh_after_personal_cognition(_memory_observation_result)
+        except Exception:
+            pass
 
         try:
             self_engine.observe_outcome(

@@ -237,18 +237,63 @@ class MemoryGraphStore:
         }
 
 
-_GRAPH: MemoryGraphStore | None = None
+# MEMORY_GRAPH_PATH_ISOLATION_V1
+# Stores are cached by resolved path. A custom/test graph can therefore
+# never silently alias the canonical runtime graph because another path
+# happened to initialize the old process-wide singleton first.
+_GRAPH_CACHE_LOCK = RLock()
+_GRAPHS: dict[str, MemoryGraphStore] = {}
 
 
-def memory_graph(path: str | Path = "memory/memory_graph.json") -> MemoryGraphStore:
-    global _GRAPH
-    if _GRAPH is None:
-        _GRAPH = MemoryGraphStore(path)
-    return _GRAPH
+def _graph_cache_key(
+    path: str | Path,
+) -> str:
+    return str(
+        Path(path)
+        .expanduser()
+        .resolve()
+    )
 
 
-def ingest_explicit_memory_fact(fact: str, category: str = "general") -> dict[str, Any]:
-    return memory_graph().ingest_explicit_fact(fact, category)
+def memory_graph(
+    path: str | Path = "memory/memory_graph.json",
+) -> MemoryGraphStore:
+    requested = Path(path)
+
+    key = _graph_cache_key(
+        requested
+    )
+
+    with _GRAPH_CACHE_LOCK:
+        store = _GRAPHS.get(
+            key
+        )
+
+        if store is None:
+            store = MemoryGraphStore(
+                requested
+            )
+
+            _GRAPHS[
+                key
+            ] = store
+
+        return store
+
+
+def ingest_explicit_memory_fact(
+    fact: str,
+    category: str = "general",
+    *,
+    path: str | Path = "memory/memory_graph.json",
+) -> dict[str, Any]:
+    return memory_graph(
+        path
+    ).ingest_explicit_fact(
+        fact,
+        category,
+    )
+
 
 
 class MemoryGraphSkill(Skill):

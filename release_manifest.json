@@ -132,7 +132,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "7b8c4e599109b1e8a1f75c22d7188acb764daec5b2e0d2e17efb5a7fd4f3d951"
+      "sha256": "fd27654c376a25218abc0aa058ad23895ec0dc06952d8e1fe5662de439a7f7d3"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -140,7 +140,7 @@
     },
     {
       "path": "jarvis_core/core/brain.py",
-      "sha256": "28d22ade1e1683c4d8cd1ba07f2760046428b424575c179a078045fe90c60801"
+      "sha256": "4bcd79f13e93478440deaa331b10c97ef5e63d99966de507e0d59ecc8f78f96b"
     },
     {
       "path": "jarvis_core/core/cloud_brain.py",
@@ -184,7 +184,7 @@
     },
     {
       "path": "jarvis_core/core/tool_registry.py",
-      "sha256": "e65a5c810d5fbb0450bdb103eeee71733760daf68eb8ed08525be1cb633b5c82"
+      "sha256": "97665744f62f424b7587e0a639e021b9ab6bb8124ee6554f4297e230057c4b66"
     },
     {
       "path": "jarvis_core/security/__init__.py",
@@ -232,7 +232,7 @@
     },
     {
       "path": "jarvis_core/services/context_store.py",
-      "sha256": "aea617a38d7591d67b6fc0844c9ea1931473392d961aed1908fd370e1ad26430"
+      "sha256": "6db4f9ff10b2c323bb859089b7c0445be32178a5b68b26981599e84e1f276c17"
     },
     {
       "path": "jarvis_core/services/cyber_knowledge.py",
@@ -309,6 +309,18 @@
     {
       "path": "jarvis_core/services/local_research.py",
       "sha256": "f527cbd6a63e14347c3ac776a6a36f45082e66b5b4e4eb6c1133cf205a381d65"
+    },
+    {
+      "path": "jarvis_core/services/memory_index.py",
+      "sha256": "8077064c2cf7abe3b7ee953d97eae7492c60c44d0c2c15d70036fb4f57d293a6"
+    },
+    {
+      "path": "jarvis_core/services/memory_maintenance.py",
+      "sha256": "7778e12d388387ac139d9870b442d7608fc211963be9efd6f28dbf3efa5c2809"
+    },
+    {
+      "path": "jarvis_core/services/memory_retrieval.py",
+      "sha256": "f90b6393ef3e417c0a8777059b50cce9ae6daebf28d88b10790f80b876acc50f"
     },
     {
       "path": "jarvis_core/services/network_inventory.py",
@@ -420,7 +432,7 @@
     },
     {
       "path": "jarvis_core/services/user_memory.py",
-      "sha256": "462445e2a1964c400ce691f8fffc74dcec73179f2464cf41c564371c887bae3e"
+      "sha256": "484534f63edb5910e64f9d84393c009a395b0c083e72dc7883299e9f42de88b3"
     },
     {
       "path": "jarvis_core/services/voice_engine_v2.py",
@@ -464,7 +476,7 @@
     },
     {
       "path": "jarvis_core/skills/builtin/memory_graph.py",
-      "sha256": "e9e7555a423e6116af4f5ba06c64343744b6d45a4a96bf1e14afdc9774a1ed6b"
+      "sha256": "068fb9498cca6f8637a7624afb3015458ad41b6c4f78cf8b971375f0301c2e79"
     },
     {
       "path": "jarvis_core/skills/builtin/meta.py",
@@ -791,6 +803,10 @@
       "sha256": "9872f7f73ab56af6985053bb6f464438dcd5e4967458a297ba38f60611eabddf"
     },
     {
+      "path": "tests/test_context_store_integrity.py",
+      "sha256": "53eaab3dd995e3f15cca079826ac16c29db606260c857da424cbb3a8a8f2923c"
+    },
+    {
       "path": "tests/test_conversation_identity_0276.py",
       "sha256": "2d9719ffe79252e6506e184d5b47923546542e65b51bb3f235579a71693979cb"
     },
@@ -1057,6 +1073,26 @@
     {
       "path": "tests/test_memory_direct_order.py",
       "sha256": "d6000de85cd7b903df9e00eeb65b64869d2326e36e4e7c15ecef58b01bcae3a7"
+    },
+    {
+      "path": "tests/test_memory_graph_isolation.py",
+      "sha256": "7ad07f930d7ec3738ea5ed08bdded2a06e49531f57ba5420decf0b1dc305d283"
+    },
+    {
+      "path": "tests/test_memory_index.py",
+      "sha256": "97574650ee0e97110cef2cf68feb190229ee74a2ce5f7d80ef1f25eb5a740e25"
+    },
+    {
+      "path": "tests/test_memory_maintenance.py",
+      "sha256": "9edd860a4d9ce739023501727af58991c381e60fd16c5c8a7efe588d5091415e"
+    },
+    {
+      "path": "tests/test_memory_retrieval.py",
+      "sha256": "57c168bde6c1b06011fa55babfb7f97964d13afc8366819467a826650127dc21"
+    },
+    {
+      "path": "tests/test_memory_runtime_e2e.py",
+      "sha256": "bb650a6f3fea6019b9f2f2f8d6549683b685025e793cdaa2e29f97c79418d36f"
     },
     {
       "path": "tests/test_mic_calibration_contract.py",

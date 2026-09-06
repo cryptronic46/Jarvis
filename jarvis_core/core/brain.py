@@ -34,6 +34,7 @@ from jarvis_core.services.request_intent import (
 )
 from jarvis_core.services.followup_intent import resolve_followup
 from jarvis_core.services.semantic_request import StructuredRequest, semantic_request_contract
+from jarvis_core.services.memory_retrieval import memory_retrieval
 from jarvis_core.services.action_truth import guard_unverified_local_action_claim
 from jarvis_core.services.response_completion import (
     continuation_is_meta,
@@ -2318,6 +2319,65 @@ class JarvisBrain:
                 subject=request.subject,
                 confidence=request.confidence,
             )
+        owner_memory_context = ""
+
+        if request is not None:
+            try:
+                memory_result = (
+                    memory_retrieval()
+                    .context_for_request(
+                        request,
+                        effective_query,
+                        limit=4,
+                    )
+                )
+
+                owner_memory_context = str(
+                    memory_result.get("context")
+                    or ""
+                )
+
+                if owner_memory_context:
+                    self.events.emit(
+                        "OWNER_MEMORY_RETRIEVED",
+                        intent=request.intent,
+                        results=len(
+                            memory_result.get(
+                                "results"
+                            )
+                            or []
+                        ),
+                        sources=list(
+                            memory_result.get(
+                                "sources"
+                            )
+                            or []
+                        ),
+                    )
+                else:
+                    self.events.emit(
+                        "OWNER_MEMORY_SKIPPED",
+                        intent=request.intent,
+                        reason=str(
+                            memory_result.get(
+                                "reason"
+                            )
+                            or ""
+                        ),
+                    )
+
+            except Exception as exc:
+                owner_memory_context = ""
+
+                self.events.emit(
+                    "OWNER_MEMORY_RETRIEVAL_ERROR",
+                    intent=request.intent,
+                    error=(
+                        f"{type(exc).__name__}: "
+                        f"{exc}"
+                    ),
+                )
+
         self_context = ""
         if dialogue_intent_kind in {"SELF_STATE_CONVERSATION", "IDENTITY_DIALOGUE"}:
             try:
@@ -2327,6 +2387,16 @@ class JarvisBrain:
                     "SYNTHETIC_SELF_CONTEXT_ERROR",
                     error=f"{type(exc).__name__}: {exc}",
                 )
+
+        if owner_memory_context:
+            self_context = (
+                (
+                    self_context
+                    + "\n\n"
+                )
+                if self_context
+                else ""
+            ) + owner_memory_context
 
         # Truthful conversational memory inherited by 0.27.8. Recall evidence is fetched by
         # Core before generation; the model is never allowed to claim memory
