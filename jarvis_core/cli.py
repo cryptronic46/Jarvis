@@ -1140,24 +1140,24 @@ def main() -> None:
 
         learning_followup = None
 
-    try:
-        learning_followup = (
-            get_learning_followup_context(
-                max_age_seconds=300.0
+        try:
+            learning_followup = (
+                get_learning_followup_context(
+                    max_age_seconds=300.0
+                )
             )
-        )
-    except Exception as exc:
-        learning_followup = None
-        events.emit(
-            "SEMANTIC_LEARNING_FOLLOWUP_READ_ERROR",
-            error=f"{type(exc).__name__}: {exc}",
-        )
+        except Exception as exc:
+            learning_followup = None
+            events.emit(
+                "SEMANTIC_LEARNING_FOLLOWUP_READ_ERROR",
+                error=f"{type(exc).__name__}: {exc}",
+            )
 
-    return (
-        recent_turns,
-        app_aliases,
-        learning_followup,
-    )
+        return (
+            recent_turns,
+            app_aliases,
+            learning_followup,
+        )
 
 
     def process_request(user_text: str, *, source: str = "terminal"):

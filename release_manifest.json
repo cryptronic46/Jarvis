@@ -132,7 +132,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "fd27654c376a25218abc0aa058ad23895ec0dc06952d8e1fe5662de439a7f7d3"
+      "sha256": "b38b381e5f0fde05dcf227448b0ebab26fa8d1007d899baf4b3eaec798cfbe93"
     },
     {
       "path": "jarvis_core/core/__init__.py",
