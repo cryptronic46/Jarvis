@@ -956,7 +956,7 @@
     },
     {
       "path": "tests/test_g_drive_voice_reliability_0260.py",
-      "sha256": "c93e1e34b829f931ed97d516275a2b8618a36671975f6eab5bd172526839c15f"
+      "sha256": "e8f3dde6555081a84a033ae87ee63cd1472eeb91051f263759e9221faf1000c7"
     },
     {
       "path": "tests/test_guardian_severity_contract.py",
@@ -964,7 +964,7 @@
     },
     {
       "path": "tests/test_health_intelligence_baseline_0276.py",
-      "sha256": "1479ceb8b08f37f3452d5fb69248ce1ae5b40e8cb7823006893be25080c3d91e"
+      "sha256": "a2fe6800a6d586cdbedaad448cf930010279a138fc6cd9320d502afffe5ed963"
     },
     {
       "path": "tests/test_hybrid_autonomy_contract.py",
@@ -1648,7 +1648,7 @@
     },
     {
       "path": "update_core.ps1",
-      "sha256": "72d0a2810e7e6e0e5f43802de17bd1692779dcb6a64ef201b914376bb5bf1a22"
+      "sha256": "c297ab599d77d9cc9a08b6bcdd7d41182aa8d020875bd0b87d110db16d6e2396"
     },
     {
       "path": "verify_release.ps1",

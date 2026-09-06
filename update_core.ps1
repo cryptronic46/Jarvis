@@ -236,56 +236,6 @@ function Unblock-VerifiedManifestFiles(
     Write-Host "MOTW removido dos ficheiros verificados da release: $Count" -ForegroundColor Green
 }
 
-function Repair-ExternalPowerShell51Encoding {
-    $Relative = "JARVIS_Live_Wallpaper_0.1.0\install.ps1"
-    $Path = Join-Path $Destination $Relative
-
-    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
-        return
-    }
-
-    $Bytes = [System.IO.File]::ReadAllBytes($Path)
-    if (
-        $Bytes.Length -ge 3 -and
-        $Bytes[0] -eq 0xEF -and
-        $Bytes[1] -eq 0xBB -and
-        $Bytes[2] -eq 0xBF
-    ) {
-        return
-    }
-
-    $HasNonAscii = $false
-    foreach ($Byte in $Bytes) {
-        if ($Byte -ge 0x80) {
-            $HasNonAscii = $true
-            break
-        }
-    }
-    if (-not $HasNonAscii) {
-        return
-    }
-
-    # Do not reinterpret legacy ANSI files. Only add a BOM when the current
-    # bytes are already valid strict UTF-8, which preserves the file content.
-    $StrictUtf8 = New-Object System.Text.UTF8Encoding($false, $true)
-    try {
-        [void]$StrictUtf8.GetString($Bytes)
-    }
-    catch {
-        Write-Warning "External Wallpaper install.ps1 is not strict UTF-8; encoding left unchanged."
-        return
-    }
-
-    $WithBom = New-Object byte[] ($Bytes.Length + 3)
-    $WithBom[0] = 0xEF
-    $WithBom[1] = 0xBB
-    $WithBom[2] = 0xBF
-    [System.Array]::Copy($Bytes, 0, $WithBom, 3, $Bytes.Length)
-    [System.IO.File]::WriteAllBytes($Path, $WithBom)
-
-    Write-Host "PowerShell 5.1 encoding repaired for external Wallpaper installer." -ForegroundColor Green
-}
-
 function Remove-StaleManagedTopLevelFiles {
     $CurrentAudit = "AUDIT_0.27.8.md"
 
@@ -409,8 +359,6 @@ else {
 
     Write-Host "Codigo sincronizado." -ForegroundColor Green
 }
-
-Repair-ExternalPowerShell51Encoding
 
 # Phase 2: validate destination after copy.
 Write-Host "A verificar integridade integral do destino..." -ForegroundColor Cyan

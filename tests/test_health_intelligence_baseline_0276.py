@@ -168,9 +168,6 @@ class HealthIntelligenceBaseline0276Tests(unittest.TestCase):
         self.assertIn('$env:PYTHONIOENCODING = "utf-8"', acceptance_text)
         self.assertIn('[char]0x00E3', acceptance_text)
         self.assertIn('[char]0x201C', acceptance_text)
-        updater = Path('update_core.ps1').read_text(encoding='utf-8')
-        self.assertIn('Repair-ExternalPowerShell51Encoding', updater)
-        self.assertIn('JARVIS_Live_Wallpaper_0.1.0\\install.ps1', updater)
 
         # Only release-controlled PowerShell belongs to the Core encoding gate.
         # External add-ons are deliberately preserved outside the Core manifest

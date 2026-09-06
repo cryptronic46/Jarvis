@@ -146,14 +146,6 @@ class GDriveVoiceReliability0260Tests(unittest.TestCase):
         self.assertIn("windows_block_audit", text)
         self.assertNotIn("app_control_policy", text)
 
-    def test_bundled_wallpaper_defaults_to_g_drive(self):
-        install = Path("JARVIS_Live_Wallpaper_0.1.0/install.ps1").read_text(encoding="utf-8")
-        start = Path("JARVIS_Live_Wallpaper_0.1.0/start_bridge.ps1").read_text(encoding="utf-8")
-        bridge = Path("JARVIS_Live_Wallpaper_0.1.0/bridge/jarvis_bridge.py").read_text(encoding="utf-8")
-        self.assertIn(r"G:\JARVIS-Wallpaper", install)
-        self.assertIn(r"G:\JARVIS", start)
-        self.assertIn(r"G:\JARVIS", bridge)
-
     def test_faster_whisper_cache_is_local(self):
         config = Settings()
         self.assertEqual("models/faster-whisper", config.stt_download_root)
