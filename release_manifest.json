@@ -148,15 +148,15 @@
     },
     {
       "path": "jarvis_core/core/config.py",
-      "sha256": "4f0376b83eb5bdfb0cda12e5bfa92c6833712464188dedd88cfef57c438beb87"
+      "sha256": "f4932eb39a203e8001621be68c37a9b5e4462a348adef3c61a20fbe9e50f1215"
     },
     {
       "path": "jarvis_core/core/conversation_policy.py",
-      "sha256": "2248d0cd003b1d8454e59c780ff97e1ba21c6af808901669b75ebc2c8ecb308c"
+      "sha256": "38abedd4671f6587db2359f026b794cc60a7804db25b1dafffdbe010d41a9f1b"
     },
     {
       "path": "jarvis_core/core/events.py",
-      "sha256": "fb3e11e288ac8ddfdfe07a04240de94bd363634e68b081cec890315ef74ff9fa"
+      "sha256": "8aca56b6f023c106612e87cdeb92ee880e9a92c4618498ad5ec481ee95273753"
     },
     {
       "path": "jarvis_core/core/fast_router.py",
@@ -172,11 +172,11 @@
     },
     {
       "path": "jarvis_core/core/local_llm.py",
-      "sha256": "925902149a21be04f3162dc62a551712468ee4176d2efd7465a0be1ece9a5652"
+      "sha256": "411b13c98403967b08cbdeaa22223447604b55ef09beaef2a69f59b150b36de1"
     },
     {
       "path": "jarvis_core/core/local_vision.py",
-      "sha256": "2d1dca0da697ce69d972a2c6d9fed9fd7451d245045de8d0ec0102ca4affc351"
+      "sha256": "0a951051364846b0dc7d24fb4690f125af001dbbbc7f1066cf0bbec6b5e7ad12"
     },
     {
       "path": "jarvis_core/core/subprocess_text.py",
@@ -184,7 +184,7 @@
     },
     {
       "path": "jarvis_core/core/tool_registry.py",
-      "sha256": "97665744f62f424b7587e0a639e021b9ab6bb8124ee6554f4297e230057c4b66"
+      "sha256": "45f0d047742b0b9032f33dcf7b2fcf5e4cbf46c54c752ffb6ccf3f7eb5d7afcd"
     },
     {
       "path": "jarvis_core/security/__init__.py",
@@ -1601,6 +1601,46 @@
     {
       "path": "tests/test_windows_subprocess_encoding_0276.py",
       "sha256": "8f9e2ea4932797dba66ba7c00d51a37559df4f094bee4a1d074080da8648db46"
+    },
+    {
+      "path": "tests/test_config_malformed_json_resilience.py",
+      "sha256": "eb32932709015444437748845686a40765489118c27e9d5975b902fb5a53fd49"
+    },
+    {
+      "path": "tests/test_conversation_policy_authorized_learning_scope.py",
+      "sha256": "b84744802f3fb8750009ddaa661e74eacc1b6366accb420b603111120b5d3bdf"
+    },
+    {
+      "path": "tests/test_eventbus_failure_isolation.py",
+      "sha256": "41445cf76c420d522cdcb473ebab54b9d97209de2fe962302478125b6bfd6cea"
+    },
+    {
+      "path": "tests/test_local_llm_keep_alive_semantics.py",
+      "sha256": "7ab471cb86eb989e81e5de47b4602173d79f87035766644dff35d4e158efab78"
+    },
+    {
+      "path": "tests/test_local_llm_runtime_concurrency.py",
+      "sha256": "56257c519d60b1db96aec42b14bec46bec63be73649505015687882b54cea473"
+    },
+    {
+      "path": "tests/test_local_llm_runtime_startup_cleanup.py",
+      "sha256": "06a7be2725e2bb6f26bf7303c48ae604f322d9fd8aa41c116ec499dcb6dfc035"
+    },
+    {
+      "path": "tests/test_tool_registry_profile_telemetry.py",
+      "sha256": "bb0e5fd773f2cc57035c2f77763edf7f2ba4a3e23aeea642be1db613eeb6cd9b"
+    },
+    {
+      "path": "tests/test_vision_idle_timer_race.py",
+      "sha256": "d17848cb125c9c58331103d56bc76f1ec866cf688c0644ba27d2b123fb3271a6"
+    },
+    {
+      "path": "tests/test_vision_runtime_concurrency.py",
+      "sha256": "85271cd03f17b190aca554ba660efe21bf4caae603324e5cb35dd400a67c715a"
+    },
+    {
+      "path": "tests/test_vision_runtime_startup_cleanup.py",
+      "sha256": "dccf506b00368aa59153af853b0c6d375bc4720d959b553783965dcce08263b1"
     },
     {
       "path": "train_voice_learning.ps1",

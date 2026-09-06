@@ -43,6 +43,8 @@ class NativeLlamaRuntime:
         self.settings = settings
         self.events = events
         self._lock = RLock()
+        self._startup_lock = RLock()
+        self._lifecycle_generation = 0
         self._process: subprocess.Popen | None = None
         self._owned = False
         self._log_handle = None
@@ -146,68 +148,224 @@ class NativeLlamaRuntime:
         except Exception:
             return False
 
+    def _cleanup_failed_startup(self) -> None:
+        process = self._process
+        if process is not None and process.poll() is None:
+            try:
+                process.terminate()
+                process.wait(timeout=5)
+            except Exception:
+                try:
+                    process.kill()
+                except Exception:
+                    pass
+
+        self._process = None
+        self._owned = False
+
+        try:
+            self.state_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+        if self._log_handle is not None:
+            try:
+                self._log_handle.close()
+            except Exception:
+                pass
+            self._log_handle = None
+
     def ensure_started(self) -> NativeRuntimeStatus:
         with self._lock:
+            generation = self._lifecycle_generation
+
+        # Serialize startup attempts without holding the lifecycle state lock
+        # across health waits. shutdown() must remain able to cancel startup.
+        with self._startup_lock:
+            with self._lock:
+                if generation != self._lifecycle_generation:
+                    raise LocalLLMError("LLM_STARTUP_CANCELLED")
+
+            # Healthy fast path. PID resolution is intentionally outside the
+            # lifecycle lock because it may touch the state file or OS.
             if self._health():
-                pid = self._process.pid if self._process and self._process.poll() is None else self._read_state_pid()
-                return NativeRuntimeStatus(True, pid, self.base_url, str(self.model_path), bool(self._owned))
+                with self._lock:
+                    if generation != self._lifecycle_generation:
+                        raise LocalLLMError("LLM_STARTUP_CANCELLED")
+                    process = self._process
+                    owned = bool(self._owned)
+
+                pid = (
+                    process.pid
+                    if process is not None and process.poll() is None
+                    else self._read_state_pid()
+                )
+
+                # Final fast-path barrier: shutdown may have completed while
+                # PID resolution was in progress.
+                with self._lock:
+                    if generation != self._lifecycle_generation:
+                        raise LocalLLMError("LLM_STARTUP_CANCELLED")
+
+                    if process is not None:
+                        current_process = self._process
+                        if (
+                            current_process is not process
+                            or current_process.poll() is not None
+                        ):
+                            raise LocalLLMError("LLM_STARTUP_CANCELLED")
+                        owned = bool(self._owned)
+
+                    return NativeRuntimeStatus(
+                        True,
+                        pid,
+                        self.base_url,
+                        str(self.model_path),
+                        owned,
+                    )
 
             if not self.executable.is_file():
                 raise LocalLLMError(
                     f"Native llama.cpp runtime not installed: {self.executable}. "
                     "Run .\\setup_native_brain.ps1."
                 )
+
             if not self.model_path.is_file():
                 raise LocalLLMError(
                     f"Native local model not found: {self.model_path}. "
                     "Run .\\setup_native_brain.ps1."
                 )
 
-            log_path = Path(str(getattr(self.settings, "log_dir", "logs"))) / "native_llama_server.log"
+            log_path = (
+                Path(str(getattr(self.settings, "log_dir", "logs")))
+                / "native_llama_server.log"
+            )
             log_path.parent.mkdir(parents=True, exist_ok=True)
-            self._log_handle = log_path.open("ab", buffering=0)
 
             args = [
                 str(self.executable.resolve()),
-                "-m", str(self.model_path.resolve()),
-                "--host", self.host,
-                "--port", str(self.port),
-                "-c", str(int(getattr(self.settings, "llm_num_ctx", 8192))),
-                "-ngl", str(int(getattr(self.settings, "native_llama_gpu_layers", 99))),
+                "-m",
+                str(self.model_path.resolve()),
+                "--host",
+                self.host,
+                "--port",
+                str(self.port),
+                "-c",
+                str(int(getattr(self.settings, "llm_num_ctx", 8192))),
+                "-ngl",
+                str(
+                    int(
+                        getattr(
+                            self.settings,
+                            "native_llama_gpu_layers",
+                            99,
+                        )
+                    )
+                ),
                 "--jinja",
             ]
-            threads = int(getattr(self.settings, "native_llama_threads", 6))
+
+            threads = int(
+                getattr(
+                    self.settings,
+                    "native_llama_threads",
+                    6,
+                )
+            )
             if threads > 0:
                 args += ["-t", str(threads)]
-            if bool(getattr(self.settings, "native_llama_flash_attention", True)):
+
+            if bool(
+                getattr(
+                    self.settings,
+                    "native_llama_flash_attention",
+                    True,
+                )
+            ):
                 args += ["--flash-attn", "on"]
 
             creationflags = 0
             if os.name == "nt":
-                creationflags = int(getattr(subprocess, "CREATE_NO_WINDOW", 0))
-            self._emit("NATIVE_LLM_STARTING", executable=str(self.executable), model=str(self.model_path), port=self.port)
-            self._process = subprocess.Popen(
-                args,
-                stdin=subprocess.DEVNULL,
-                stdout=self._log_handle,
-                stderr=subprocess.STDOUT,
-                creationflags=creationflags,
-            )
-            self._owned = True
-            self._write_state(self._process.pid)
+                creationflags = int(
+                    getattr(
+                        subprocess,
+                        "CREATE_NO_WINDOW",
+                        0,
+                    )
+                )
 
-            timeout = max(5.0, float(getattr(self.settings, "native_llama_start_timeout_seconds", 45.0)))
+            self._emit(
+                "NATIVE_LLM_STARTING",
+                executable=str(self.executable),
+                model=str(self.model_path),
+                port=self.port,
+            )
+
+            # Launch state is committed atomically under the lifecycle lock.
+            with self._lock:
+                if generation != self._lifecycle_generation:
+                    raise LocalLLMError("LLM_STARTUP_CANCELLED")
+
+                try:
+                    self._log_handle = log_path.open(
+                        "ab",
+                        buffering=0,
+                    )
+                    self._process = subprocess.Popen(
+                        args,
+                        stdin=subprocess.DEVNULL,
+                        stdout=self._log_handle,
+                        stderr=subprocess.STDOUT,
+                        creationflags=creationflags,
+                    )
+                    self._owned = True
+                    self._write_state(self._process.pid)
+                except Exception:
+                    self._cleanup_failed_startup()
+                    raise
+
+            # shutdown may have raced immediately after process creation.
+            with self._lock:
+                if generation != self._lifecycle_generation:
+                    self._cleanup_failed_startup()
+                    raise LocalLLMError("LLM_STARTUP_CANCELLED")
+
+            timeout = max(
+                5.0,
+                float(
+                    getattr(
+                        self.settings,
+                        "native_llama_start_timeout_seconds",
+                        45.0,
+                    )
+                ),
+            )
             deadline = monotonic() + timeout
+
             while monotonic() < deadline:
-                if self._process.poll() is not None:
-                    code = int(self._process.returncode or 0)
+                with self._lock:
+                    if generation != self._lifecycle_generation:
+                        self._cleanup_failed_startup()
+                        raise LocalLLMError("LLM_STARTUP_CANCELLED")
+                    process = self._process
+
+                if process is None:
+                    raise LocalLLMError("LLM_STARTUP_PROCESS_LOST")
+
+                if process.poll() is not None:
+                    code = int(process.returncode or 0)
                     code_hex = f"0x{(code & 0xFFFFFFFF):08X}"
                     tail = ""
+
                     try:
                         raw = log_path.read_bytes()[-4096:]
-                        tail = raw.decode("utf-8", errors="replace").strip()
+                        tail = raw.decode(
+                            "utf-8",
+                            errors="replace",
+                        ).strip()
                     except Exception:
                         tail = ""
+
                     motw_count = 0
                     if os.name == "nt":
                         try:
@@ -215,35 +373,94 @@ class NativeLlamaRuntime:
                                 if not candidate.is_file():
                                     continue
                                 try:
-                                    if os.path.exists(str(candidate) + ":Zone.Identifier"):
+                                    if os.path.exists(
+                                        str(candidate)
+                                        + ":Zone.Identifier"
+                                    ):
                                         motw_count += 1
                                 except Exception:
                                     pass
                         except Exception:
                             pass
-                    detail = (tail[-1200:] if tail else "no log output")
+
+                    detail = (
+                        tail[-1200:]
+                        if tail
+                        else "no log output"
+                    )
+
+                    with self._lock:
+                        self._cleanup_failed_startup()
+
                     if code_hex == "0xC0E90002":
                         raise LocalLLMError(
-                            "llama-server was rejected by Windows during startup "
+                            "llama-server was rejected by Windows during "
+                            "startup "
                             f"({code_hex}: Bad Image / Code Integrity). "
                             f"Runtime MOTW files detected: {motw_count}. "
-                            "Run .\\setup_native_brain.ps1 -RepairRuntime to reinstall the pinned "
-                            "llama.cpp runtime from SHA-256-verified archives, then restart JARVIS. "
+                            "Run .\\setup_native_brain.ps1 -RepairRuntime to "
+                            "reinstall the pinned llama.cpp runtime from "
+                            "SHA-256-verified archives, then restart JARVIS. "
                             f"Log tail: {detail}"
                         )
-                    raise LocalLLMError(
-                        f"llama-server exited during startup with code {code} ({code_hex}); "
-                        f"runtime MOTW files: {motw_count}; log tail: {detail}"
-                    )
-                if self._health(timeout=1.0):
-                    self._emit("NATIVE_LLM_STARTED", pid=self._process.pid, model=str(self.model_path))
-                    return NativeRuntimeStatus(True, self._process.pid, self.base_url, str(self.model_path), True)
-                sleep(0.25)
-            self.shutdown(reason="startup_timeout")
-            raise LocalLLMError(f"Native llama.cpp runtime did not become healthy within {timeout:.0f}s; see {log_path}.")
 
+                    raise LocalLLMError(
+                        "llama-server exited during startup with code "
+                        f"{code} ({code_hex}); runtime MOTW files: "
+                        f"{motw_count}; log tail: {detail}"
+                    )
+
+                healthy = self._health(timeout=1.0)
+
+                with self._lock:
+                    if generation != self._lifecycle_generation:
+                        self._cleanup_failed_startup()
+                        raise LocalLLMError("LLM_STARTUP_CANCELLED")
+                    process = self._process
+
+                if healthy:
+                    if process is None or process.poll() is not None:
+                        continue
+
+                    self._emit(
+                        "NATIVE_LLM_STARTED",
+                        pid=process.pid,
+                        model=str(self.model_path),
+                    )
+
+                    # Final success barrier: the started event itself may take
+                    # long enough for shutdown to complete concurrently.
+                    with self._lock:
+                        if generation != self._lifecycle_generation:
+                            raise LocalLLMError("LLM_STARTUP_CANCELLED")
+
+                        current_process = self._process
+                        if (
+                            current_process is None
+                            or current_process is not process
+                            or current_process.poll() is not None
+                        ):
+                            raise LocalLLMError("LLM_STARTUP_CANCELLED")
+
+                        return NativeRuntimeStatus(
+                            True,
+                            current_process.pid,
+                            self.base_url,
+                            str(self.model_path),
+                            True,
+                        )
+
+                sleep(0.25)
+
+            self.shutdown(reason="startup_timeout")
+
+            raise LocalLLMError(
+                "Native llama.cpp runtime did not become healthy within "
+                f"{timeout:.0f}s; see {log_path}."
+            )
     def shutdown(self, reason: str = "shutdown") -> dict[str, Any]:
         with self._lock:
+            self._lifecycle_generation += 1
             pid = None
             if self._process is not None and self._process.poll() is None:
                 pid = self._process.pid
@@ -421,7 +638,7 @@ class NativeLlamaClient:
              options: dict[str, Any] | None = None, tools: list[dict[str, Any]] | None = None,
              format: dict[str, Any] | None = None, stream: bool = False, **_: Any) -> Any:
         del model, stream
-        release_after = str(keep_alive).strip().lower() in {"0", "0s", "0.0"} or keep_alive == 0
+        release_after = str(keep_alive).strip().lower() in {"0", "0s", "0.0"} or (keep_alive == 0 and not isinstance(keep_alive, bool))
         self.runtime.ensure_started()
         options = dict(options or {})
         payload: dict[str, Any] = {
@@ -493,7 +710,7 @@ class NativeLlamaClient:
 
     def generate(self, *, model: str, prompt: str = "", keep_alive: Any = None, **_: Any) -> Any:
         del model, prompt
-        if str(keep_alive) in {"0", "0s", "0.0"} or keep_alive == 0:
+        if str(keep_alive) in {"0", "0s", "0.0"} or (keep_alive == 0 and not isinstance(keep_alive, bool)):
             self.runtime.shutdown(reason="release_model")
         return {"ok": True}
 

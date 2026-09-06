@@ -41,6 +41,8 @@ class NativeVisionRuntime:
         self.settings = settings
         self.events = events
         self._lock = RLock()
+        self._startup_lock = RLock()
+        self._lifecycle_generation = 0
         self._process: subprocess.Popen | None = None
         self._owned = False
         self._log_handle = None
@@ -183,41 +185,147 @@ class NativeVisionRuntime:
             return False, "VISION_LLAMA_RUNTIME_NOT_INSTALLED"
         return True, None
 
+    def _cleanup_failed_startup(self) -> None:
+        process = self._process
+        if process is not None and process.poll() is None:
+            try:
+                process.terminate()
+                process.wait(timeout=5)
+            except Exception:
+                try:
+                    process.kill()
+                except Exception:
+                    pass
+        self._process = None
+        self._owned = False
+        try:
+            self.state_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+        if self._log_handle is not None:
+            try:
+                self._log_handle.close()
+            except Exception:
+                pass
+            self._log_handle = None
     def ensure_started(self) -> NativeVisionStatus:
         with self._lock:
+            generation = self._lifecycle_generation
+
+        # Only one startup attempt may own the launch sequence at a time.
+        # The state lock is deliberately not held across health waits so
+        # shutdown can interrupt an in-progress startup.
+        with self._startup_lock:
+            with self._lock:
+                if generation != self._lifecycle_generation:
+                    raise LocalVisionError("VISION_STARTUP_CANCELLED")
+
             if self._health():
-                pid = self._process.pid if self._process and self._process.poll() is None else self._read_state_pid()
-                return NativeVisionStatus(
-                    True, pid, self.base_url, str(self.model_path), str(self.mmproj_path), bool(self._owned)
+                with self._lock:
+                    if generation != self._lifecycle_generation:
+                        raise LocalVisionError("VISION_STARTUP_CANCELLED")
+                    process = self._process
+                    owned = bool(self._owned)
+
+                pid = (
+                    process.pid
+                    if process is not None and process.poll() is None
+                    else self._read_state_pid()
                 )
+
+                with self._lock:
+                    if generation != self._lifecycle_generation:
+                        raise LocalVisionError("VISION_STARTUP_CANCELLED")
+
+                    if process is not None:
+                        current_process = self._process
+                        if (
+                            current_process is not process
+                            or current_process.poll() is not None
+                        ):
+                            raise LocalVisionError(
+                                "VISION_STARTUP_CANCELLED"
+                            )
+                        owned = bool(self._owned)
+
+                    return NativeVisionStatus(
+                        True,
+                        pid,
+                        self.base_url,
+                        str(self.model_path),
+                        str(self.mmproj_path),
+                        owned,
+                    )
 
             configured, error_code = self.configured()
             if not configured:
-                raise LocalVisionError(error_code or "VISION_NOT_CONFIGURED")
+                raise LocalVisionError(
+                    error_code or "VISION_NOT_CONFIGURED"
+                )
 
-            log_path = Path(str(getattr(self.settings, "log_dir", "logs"))) / "native_vision_server.log"
+            log_path = (
+                Path(str(getattr(self.settings, "log_dir", "logs")))
+                / "native_vision_server.log"
+            )
             log_path.parent.mkdir(parents=True, exist_ok=True)
-            self._log_handle = log_path.open("ab", buffering=0)
 
             args = [
                 str(self.executable.resolve()),
-                "-m", str(self.model_path.resolve()),
-                "--mmproj", str(self.mmproj_path.resolve()),
-                "--host", self.host,
-                "--port", str(self.port),
-                # Qwen2.5-VL needs enough room for image tokens plus the answer.
-                "-c", str(max(8192, int(getattr(self.settings, "vision_native_ctx", 8192)))),
-                "-ngl", str(int(getattr(self.settings, "vision_native_gpu_layers", 99))),
-                "--alias", "jarvis-vision",
+                "-m",
+                str(self.model_path.resolve()),
+                "--mmproj",
+                str(self.mmproj_path.resolve()),
+                "--host",
+                self.host,
+                "--port",
+                str(self.port),
+                "-c",
+                str(
+                    max(
+                        8192,
+                        int(
+                            getattr(
+                                self.settings,
+                                "vision_native_ctx",
+                                8192,
+                            )
+                        ),
+                    )
+                ),
+                "-ngl",
+                str(
+                    int(
+                        getattr(
+                            self.settings,
+                            "vision_native_gpu_layers",
+                            99,
+                        )
+                    )
+                ),
+                "--alias",
+                "jarvis-vision",
                 "--jinja",
             ]
-            threads = int(getattr(self.settings, "vision_native_threads", 6))
+
+            threads = int(
+                getattr(
+                    self.settings,
+                    "vision_native_threads",
+                    6,
+                )
+            )
             if threads > 0:
                 args += ["-t", str(threads)]
 
             creationflags = 0
             if os.name == "nt":
-                creationflags = int(getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                creationflags = int(
+                    getattr(
+                        subprocess,
+                        "CREATE_NO_WINDOW",
+                        0,
+                    )
+                )
 
             self._emit(
                 "NATIVE_VISION_STARTING",
@@ -226,48 +334,141 @@ class NativeVisionRuntime:
                 mmproj=str(self.mmproj_path),
                 port=self.port,
             )
-            self._process = subprocess.Popen(
-                args,
-                stdin=subprocess.DEVNULL,
-                stdout=self._log_handle,
-                stderr=subprocess.STDOUT,
-                creationflags=creationflags,
-            )
-            self._owned = True
-            self._write_state(self._process.pid)
 
-            timeout = max(10.0, float(getattr(self.settings, "vision_native_start_timeout_seconds", 90.0)))
+            with self._lock:
+                if generation != self._lifecycle_generation:
+                    raise LocalVisionError("VISION_STARTUP_CANCELLED")
+
+                try:
+                    self._log_handle = log_path.open(
+                        "ab",
+                        buffering=0,
+                    )
+                    self._process = subprocess.Popen(
+                        args,
+                        stdin=subprocess.DEVNULL,
+                        stdout=self._log_handle,
+                        stderr=subprocess.STDOUT,
+                        creationflags=creationflags,
+                    )
+                    self._owned = True
+                    self._write_state(self._process.pid)
+                except Exception:
+                    self._cleanup_failed_startup()
+                    raise
+
+            with self._lock:
+                if generation != self._lifecycle_generation:
+                    self._cleanup_failed_startup()
+                    raise LocalVisionError(
+                        "VISION_STARTUP_CANCELLED"
+                    )
+
+            timeout = max(
+                10.0,
+                float(
+                    getattr(
+                        self.settings,
+                        "vision_native_start_timeout_seconds",
+                        90.0,
+                    )
+                ),
+            )
             deadline = monotonic() + timeout
+
             while monotonic() < deadline:
-                if self._process.poll() is not None:
-                    code = int(self._process.returncode or 0)
+                with self._lock:
+                    if generation != self._lifecycle_generation:
+                        self._cleanup_failed_startup()
+                        raise LocalVisionError(
+                            "VISION_STARTUP_CANCELLED"
+                        )
+                    process = self._process
+
+                if process is None:
+                    raise LocalVisionError(
+                        "VISION_STARTUP_PROCESS_LOST"
+                    )
+
+                if process.poll() is not None:
+                    code = int(process.returncode or 0)
                     tail = ""
                     try:
-                        tail = log_path.read_bytes()[-5000:].decode("utf-8", errors="replace").strip()
+                        tail = (
+                            log_path.read_bytes()[-5000:]
+                            .decode(
+                                "utf-8",
+                                errors="replace",
+                            )
+                            .strip()
+                        )
                     except Exception:
                         pass
+
+                    with self._lock:
+                        self._cleanup_failed_startup()
+
                     raise LocalVisionError(
-                        f"native vision llama-server exited with code {code}; log tail: {tail[-1600:] or 'no log output'}"
+                        "native vision llama-server exited "
+                        f"with code {code}; log tail: "
+                        f"{tail[-1600:] or 'no log output'}"
                     )
-                if self._health(timeout=1.0):
-                    self._emit("NATIVE_VISION_STARTED", pid=self._process.pid, model=str(self.model_path))
-                    return NativeVisionStatus(
-                        True,
-                        self._process.pid,
-                        self.base_url,
-                        str(self.model_path),
-                        str(self.mmproj_path),
-                        True,
+
+                healthy = self._health(timeout=1.0)
+
+                with self._lock:
+                    if generation != self._lifecycle_generation:
+                        self._cleanup_failed_startup()
+                        raise LocalVisionError(
+                            "VISION_STARTUP_CANCELLED"
+                        )
+                    process = self._process
+
+                if healthy:
+                    if process is None or process.poll() is not None:
+                        continue
+
+                    self._emit(
+                        "NATIVE_VISION_STARTED",
+                        pid=process.pid,
+                        model=str(self.model_path),
                     )
+
+                    with self._lock:
+                        if generation != self._lifecycle_generation:
+                            raise LocalVisionError(
+                                "VISION_STARTUP_CANCELLED"
+                            )
+
+                        current_process = self._process
+                        if (
+                            current_process is None
+                            or current_process is not process
+                            or current_process.poll() is not None
+                        ):
+                            raise LocalVisionError(
+                                "VISION_STARTUP_CANCELLED"
+                            )
+
+                        return NativeVisionStatus(
+                            True,
+                            current_process.pid,
+                            self.base_url,
+                            str(self.model_path),
+                            str(self.mmproj_path),
+                            True,
+                        )
+
                 sleep(0.25)
 
             self.shutdown(reason="startup_timeout")
             raise LocalVisionError(
-                f"Native visual runtime did not become healthy within {timeout:.0f}s; see {log_path}."
+                "Native visual runtime did not become healthy "
+                f"within {timeout:.0f}s; see {log_path}."
             )
-
     def shutdown(self, reason: str = "shutdown") -> dict[str, Any]:
         with self._lock:
+            self._lifecycle_generation += 1
             pid = None
             if self._process is not None and self._process.poll() is None:
                 pid = self._process.pid
@@ -409,6 +610,7 @@ class NativeVisionClient:
         path = Path(image_path)
         if not path.is_file():
             raise LocalVisionError(f"IMAGE_NOT_FOUND: {path}")
+        self._cancel_idle_shutdown()
         self.runtime.ensure_started()
         payload = {
             "model": "jarvis-vision",

@@ -65,7 +65,9 @@ class EventBus:
                 pass
 
     def subscribe(self, callback: Callable[[Event], None]) -> None:
-        self._subscribers.append(callback)
+        with self._lock:
+            if callback not in self._subscribers:
+                self._subscribers.append(callback)
 
     def emit(self, name: str, **data: Any) -> Event:
         event = Event(
@@ -83,7 +85,12 @@ class EventBus:
             subscribers = list(self._subscribers)
 
         for callback in subscribers:
-            callback(event)
+            try:
+                callback(event)
+            except Exception:
+                # Subscribers are observers. One failing observer must never
+                # break event production or prevent later observers running.
+                pass
         return event
 
     def recent(self, count: int = 20) -> list[Event]:

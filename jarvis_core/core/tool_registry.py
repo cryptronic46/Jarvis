@@ -1706,12 +1706,7 @@ class ToolRegistry:
 
         if not profile_manager().tool_allowed(name) and not bypass_profile_permission:
             profile_id = profile_manager().active_id()
-            self.events.emit(
-                "TOOL_BLOCKED",
-                tool=name,
-                reason="profile_permission",
-                profile=profile_id,
-            )
+
             # OWNER rule (0.27.6): a profile is a default operating policy, not
             # an irrevocable denial. For a known non-critical tool, create one
             # exact authorization request. The later OWNER approval bypasses
@@ -1728,6 +1723,12 @@ class ToolRegistry:
                         source="tool_registry_profile_gate",
                     )
                     if gate.get("pending"):
+                        self.events.emit(
+                            "TOOL_BLOCKED",
+                            tool=name,
+                            reason="profile_permission",
+                            profile=profile_id,
+                        )
                         return json.dumps({
                             "ok": False,
                             "error": "OWNER_AUTHORIZATION_REQUIRED",
@@ -1745,6 +1746,12 @@ class ToolRegistry:
                 except Exception:
                     pass
             if not bypass_profile_permission:
+                self.events.emit(
+                    "TOOL_BLOCKED",
+                    tool=name,
+                    reason="profile_permission",
+                    profile=profile_id,
+                )
                 return json.dumps({
                     "ok": False,
                     "error": "PROFILE_PERMISSION_DENIED",

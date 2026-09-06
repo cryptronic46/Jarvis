@@ -23,10 +23,9 @@ def authorized_learning_requested(user_text: str) -> bool:
         r"\bo que aprendeste(?: sobre)?\b",
         r"\bo que pesquisaste(?: sobre)?\b",
         r"\bo que estudaste(?: sobre)?\b",
-        r"\bo que sabes sobre\b",
         r"\b(?:consulta|usa|mostra|resume) (?:a |as )?(?:pesquisa|pesquisas|aprendizagem|aprendizagens)(?: autorizada| autorizadas)?\b",
         r"\b(?:na|da|sobre a) pesquisa que (?:fizeste|fizemos|autorizei|autorizamos)\b",
-        r"\b(?:fontes|resumo|conhecimento) (?:guardadas|guardados|aprendido)\b",
+        r"\b(?:fontes guardadas|resumo guardado|conhecimento (?:guardado|aprendido))\b",
         r"\baprendizagem autorizada\b",
         r"\bpesquisa autorizada\b",
     )

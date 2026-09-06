@@ -493,7 +493,14 @@ class Settings:
         if p.exists():
             raw = p.read_bytes()
             had_utf8_bom = raw.startswith(b"\xef\xbb\xbf")
-            loaded = json.loads(raw.decode("utf-8-sig"))
+            try:
+                loaded = json.loads(raw.decode("utf-8-sig"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                return {
+                    "ok": False,
+                    "path": str(p),
+                    "error": "SETTINGS_JSON_INVALID",
+                }
             if isinstance(loaded, dict):
                 data = loaded
 
@@ -752,7 +759,14 @@ class Settings:
         p = Path(path)
         data: dict[str, object] = {}
         if p.exists():
-            loaded = json.loads(p.read_text(encoding="utf-8-sig"))
+            try:
+                loaded = json.loads(p.read_text(encoding="utf-8-sig"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                return {
+                    "ok": False,
+                    "path": str(p),
+                    "error": "SETTINGS_JSON_INVALID",
+                }
             if isinstance(loaded, dict):
                 data = loaded
         allowed = set(cls.__dataclass_fields__)
@@ -780,7 +794,10 @@ class Settings:
         p = Path(path)
         data = {}
         if p.exists():
-            data = json.loads(p.read_text(encoding="utf-8-sig"))
+            try:
+                data = json.loads(p.read_text(encoding="utf-8-sig"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                data = {}
 
         overrides = {
             "JARVIS_MODEL": "model",
@@ -807,5 +824,17 @@ class Settings:
         instance.external_ai_auto_escalate_complex = False
         instance.expert_escalation_enabled = False
         instance.performance_cloud_offload_under_pressure = False
+
+        # PC-local voice and listening are retired. Runtime loading must never
+        # resurrect historical audio features, regardless of file contents,
+        # environment overrides, or malformed settings fallback.
+        instance.local_voice_enabled = False
+        instance.speech_enabled = False
+        instance.speaker_lock_enabled = False
+        instance.wake_enabled = False
+        instance.wake_auto_start = False
+        instance.proactive_speech_enabled = False
+        instance.listening_watchdog_enabled = False
+        instance.voice_v2_preload_stt = False
 
         return instance
