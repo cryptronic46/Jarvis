@@ -210,6 +210,115 @@ class SettingsSchemaMigrationTests(unittest.TestCase):
             )
 
 
+
+    def test_retired_companion_flirt_settings_are_purged(
+        self,
+    ):
+        retired = {
+            "companion_flirt_enabled": True,
+            "companion_flirt_intensity": 0.75,
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "settings.json"
+
+            path.write_text(
+                json.dumps(
+                    {
+                        "user_name": "Owner",
+                        "companion_enabled": False,
+                        "companion_temperature": 0.44,
+                        "owner_extension_key": "keep-me",
+                        **retired,
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            result = (
+                Settings.ensure_file_schema(
+                    path
+                )
+            )
+
+            data = json.loads(
+                path.read_text(
+                    encoding="utf-8"
+                )
+            )
+
+            loaded = Settings.load(
+                path
+            )
+
+            self.assertEqual(
+                result[
+                    "retired_companion_settings_removed_count"
+                ],
+                2,
+            )
+
+            self.assertEqual(
+                set(
+                    result[
+                        "retired_companion_settings_removed"
+                    ]
+                ),
+                set(retired),
+            )
+
+            for key in retired:
+                self.assertNotIn(
+                    key,
+                    data,
+                )
+
+                self.assertFalse(
+                    hasattr(
+                        loaded,
+                        key,
+                    )
+                )
+
+            self.assertFalse(
+                data[
+                    "companion_enabled"
+                ]
+            )
+
+            self.assertEqual(
+                data[
+                    "companion_temperature"
+                ],
+                0.44,
+            )
+
+            self.assertEqual(
+                data[
+                    "owner_extension_key"
+                ],
+                "keep-me",
+            )
+
+    def test_current_release_has_no_retired_companion_flirt_settings(
+        self,
+    ):
+        data = json.loads(
+            Path("settings.json").read_text(
+                encoding="utf-8"
+            )
+        )
+
+        self.assertNotIn(
+            "companion_flirt_enabled",
+            data,
+        )
+
+        self.assertNotIn(
+            "companion_flirt_intensity",
+            data,
+        )
+
     def test_current_release_settings_has_complete_schema(self):
         data = json.loads(
             Path("settings.json").read_text(

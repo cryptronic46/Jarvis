@@ -2,30 +2,78 @@ import unittest
 from pathlib import Path
 
 
-class CompanionBrainPlannerContractTests(unittest.TestCase):
+class CompanionBrainPlannerContractTests(
+    unittest.TestCase
+):
     def setUp(self):
-        self.text = Path("jarvis_core/core/brain.py").read_text(encoding="utf-8")
-        start = self.text.index("    def plan_companion_initiative(")
-        end_marker = "\n    def "
-        end = self.text.find(end_marker, start + 8)
-        self.method = self.text[start:] if end < 0 else self.text[start:end]
+        text = Path(
+            "jarvis_core/core/brain.py"
+        ).read_text(
+            encoding="utf-8"
+        )
 
-    def test_planner_is_local_tool_free_and_allows_silence(self):
-        self.assertIn("def plan_companion_initiative", self.method)
-        self.assertIn("O silêncio", self.method)
-        self.assertIn("Não afirmes consciência subjetiva", self.method)
-        self.assertIn("O flirt é livre na forma e no contexto", self.method)
-        self.assertIn("day_period", self.method)
-        self.assertIn("time_boundaries", self.method)
-        self.assertIn("self.client.chat", self.method)
-        # A companion planner is deliberately tool-free.
-        self.assertNotIn("tools=", self.method)
-        self.assertNotIn("self.tools.execute", self.method)
+        start = text.index(
+            "    def plan_companion_initiative("
+        )
 
-    def test_flirt_can_be_suppressed_when_disabled(self):
-        self.assertIn('if tone == "flirty" and not flirt_enabled:', self.method)
-        self.assertIn('speak = False', self.method)
-        self.assertIn('"text": text if speak else ""', self.method)
+        end = text.find(
+            "\n    def ",
+            start + 8,
+        )
+
+        self.method = (
+            text[start:]
+            if end < 0
+            else text[start:end]
+        )
+
+    def test_planner_is_local_tool_free_and_allows_silence(
+        self,
+    ):
+        self.assertIn(
+            "Silence is valid",
+            self.method,
+        )
+        self.assertIn(
+            "relational_presence_state",
+            self.method,
+        )
+        self.assertIn(
+            "synthetic_self_state",
+            self.method,
+        )
+        self.assertIn(
+            "self.client.chat",
+            self.method,
+        )
+        self.assertNotIn(
+            "tools=",
+            self.method,
+        )
+        self.assertNotIn(
+            "self.tools.execute",
+            self.method,
+        )
+
+    def test_planner_has_no_flirt_mode_or_intensity_switch(
+        self,
+    ):
+        self.assertNotIn(
+            "flirt_enabled",
+            self.method,
+        )
+        self.assertNotIn(
+            "flirt_intensity",
+            self.method,
+        )
+        self.assertNotIn(
+            'tone == "flirty"',
+            self.method,
+        )
+        self.assertIn(
+            "never a mode or preset",
+            self.method,
+        )
 
 
 if __name__ == "__main__":

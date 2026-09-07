@@ -132,7 +132,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "47023d5da138272ccc690ae8c77f66db2e052f6efebb351ed21eb15a22c36940"
+      "sha256": "9c3b17186ebb1cdba3dd332e004b4ccb3534f30ff8a865bfd30cfffde273f36e"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -140,7 +140,7 @@
     },
     {
       "path": "jarvis_core/core/brain.py",
-      "sha256": "cd59a384770cd0dd13315bd5153cee7809677fdea33a944332e7efdda79deeb1"
+      "sha256": "0921bc9ae6f72bd245686d2868d7511dce6b4f5fdf8e3c7914510ba99e65842f"
     },
     {
       "path": "jarvis_core/core/cloud_brain.py",
@@ -148,7 +148,7 @@
     },
     {
       "path": "jarvis_core/core/config.py",
-      "sha256": "dc000dc0abc6fcf77a87f9eed31f32da20583cbf0ec1dd4099ac1d30bfbdabb0"
+      "sha256": "59695a2b2cf24c1d8a06e9e8152969584b3f199ee90430dfac23b987e1fbda2c"
     },
     {
       "path": "jarvis_core/core/conversation_policy.py",
@@ -224,7 +224,7 @@
     },
     {
       "path": "jarvis_core/services/companion_presence.py",
-      "sha256": "8b08ede1c68457cccefee41f70935bb0823ffc3daa6b000c8d60b816f9171085"
+      "sha256": "ac141079406c2a7cc282de7bfda709b770e2b99cc844b8a2dd7beb5a9be69fc5"
     },
     {
       "path": "jarvis_core/services/context_clause_resolver.py",
@@ -351,12 +351,16 @@
       "sha256": "c3e4bb91b37b00f4a75269b8eb8b9c83dfa7b2079676b72eff27f3affe2077f2"
     },
     {
+      "path": "jarvis_core/services/relational_presence.py",
+      "sha256": "19b40ea6ac8495864ee3a8636bebb344d033839ffe1adff601cbe43638119b6e"
+    },
+    {
       "path": "jarvis_core/services/reminders.py",
       "sha256": "92e9a950a6ce726795c08bbb20993cf12bd3326522e30783993c2822648ed974"
     },
     {
       "path": "jarvis_core/services/request_intent.py",
-      "sha256": "ca72dd3ba9de30ea1ed7313a73cb0f39e652d0467f079454b79d7b78817678db"
+      "sha256": "a3a4ba8f96438851b05cee72bf065178884473d95ef6be604ba0ba124960bb82"
     },
     {
       "path": "jarvis_core/services/response_completion.py",
@@ -451,6 +455,10 @@
       "sha256": "ff6273bf89454d7b58f23d4790880f18c88746ca64ab5483fb01a87140f64225"
     },
     {
+      "path": "jarvis_core/services/workstation.py",
+      "sha256": "b1e3d022a0985d48ff417045b595d1c02bdb9d7e5efad49e79f04afa4f3b7195"
+    },
+    {
       "path": "jarvis_core/setup_secret.py",
       "sha256": "e5a2e6ca34dc705217373bd12e7f91988cb50556b9b4a25f3ab22eea02949152"
     },
@@ -465,6 +473,10 @@
     {
       "path": "jarvis_core/skills/builtin/__init__.py",
       "sha256": "21e7b84e3146cc6057900644f99145c73fb58085c21fb5fee5e8b87045a72e99"
+    },
+    {
+      "path": "jarvis_core/skills/builtin/core_state.py",
+      "sha256": "00458caa1a8a3668e9b83e19fca120363621c20e9f067da231defc51a029b6d8"
     },
     {
       "path": "jarvis_core/skills/builtin/desktop_agent.py",
@@ -497,10 +509,6 @@
     {
       "path": "jarvis_core/skills/builtin/vision.py",
       "sha256": "2f461b81a8113ba04c2251236b45218f5e2ee38246e0b6e83de3f7c5cc0042da"
-    },
-    {
-      "path": "jarvis_core/skills/builtin/core_state.py",
-      "sha256": "00458caa1a8a3668e9b83e19fca120363621c20e9f067da231defc51a029b6d8"
     },
     {
       "path": "jarvis_core/skills/manager.py",
@@ -780,11 +788,15 @@
     },
     {
       "path": "tests/test_companion_brain_planner.py",
-      "sha256": "27beaf8b9a1df12446813747d37ecb60da7aa5b245c09af8c3eb22ac0178caee"
+      "sha256": "f6ab2fb7decd724cf0c53567672a7aaa7d682e1117fecb4d3b9afbc16b6e597c"
     },
     {
       "path": "tests/test_companion_presence.py",
-      "sha256": "b8f42da756e877df21b712aecdd0b10e604d119378136e463dcf431a87e1ba2e"
+      "sha256": "e82c5358e5bb024a3d793d7a3a4df969146390a5b59ff039fc7063f19d427f2d"
+    },
+    {
+      "path": "tests/test_config_malformed_json_resilience.py",
+      "sha256": "eb32932709015444437748845686a40765489118c27e9d5975b902fb5a53fd49"
     },
     {
       "path": "tests/test_confirmation_expiry.py",
@@ -808,7 +820,11 @@
     },
     {
       "path": "tests/test_conversation_learning_and_flirt.py",
-      "sha256": "075cf6f3bb4f0f25b75a1eb2f2f2194caa2599857051367e9b484cddd25068cb"
+      "sha256": "d2fe7dca3b5bdb370a2926012ea44d4be6adbf9bae41231e5ff15c7bf4cb4ab7"
+    },
+    {
+      "path": "tests/test_conversation_policy_authorized_learning_scope.py",
+      "sha256": "b84744802f3fb8750009ddaa661e74eacc1b6366accb420b603111120b5d3bdf"
     },
     {
       "path": "tests/test_conversation_primacy_0276.py",
@@ -817,6 +833,10 @@
     {
       "path": "tests/test_core_addon_boundary.py",
       "sha256": "c0e0855cfab78a54d98e3007bf142b8e423274d4a4f725ee140710f9a4d455c6"
+    },
+    {
+      "path": "tests/test_core_state_event_io.py",
+      "sha256": "69a832087511a5e3ed427f47edbcf4321925eea849a18d6b9a3125934ce4c32b"
     },
     {
       "path": "tests/test_cyber_knowledge_brain_contract.py",
@@ -901,6 +921,10 @@
     {
       "path": "tests/test_epistemic_learning_0278.py",
       "sha256": "c61b0c5b4ff25048a469c13110af4d0df1e47a4b68771d547b5d6d3c1fc46f28"
+    },
+    {
+      "path": "tests/test_eventbus_failure_isolation.py",
+      "sha256": "41445cf76c420d522cdcb473ebab54b9d97209de2fe962302478125b6bfd6cea"
     },
     {
       "path": "tests/test_external_expert_privacy_0278.py",
@@ -1029,6 +1053,18 @@
     {
       "path": "tests/test_local_learning_semantic_authority.py",
       "sha256": "48d88311fd477a1b9c56b4f48d6bcce88ae3242b965ff8d2016ebea37312994c"
+    },
+    {
+      "path": "tests/test_local_llm_keep_alive_semantics.py",
+      "sha256": "7ab471cb86eb989e81e5de47b4602173d79f87035766644dff35d4e158efab78"
+    },
+    {
+      "path": "tests/test_local_llm_runtime_concurrency.py",
+      "sha256": "56257c519d60b1db96aec42b14bec46bec63be73649505015687882b54cea473"
+    },
+    {
+      "path": "tests/test_local_llm_runtime_startup_cleanup.py",
+      "sha256": "06a7be2725e2bb6f26bf7303c48ae604f322d9fd8aa41c116ec499dcb6dfc035"
     },
     {
       "path": "tests/test_local_research_architecture.py",
@@ -1223,6 +1259,18 @@
       "sha256": "cb2297e90e3012d829990b9ade99eea85cb83027b6a65dbb2df842a00e6f396f"
     },
     {
+      "path": "tests/test_relational_presence.py",
+      "sha256": "93ed33277c64317ef3652fcc628be49f2d51afc2d8fa0e6c0edfa715e4945e77"
+    },
+    {
+      "path": "tests/test_relational_presence_brain.py",
+      "sha256": "167dc9f991306630986d60cbc4a6e31d26de926d5a6ef41acbec9971290f6d75"
+    },
+    {
+      "path": "tests/test_relational_presence_cli.py",
+      "sha256": "aa4f92fa5f777b0bb55df9212777cbf98a48c1d526936f479c05591a8a69d667"
+    },
+    {
       "path": "tests/test_release_installer_coverage.py",
       "sha256": "6e5b1b702239bcfb7a2e1e5b4955ef913298918dfefa4aefbdb2c6812de1a6f8"
     },
@@ -1348,7 +1396,7 @@
     },
     {
       "path": "tests/test_settings_schema_migration.py",
-      "sha256": "1eb97769422ea337d12c69332b8b6ddd49483ebd24072c6fe1fc975c4e0f663b"
+      "sha256": "35df6e9a90e1a831bd04ef8ca9a9ee528d190e25db7eac6f44eca53ac7f8d80a"
     },
     {
       "path": "tests/test_setup_contract.py",
@@ -1443,6 +1491,10 @@
       "sha256": "b9246f8c3dc6485d8f22615e05e3b201c4df19dcacdbe8856a60c9b5bab4d55a"
     },
     {
+      "path": "tests/test_tool_registry_profile_telemetry.py",
+      "sha256": "bb0e5fd773f2cc57035c2f77763edf7f2ba4a3e23aeea642be1db613eeb6cd9b"
+    },
+    {
       "path": "tests/test_tool_schema_normalization_runtime.py",
       "sha256": "e5fde85e66ca95d838ba7a5e9dc5debe629bfee383b2ab6490a49c25892c9f17"
     },
@@ -1461,6 +1513,18 @@
     {
       "path": "tests/test_verified_release_unblock_contract.py",
       "sha256": "7fbed683f0152609d6b3da6cd9dc5775d15c90d4dcc531ac2157e7fd834f8032"
+    },
+    {
+      "path": "tests/test_vision_idle_timer_race.py",
+      "sha256": "d17848cb125c9c58331103d56bc76f1ec866cf688c0644ba27d2b123fb3271a6"
+    },
+    {
+      "path": "tests/test_vision_runtime_concurrency.py",
+      "sha256": "85271cd03f17b190aca554ba660efe21bf4caae603324e5cb35dd400a67c715a"
+    },
+    {
+      "path": "tests/test_vision_runtime_startup_cleanup.py",
+      "sha256": "dccf506b00368aa59153af853b0c6d375bc4720d959b553783965dcce08263b1"
     },
     {
       "path": "tests/test_voice_contract.py",
@@ -1559,10 +1623,6 @@
       "sha256": "7664dc03165be1eeca32ec0e33ef141ebe4f30348b6ee9b73df0b295b6e9804d"
     },
     {
-      "path": "tests/test_core_state_event_io.py",
-      "sha256": "69a832087511a5e3ed427f47edbcf4321925eea849a18d6b9a3125934ce4c32b"
-    },
-    {
       "path": "tests/test_webcam_av_binding_0232.py",
       "sha256": "d9e7c823ea21c0841f29b2a71cc8f3043fc6147bf0e37bb8cceb8ae09566db0c"
     },
@@ -1599,46 +1659,6 @@
       "sha256": "8f9e2ea4932797dba66ba7c00d51a37559df4f094bee4a1d074080da8648db46"
     },
     {
-      "path": "tests/test_config_malformed_json_resilience.py",
-      "sha256": "eb32932709015444437748845686a40765489118c27e9d5975b902fb5a53fd49"
-    },
-    {
-      "path": "tests/test_conversation_policy_authorized_learning_scope.py",
-      "sha256": "b84744802f3fb8750009ddaa661e74eacc1b6366accb420b603111120b5d3bdf"
-    },
-    {
-      "path": "tests/test_eventbus_failure_isolation.py",
-      "sha256": "41445cf76c420d522cdcb473ebab54b9d97209de2fe962302478125b6bfd6cea"
-    },
-    {
-      "path": "tests/test_local_llm_keep_alive_semantics.py",
-      "sha256": "7ab471cb86eb989e81e5de47b4602173d79f87035766644dff35d4e158efab78"
-    },
-    {
-      "path": "tests/test_local_llm_runtime_concurrency.py",
-      "sha256": "56257c519d60b1db96aec42b14bec46bec63be73649505015687882b54cea473"
-    },
-    {
-      "path": "tests/test_local_llm_runtime_startup_cleanup.py",
-      "sha256": "06a7be2725e2bb6f26bf7303c48ae604f322d9fd8aa41c116ec499dcb6dfc035"
-    },
-    {
-      "path": "tests/test_tool_registry_profile_telemetry.py",
-      "sha256": "bb0e5fd773f2cc57035c2f77763edf7f2ba4a3e23aeea642be1db613eeb6cd9b"
-    },
-    {
-      "path": "tests/test_vision_idle_timer_race.py",
-      "sha256": "d17848cb125c9c58331103d56bc76f1ec866cf688c0644ba27d2b123fb3271a6"
-    },
-    {
-      "path": "tests/test_vision_runtime_concurrency.py",
-      "sha256": "85271cd03f17b190aca554ba660efe21bf4caae603324e5cb35dd400a67c715a"
-    },
-    {
-      "path": "tests/test_vision_runtime_startup_cleanup.py",
-      "sha256": "dccf506b00368aa59153af853b0c6d375bc4720d959b553783965dcce08263b1"
-    },
-    {
       "path": "train_voice_learning.ps1",
       "sha256": "9345c3075288bd49712df70076374f4ebcbdf0112c41ec5f4cfda64b6235beaa"
     },
@@ -1649,10 +1669,6 @@
     {
       "path": "verify_release.ps1",
       "sha256": "5c4e9b619a133c2fcd3946e2d8e267bfba6e0fb84fb6f5136af8c380d6376268"
-    },
-    {
-      "path": "jarvis_core/services/workstation.py",
-      "sha256": "b1e3d022a0985d48ff417045b595d1c02bdb9d7e5efad49e79f04afa4f3b7195"
     }
   ]
 }

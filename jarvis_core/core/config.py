@@ -401,8 +401,6 @@ class Settings:
     # Adaptive Companion Presence. Timing is gated, but the local model decides
     # whether to speak and writes the message; there are no phrase tables.
     companion_enabled: bool = True
-    companion_flirt_enabled: bool = True
-    companion_flirt_intensity: float = 0.60
     companion_temperature: float = 0.55
     companion_check_interval_seconds: float = 60.0
     companion_startup_delay_seconds: float = 180.0
@@ -633,6 +631,20 @@ class Settings:
                 data.pop(field_name, None)
                 retired_desktop_settings_removed.append(field_name)
 
+        retired_companion_settings_removed: list[str] = []
+
+        retired_companion_settings = (
+            "companion_flirt_enabled",
+            "companion_flirt_intensity",
+        )
+
+        for field_name in retired_companion_settings:
+            if field_name in data:
+                data.pop(field_name, None)
+                retired_companion_settings_removed.append(
+                    field_name
+                )
+
         core_state_migrated: list[str] = []
         # M-07: the presentation-state publisher is a Core capability, not a
         # Wallpaper-owned service. Preserve explicit OWNER values while
@@ -726,7 +738,7 @@ class Settings:
                 data[field_name] = value
                 forced.append(field_name)
 
-        if had_utf8_bom or added or forced or voice_migrated or vision_migrated or resource_migrated or encoding_migrated or accuracy_migrated or speed_migrated or wake_hardening_migrated or voice_latency_migrated or voice_turn_migrated or retired_desktop_settings_removed or core_state_migrated or mic_binding_migrated or not p.exists():
+        if had_utf8_bom or added or forced or voice_migrated or vision_migrated or resource_migrated or encoding_migrated or accuracy_migrated or speed_migrated or wake_hardening_migrated or voice_latency_migrated or voice_turn_migrated or retired_desktop_settings_removed or retired_companion_settings_removed or core_state_migrated or mic_binding_migrated or not p.exists():
             p.write_text(
                 json.dumps(data, ensure_ascii=False, indent=2) + "\n",
                 encoding="utf-8",
@@ -760,6 +772,8 @@ class Settings:
             "voice_latency_migrated_count": len(voice_latency_migrated),
             "retired_desktop_settings_removed": retired_desktop_settings_removed,
             "retired_desktop_settings_removed_count": len(retired_desktop_settings_removed),
+            "retired_companion_settings_removed": retired_companion_settings_removed,
+            "retired_companion_settings_removed_count": len(retired_companion_settings_removed),
             "core_state_migrated": core_state_migrated,
             "core_state_migrated_count": len(core_state_migrated),
             "mic_binding_migrated": mic_binding_migrated,

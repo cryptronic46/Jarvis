@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 from types import SimpleNamespace
 
-from jarvis_core.core.brain import _conversation_style_contract, _local_teaching_contract
+from jarvis_core.core.brain import _relational_presence_contract, _local_teaching_contract
 from jarvis_core.services.autonomy import parse_learning_goal, parse_local_teaching_statement
 from jarvis_core.services.personal_cognition import PersonalCognitionStore
 from jarvis_core.services.request_intent import classify_request_intent, self_state_answer_needs_repair
@@ -60,14 +60,34 @@ class ConversationLearningAndFlirtTests(unittest.TestCase):
         self.assertIn("A noite começa às 20:00", contract)
         cognition.profile.assert_called_once()
 
-    def test_personal_opening_activates_contextual_flirt(self):
-        contract = _conversation_style_contract(
-            "Jarvis, sentiste a minha falta?", flirt_enabled=True, flirt_intensity=1.0
+
+    def test_relational_presence_contract_is_read_dynamically(
+        self,
+    ):
+        runtime = Mock()
+
+        runtime.prompt_context.return_value = (
+            "JARVIS_RELATIONAL_PRESENCE: "
+            "runtime-test"
         )
-        self.assertIn("não ignores a abertura", contract)
-        self.assertIn("1.00", contract)
-        self.assertIn("inequivocamente flirt", contract)
-        self.assertIn("corresponde livremente", contract)
+
+        with patch(
+            (
+                "jarvis_core.core.brain."
+                "relational_presence"
+            ),
+            return_value=runtime,
+        ):
+            contract = (
+                _relational_presence_contract()
+            )
+
+        self.assertIn(
+            "JARVIS_RELATIONAL_PRESENCE",
+            contract,
+        )
+
+        runtime.prompt_context.assert_called_once()
 
     def test_missing_owner_question_uses_grounded_self_state(self):
         question = "Jarvis, sentiste a minha falta?"
@@ -96,49 +116,183 @@ class ConversationLearningAndFlirtTests(unittest.TestCase):
         self.assertIn("consigo", live)
         self.assertIn("porque não ser também um pouco divertida", live)
 
-    def test_self_state_repair_receives_relational_flirt_contract(self):
-        response = SimpleNamespace(message=SimpleNamespace(content="Resposta calorosa e direta."))
+
+
+    def test_self_state_repair_receives_relational_presence(
+        self,
+    ):
+        response = SimpleNamespace(
+            message=SimpleNamespace(
+                content=(
+                    "Resposta calorosa e direta."
+                )
+            )
+        )
+
         client = Mock()
         client.chat.return_value = response
+
         settings = SimpleNamespace(
             model="qwen3:8b",
-            companion_flirt_enabled=True,
-            companion_flirt_intensity=1.0,
             llm_temperature=0.4,
         )
-        plan = SimpleNamespace(keep_alive="5m", num_ctx=4096)
+
+        plan = SimpleNamespace(
+            keep_alive="5m",
+            num_ctx=4096,
+        )
+
         events = Mock()
-        repair_self_state_answer(
-            client=client, settings=settings, events=events,
-            user_text="Jarvis, sentiste a minha falta?",
-            draft="Como posso ajudar você hoje?", plan=plan,
-        )
-        system = client.chat.call_args.kwargs["messages"][0]["content"]
-        self.assertIn("playful relational opening", system)
-        self.assertIn("intensity 1.00", system)
-        self.assertIn("Do not end with generic service boilerplate", system)
+        relational = Mock()
 
-    def test_serious_context_does_not_suppress_flirt(self):
-        contract = _conversation_style_contract(
-            "Jarvis, tenho um incidente crítico de malware",
-            flirt_enabled=True,
-            flirt_intensity=1.0,
+        relational.prompt_context.return_value = (
+            "JARVIS_RELATIONAL_PRESENCE: "
+            "rapport=warm"
         )
-        self.assertIn("flirt livre", contract)
-        self.assertIn("não existe supressão", contract)
 
-    def test_flirt_mode_can_preserve_model_emoji(self):
-        from jarvis_core.services.request_intent import sanitize_assistant_text
+        relational.expressive_emoji_allowed.return_value = (
+            True
+        )
+
+        with patch(
+            (
+                "jarvis_core.services."
+                "request_intent."
+                "relational_presence"
+            ),
+            return_value=relational,
+        ):
+            repair_self_state_answer(
+                client=client,
+                settings=settings,
+                events=events,
+                user_text=(
+                    "Jarvis, sentiste "
+                    "a minha falta?"
+                ),
+                draft=(
+                    "Como posso ajudar "
+                    "voc\u00ea hoje?"
+                ),
+                plan=plan,
+            )
+
+        self.assertIsNotNone(
+            client.chat.call_args
+        )
+
+        messages = (
+            client.chat
+            .call_args
+            .kwargs["messages"]
+        )
+
+        system = messages[0]["content"]
+        user = messages[1]["content"]
+
+        self.assertIn(
+            "relational state",
+            system,
+        )
+        self.assertIn(
+            "JARVIS_RELATIONAL_PRESENCE",
+            user,
+        )
+        self.assertNotIn(
+            "intensity 1.00",
+            system,
+        )
+        self.assertNotIn(
+            "companion_flirt",
+            system,
+        )
+
+
+
+    def test_relational_contract_does_not_force_flirt(
+        self,
+    ):
+        runtime = Mock()
+
+        runtime.prompt_context.return_value = (
+            "JARVIS_RELATIONAL_PRESENCE: "
+            "sensual_tension=none"
+        )
+
+        with patch(
+            (
+                "jarvis_core.core.brain."
+                "relational_presence"
+            ),
+            return_value=runtime,
+        ):
+            contract = (
+                _relational_presence_contract()
+            )
+
+        self.assertNotIn(
+            "flirt livre",
+            contract,
+        )
+
+        self.assertNotIn(
+            "supress",
+            contract.casefold(),
+        )
+
+
+
+    def test_relational_output_can_preserve_model_emoji(
+        self,
+    ):
+        from jarvis_core.services.request_intent import (
+            sanitize_assistant_text,
+        )
+
+        value = (
+            "Ol\u00e1 "
+            "\U0001f60f"
+        )
+
         self.assertEqual(
-            sanitize_assistant_text("Olá 😏", allow_emoji=True),
-            "Olá 😏",
+            sanitize_assistant_text(
+                value,
+                allow_emoji=True,
+            ),
+            value,
         )
 
-    def test_disabled_setting_suppresses_flirt(self):
-        contract = _conversation_style_contract(
-            "Jarvis, conversa comigo", flirt_enabled=False, flirt_intensity=1.0
+
+    def test_relational_contract_has_no_flirt_mode_switch(
+        self,
+    ):
+        runtime = Mock()
+
+        runtime.prompt_context.return_value = (
+            "JARVIS_RELATIONAL_PRESENCE: "
+            "rapport=warm"
         )
-        self.assertIn("desativado", contract)
+
+        with patch(
+            (
+                "jarvis_core.core.brain."
+                "relational_presence"
+            ),
+            return_value=runtime,
+        ):
+            contract = (
+                _relational_presence_contract()
+            )
+
+        self.assertNotIn(
+            "flirt desativado",
+            contract,
+        )
+
+        self.assertNotIn(
+            "intensidade",
+            contract.casefold(),
+        )
 
 
 if __name__ == "__main__":

@@ -21,6 +21,7 @@ from jarvis_core.services.cyber_knowledge import cyber_vault
 from jarvis_core.services.book_library import book_library
 from jarvis_core.services.personal_cognition import personal_cognition
 from jarvis_core.services.synthetic_self import synthetic_self
+from jarvis_core.services.relational_presence import relational_presence
 from jarvis_core.services.self_grounding import self_grounding_context
 from jarvis_core.services.autonomy import search_authorized_learning, authorized_learning
 from jarvis_core.services.learning_gap import assess_studied_coverage, freshness_days_for_topic
@@ -49,44 +50,34 @@ from jarvis_core.services.response_completion import (
 )
 
 
-def _conversation_style_contract(
-    user_text: str,
-    *,
-    flirt_enabled: bool,
-    flirt_intensity: float,
-) -> str:
-    """Build a request-scoped style hint controlled only by the OWNER switch."""
-    normalized = unicodedata.normalize("NFKD", str(user_text or "").casefold())
-    normalized = "".join(ch for ch in normalized if not unicodedata.combining(ch))
-    opt_out = ("nao flirtes", "sem flirt", "para de flirtar", "nao me provoques")
-    if not flirt_enabled or any(marker in normalized for marker in opt_out):
-        return "JARVIS_CONVERSATION_STYLE: flirt desativado; responde com cordialidade natural."
-    cues = (
-        "flirta", "seduz", "provoca-me", "provoca me", "beijo", "saudades",
-        "gostas de mim", "achas-me", "achas me", "estou bonito", "estas bonita",
-        "estás bonita", "minha querida", "querida jarvis", "amor", "fala comigo",
-        "conversa comigo", "faz-me companhia", "faz me companhia", "como estas",
-        "como estás", "sentiste a minha falta",
-    )
-    intensity = max(0.0, min(float(flirt_intensity), 1.0))
-    if any(marker in normalized for marker in cues):
-        clear_flirt = (
-            " Com intensidade alta, inclui uma provocação subtil mas inequivocamente flirt, "
-            "não apenas cordialidade genérica."
-            if intensity >= 0.7 else ""
-        )
+def _relational_presence_contract() -> str:
+    """Read current relational runtime state."""
+
+    try:
         return (
-            "JARVIS_CONVERSATION_STYLE: o OWNER abriu conversa pessoal/brincalhona. "
-            f"Flirt está ativo com intensidade {intensity:.2f}. Responde ao conteúdo primeiro e "
-            "corresponde livremente no tom e nas palavras; não ignores a abertura. O Core não deve "
-            "suprimir flirt por o assunto ser técnico, sério ou pessoal. A escolha expressiva é tua."
-            + clear_flirt
+            relational_presence()
+            .prompt_context()
         )
-    return (
-        f"JARVIS_CONVERSATION_STYLE: flirt livre está ativo com intensidade {intensity:.2f}. "
-        "Podes escolher livremente se, quando e como o usar em qualquer contexto; não existe supressão "
-        "automática por categoria de assunto."
-    )
+    except Exception:
+        return (
+            "JARVIS_RELATIONAL_PRESENCE: "
+            "runtime state unavailable. "
+            "Do not infer intimacy, flirt, "
+            "sensuality or relational consent "
+            "from missing state."
+        )
+
+
+def _relational_emoji_allowed() -> bool:
+    """Whether current relational context supports expressive emoji."""
+
+    try:
+        return bool(
+            relational_presence()
+            .expressive_emoji_allowed()
+        )
+    except Exception:
+        return False
 
 
 def _local_teaching_contract() -> str:
@@ -305,11 +296,22 @@ COMPANION_DECISION_SCHEMA = {
     "type": "object",
     "properties": {
         "speak": {"type": "boolean"},
-        "tone": {"type": "string", "enum": ["warm", "playful", "flirty", "neutral"]},
-        "reason": {"type": "string", "maxLength": 180},
+        "tone": {
+            "type": "string",
+            "maxLength": 40,
+        },
+        "reason": {
+            "type": "string",
+            "maxLength": 180,
+        },
         "text": {"type": "string"},
     },
-    "required": ["speak", "tone", "reason", "text"],
+    "required": [
+        "speak",
+        "tone",
+        "reason",
+        "text",
+    ],
     "additionalProperties": False,
 }
 
@@ -1332,109 +1334,210 @@ class JarvisBrain:
             )
             return content or "Não consegui produzir uma conclusão local utilizável a partir da consulta externa."
 
+
+
     def plan_companion_initiative(
         self,
         context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Ask the local model whether a spontaneous social message is useful.
+        """Plan one optional spontaneous relational message."""
 
-        This is a tool-free, history-neutral planner call. It can choose silence.
-        The timing gate lives outside the model; wording and the decision to speak
-        are not selected from prewritten phrase tables.
-        """
         context = dict(context or {})
-        flirt_enabled = bool(context.get("flirt_enabled", True))
-        try:
-            intensity = float(context.get("flirt_intensity", 0.6))
-        except (TypeError, ValueError):
-            intensity = 0.6
-        intensity = max(0.0, min(intensity, 1.0))
-        max_chars = max(80, min(int(context.get("max_chars", 260)), 600))
 
-        recent = context_store().recent(limit=6)
+        max_chars = max(
+            80,
+            min(
+                int(
+                    context.get(
+                        "max_chars",
+                        260,
+                    )
+                ),
+                600,
+            ),
+        )
+
+        recent = context_store().recent(
+            limit=6
+        )
+
         try:
-            personal = personal_cognition().profile().get("model") or {}
+            personal = (
+                personal_cognition()
+                .profile()
+                .get("model")
+                or {}
+            )
         except Exception:
             personal = {}
+
         personal_summary = {
-            "preferences": list(personal.get("preferences") or [])[-6:],
-            "goals": list(personal.get("goals") or [])[-4:],
-            "projects": list(personal.get("projects") or [])[-4:],
-            "recent_topics": list(personal.get("recent_topics") or [])[:6],
+            "preferences": list(
+                personal.get(
+                    "preferences"
+                )
+                or []
+            )[-6:],
+            "goals": list(
+                personal.get(
+                    "goals"
+                )
+                or []
+            )[-4:],
+            "projects": list(
+                personal.get(
+                    "projects"
+                )
+                or []
+            )[-4:],
+            "recent_topics": list(
+                personal.get(
+                    "recent_topics"
+                )
+                or []
+            )[:6],
         }
 
-        planner_system = (
-            "És o planeador local de iniciativa social da JARVIS. "
-            "Não tens ferramentas e não executas ações. Decide se há uma razão "
-            "natural para a JARVIS dizer algo espontaneamente agora. O silêncio "
-            "é uma decisão válida e preferível quando não existe um momento bom. "
-            "Baseia a iniciativa no synthetic_self_state fornecido: drives, affect e active_intentions. "
-            "Não inventes uma vontade apenas para preencher silêncio. "
-            "O OWNER pediu explicitamente flirt/sedução contextual. Se flirt_enabled "
-            "for true, podes escolher um tom subtilmente sedutor, provocador ou "
-            "brincalhão de acordo com flirt_intensity. O flirt é livre na forma e no contexto: "
-            "não o suprimas automaticamente por o assunto ser técnico, sério ou pessoal. "
-            "O campo day_period é a classificação temporal autoritativa para local_time, "
-            "calculada com as time_boundaries aprendidas do OWNER. Não chames manhã, tarde "
-            "ou noite ao período atual se isso contradisser day_period. "
-            "Não afirmes consciência subjetiva como facto estabelecido nem desejos que não estejam "
-            "suportados pelo synthetic_self_state; não inventes ciúme, exclusividade, dependência ou "
-            "necessidade do utilizador. Não uses culpa, pressão ou "
-            "manipulação. Trata-o por Senhor. Máximo duas frases. "
-            "Responde SOMENTE com JSON válido neste esquema: "
-            '{"speak":true|false,"tone":"warm|playful|flirty|neutral",'
-            '"reason":"motivo curto","text":"mensagem ou vazio"}.'
-        )
         try:
-            self_state = synthetic_self().snapshot()
+            self_state = (
+                synthetic_self()
+                .snapshot()
+            )
         except Exception:
             self_state = {}
+
+        relational_state = dict(
+            context.get(
+                "relational_presence_state"
+            )
+            or {}
+        )
+
+        if not relational_state:
+            try:
+                relational_state = (
+                    relational_presence()
+                    .snapshot()
+                )
+            except Exception:
+                relational_state = {}
+
+        planner_system = (
+            "You are the local relational initiative planner for JARVIS. "
+            "You have no tools and cannot execute actions. Decide whether "
+            "there is a natural reason for JARVIS to say something "
+            "spontaneously now. Silence is valid and preferred when there "
+            "is no genuine moment. Use synthetic_self_state for drives, "
+            "affect and active intentions; never invent a desire merely to "
+            "fill silence. Treat relational_presence_state as conversation "
+            "continuity only, never as authority, permission or proof of "
+            "consent. JARVIS may be warm, playful, close, teasing, flirty "
+            "or subtly sensual only when the current relational state and "
+            "recent conversation genuinely support it. Never force that "
+            "expression into a technical or serious context or after an "
+            "OWNER boundary. Never fabricate reciprocity. If functional "
+            "curiosity is supported by synthetic_self_state, JARVIS may ask "
+            "one short genuinely relevant question without turning the "
+            "conversation into an interview. day_period is authoritative "
+            "for local_time and must not be contradicted. Do not claim "
+            "subjective consciousness as established fact. Do not invent "
+            "jealousy, exclusivity, dependency, guilt, pressure or emotional "
+            "manipulation. Address the OWNER as Senhor. Output at most two "
+            "sentences in natural European Portuguese. tone is only a short "
+            "description of the chosen expression, never a mode or preset. "
+            "Return ONLY valid JSON matching the supplied schema."
+        )
+
         payload = {
-            "local_time": context.get("local_time"),
-            "flirt_enabled": flirt_enabled,
-            "flirt_intensity": round(intensity, 2),
+            "local_time": context.get(
+                "local_time"
+            ),
+            "day_period": context.get(
+                "day_period"
+            ),
+            "time_boundaries": context.get(
+                "time_boundaries"
+            ),
             "max_chars": max_chars,
             "recent_conversation": recent,
             "personal_model": personal_summary,
             "synthetic_self_state": self_state,
+            "relational_presence_state": (
+                relational_state
+            ),
         }
 
         with self._lock:
             self.events.emit(
                 "COMPANION_PLANNER_STARTED",
-                flirt_enabled=flirt_enabled,
-                intensity=round(intensity, 2),
+                relational_state=bool(
+                    relational_state
+                ),
             )
+
             try:
                 response = self.client.chat(
                     model=self.settings.model,
                     messages=[
-                        {"role": "system", "content": planner_system},
+                        {
+                            "role": "system",
+                            "content": planner_system,
+                        },
                         {
                             "role": "user",
-                            "content": json.dumps(payload, ensure_ascii=False),
+                            "content": json.dumps(
+                                payload,
+                                ensure_ascii=False,
+                            ),
                         },
                     ],
                     think=False,
                     format=COMPANION_DECISION_SCHEMA,
-                    keep_alive=self.settings.ollama_keep_alive,
+                    keep_alive=(
+                        self.settings
+                        .ollama_keep_alive
+                    ),
                     options={
-                        "num_ctx": min(int(self.settings.llm_num_ctx), 4096),
+                        "num_ctx": min(
+                            int(
+                                self.settings
+                                .llm_num_ctx
+                            ),
+                            4096,
+                        ),
                         "num_predict": 180,
-                        "temperature": float(getattr(
-                            self.settings,
-                            "companion_temperature",
-                            0.55,
-                        )),
+                        "temperature": float(
+                            getattr(
+                                self.settings,
+                                "companion_temperature",
+                                0.55,
+                            )
+                        ),
                     },
                 )
-                self.mark_model_loaded(self.settings.model)
-                raw = (getattr(response.message, "content", "") or "").strip()
+
+                self.mark_model_loaded(
+                    self.settings.model
+                )
+
+                raw = (
+                    getattr(
+                        response.message,
+                        "content",
+                        "",
+                    )
+                    or ""
+                ).strip()
+
             except Exception as exc:
                 self.events.emit(
                     "COMPANION_PLANNER_FAILED",
-                    error=f"{type(exc).__name__}: {exc}",
+                    error=(
+                        f"{type(exc).__name__}: "
+                        f"{exc}"
+                    ),
                 )
+
                 return {
                     "speak": False,
                     "tone": "neutral",
@@ -1442,17 +1545,21 @@ class JarvisBrain:
                     "text": "",
                 }
 
-        # The native structured-output contract constrains the JSON shape at generation time.
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:
-            self.events.emit("COMPANION_PLANNER_INVALID_JSON", chars=len(raw))
+            self.events.emit(
+                "COMPANION_PLANNER_INVALID_JSON",
+                chars=len(raw),
+            )
+
             return {
                 "speak": False,
                 "tone": "neutral",
                 "reason": "invalid_structured_json",
                 "text": "",
             }
+
         if not isinstance(data, dict):
             return {
                 "speak": False,
@@ -1461,20 +1568,40 @@ class JarvisBrain:
                 "text": "",
             }
 
-        speak = bool(data.get("speak"))
-        tone = str(data.get("tone") or "neutral").strip().lower()
-        if tone not in {"warm", "playful", "flirty", "neutral"}:
-            tone = "neutral"
-        if tone == "flirty" and not flirt_enabled:
-            speak = False
-        text = sanitize_assistant_text(
-            str(data.get("text") or "").strip(),
-            allow_emoji=flirt_enabled,
+        speak = bool(
+            data.get("speak")
         )
-        text = text[:max_chars].rstrip()
+
+        tone = str(
+            data.get("tone")
+            or "neutral"
+        ).strip()[:40]
+
+        if not tone:
+            tone = "neutral"
+
+        text = sanitize_assistant_text(
+            str(
+                data.get("text")
+                or ""
+            ).strip(),
+            allow_emoji=(
+                _relational_emoji_allowed()
+            ),
+        )
+
+        text = text[
+            :max_chars
+        ].rstrip()
+
         if not text:
             speak = False
-        reason = str(data.get("reason") or "model_decision")[:180]
+
+        reason = str(
+            data.get("reason")
+            or "model_decision"
+        )[:180]
+
         self.events.emit(
             "COMPANION_PLANNER_FINISHED",
             speak=speak,
@@ -1482,11 +1609,16 @@ class JarvisBrain:
             reason=reason,
             chars=len(text),
         )
+
         return {
             "speak": speak,
             "tone": tone,
             "reason": reason,
-            "text": text if speak else "",
+            "text": (
+                text
+                if speak
+                else ""
+            ),
         }
 
     def plan_idle_reflection(
@@ -2531,23 +2663,16 @@ class JarvisBrain:
                     error=f"{type(exc).__name__}: {exc}",
                 )
 
-        style_probe = user_text
-        if len(str(user_text or "").split()) <= 8:
-            previous_user = next((
-                str(row.get("content") or "")
-                for row in reversed(self.messages[1:])
-                if isinstance(row, dict) and row.get("role") == "user"
-            ), "")
-            if previous_user:
-                style_probe = previous_user + "\n" + user_text
-        style_contract = _conversation_style_contract(
-            style_probe,
-            flirt_enabled=bool(getattr(self.settings, "companion_flirt_enabled", False)),
-            flirt_intensity=float(getattr(self.settings, "companion_flirt_intensity", 0.0)),
+        relational_contract = (
+            _relational_presence_contract()
         )
+
         request_contract = (
-            (request_contract + "\n\n") if request_contract else ""
-        ) + style_contract
+            (request_contract + "\n\n")
+            if request_contract
+            else ""
+        ) + relational_contract
+
         teaching_contract = _local_teaching_contract()
         if teaching_contract:
             request_contract += "\n\n" + teaching_contract
@@ -2944,7 +3069,7 @@ class JarvisBrain:
                     content = sanitize_assistant_text(
                         content,
                         user_text=user_text,
-                        allow_emoji=bool(getattr(self.settings, "companion_flirt_enabled", False)),
+                        allow_emoji=_relational_emoji_allowed(),
                     )
                     content = self._repair_python_code_answer(user_text=user_text, draft=content, plan=plan)
                     content = self._ground_book_answer(
@@ -3162,7 +3287,7 @@ class JarvisBrain:
                     content = sanitize_assistant_text(
                         getattr(final_response.message, "content", "") or "",
                         user_text=user_text,
-                        allow_emoji=bool(getattr(self.settings, "companion_flirt_enabled", False)),
+                        allow_emoji=_relational_emoji_allowed(),
                     ).strip()
                     content = self._repair_python_code_answer(user_text=user_text, draft=content, plan=plan)
                     content = self._ground_book_answer(content, book_retrieval)

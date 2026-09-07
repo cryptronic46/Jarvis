@@ -7,6 +7,7 @@ from typing import Any, Callable
 import json
 
 from jarvis_core.services.personal_cognition import personal_cognition
+from jarvis_core.services.relational_presence import relational_presence
 
 
 DEFAULT_TIME_BOUNDARIES = {
@@ -88,8 +89,6 @@ class CompanionPresenceService:
         *,
         state_path: str | Path = "memory/companion_presence.json",
         enabled: bool = True,
-        flirt_enabled: bool = True,
-        flirt_intensity: float = 0.60,
         check_interval_seconds: float = 60.0,
         startup_delay_seconds: float = 180.0,
         decision_cooldown_seconds: float = 180.0,
@@ -104,8 +103,6 @@ class CompanionPresenceService:
         self.output_callback = output_callback
         self.state_path = Path(state_path)
         self.enabled = bool(enabled)
-        self.flirt_enabled = bool(flirt_enabled)
-        self.flirt_intensity = max(0.0, min(float(flirt_intensity), 1.0))
         self.check_interval_seconds = max(15.0, float(check_interval_seconds))
         self.startup_delay_seconds = max(0.0, float(startup_delay_seconds))
         self.decision_cooldown_seconds = max(30.0, float(decision_cooldown_seconds))
@@ -171,19 +168,7 @@ class CompanionPresenceService:
         self.enabled = bool(enabled)
         return self.status()
 
-    def set_flirt_enabled(self, enabled: bool) -> dict[str, Any]:
-        self.flirt_enabled = bool(enabled)
-        return self.status()
 
-    def set_intensity(self, value: float) -> dict[str, Any]:
-        try:
-            number = float(value)
-        except (TypeError, ValueError):
-            return {"ok": False, "error": "INVALID_COMPANION_INTENSITY"}
-        if not 0.0 <= number <= 1.0:
-            return {"ok": False, "error": "COMPANION_INTENSITY_RANGE_0_TO_1"}
-        self.flirt_intensity = number
-        return self.status()
 
     def idle_status(self) -> dict[str, Any]:
         """Read-only gate state for OWNER idle observability."""
@@ -193,7 +178,6 @@ class CompanionPresenceService:
             "eligible": bool(eligible),
             "gate_reason": reason,
             "enabled": self.enabled,
-            "flirt_enabled": self.flirt_enabled,
         }
 
     def status(self) -> dict[str, Any]:
@@ -202,10 +186,9 @@ class CompanionPresenceService:
         return {
             "ok": True,
             "enabled": self.enabled,
-            "flirt_enabled": self.flirt_enabled,
-            "flirt_intensity": round(self.flirt_intensity, 2),
             "initiative_model_driven": True,
-            "prewritten_flirt_lines": False,
+            "relational_state_driven": True,
+            "prewritten_relational_lines": False,
             "subjective_volition_claimed": False,
             "last_decision_at": state.get("last_decision_at"),
             "last_spoken_at": state.get("last_spoken_at"),
@@ -268,10 +251,21 @@ class CompanionPresenceService:
             time_boundaries = dict(DEFAULT_TIME_BOUNDARIES)
         if not isinstance(time_boundaries, dict):
             time_boundaries = dict(DEFAULT_TIME_BOUNDARIES)
-        current_period = _day_period(now, time_boundaries)
+        current_period = _day_period(
+            now,
+            time_boundaries,
+        )
+
+        try:
+            relational_state = (
+                relational_presence()
+                .snapshot()
+            )
+        except Exception:
+            relational_state = {}
+
         context = {
-            "flirt_enabled": self.flirt_enabled,
-            "flirt_intensity": self.flirt_intensity,
+            "relational_presence_state": relational_state,
             "max_chars": self.max_chars,
             "local_time": _iso(now),
             "day_period": current_period,

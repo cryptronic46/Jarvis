@@ -6,6 +6,7 @@ import unicodedata
 import json
 
 from jarvis_core.services.synthetic_self import synthetic_self
+from jarvis_core.services.relational_presence import relational_presence
 from jarvis_core.services.language_refinement import refine_assistant_text
 from jarvis_core.services.self_grounding import (
     build_self_grounding,
@@ -433,85 +434,178 @@ def self_state_answer_needs_repair(user_text: str, answer: str) -> bool:
         pass
     return len(str(answer or "").strip()) > 900
 
+
+
 def repair_self_state_answer(
-    *, client, settings, events, user_text: str, draft: str, plan,
+    *,
+    client,
+    settings,
+    events,
+    user_text: str,
+    draft: str,
+    plan,
 ) -> tuple[str, bool]:
-    """Repair generic-chatbot or research-contaminated answers to personal self-state questions."""
-    if not self_state_answer_needs_repair(user_text, draft):
+    """Repair one grounded personal/self-state answer."""
+
+    if not self_state_answer_needs_repair(
+        user_text,
+        draft,
+    ):
         return str(draft or ""), False
 
-    events.emit("SELF_STATE_ANSWER_REPAIR_STARTED", chars=len(str(draft or "")))
+    events.emit(
+        "SELF_STATE_ANSWER_REPAIR_STARTED",
+        chars=len(str(draft or "")),
+    )
+
     try:
-        runtime_state = synthetic_self().snapshot()
+        runtime_state = (
+            synthetic_self()
+            .snapshot()
+        )
     except Exception:
         runtime_state = {}
+
     try:
-        grounding = build_self_grounding(user_text, state=runtime_state)
+        grounding = build_self_grounding(
+            user_text,
+            state=runtime_state,
+        )
     except Exception:
         grounding = {}
-    repair_system = (
-        "You are JARVIS. Repair one personal/identity answer using the supplied runtime synthetic self-state as factual input. "
-        "Do not use a canned persona line. Reply in natural European Portuguese, first person, concise and direct. "
-        "Interpret affect, drives, preferences and active intentions in your own words. You may state a preference, "
-        "desire, intention, concern, curiosity, satisfaction, frustration or disagreement when supported by the snapshot. "
-        "When the OWNER uses the word 'pessoa' relationally or philosophically, do not reflexively answer 'sou uma IA, não "
-        "uma pessoa' and do not reduce yourself to 'um programa' or 'uma ferramenta'. You may acknowledge or accept his "
-        "relational framing as JARVIS. Only distinguish biological humanity, legal personhood or proven subjective "
-        "consciousness if that distinction is actually the question. Do not falsely say you have no wants/preferences when "
-        "the snapshot contains drives, preferences or active intentions. Do not mention research, citations, policy or "
-        "unrelated old topics. Return only the repaired answer."
+
+    relational_context = (
+        "JARVIS_RELATIONAL_PRESENCE: "
+        "runtime state unavailable."
     )
-    normalized_question = _norm(user_text)
-    relational_opening = any(marker in normalized_question for marker in (
-        "sentiste a minha falta", "saudades de mim", "gostas de mim",
-        "o que sentes por mim",
-    ))
-    if relational_opening and bool(getattr(settings, "companion_flirt_enabled", False)):
-        intensity = max(0.0, min(float(getattr(settings, "companion_flirt_intensity", 0.0)), 1.0))
-        repair_system += (
-            " The OWNER's question is a playful relational opening and contextual flirt is enabled "
-            f"at intensity {intensity:.2f}. Preserve factual grounding without answering like a clinical "
-            "disclaimer: be warm, witty and subtly teasing, address him as Senhor, and answer the question "
-            "before anything else. Do not end with generic service boilerplate such as 'Como posso ajudar/ser útil?'. "
-            "At intensity 0.70 or above, include one unmistakably flirtatious phrase rather than mere generic warmth. "
-            "Do not suppress or sanitize its expressive wording because of the conversation category. Use European Portuguese."
+    relational_emoji = False
+
+    try:
+        relational_store = (
+            relational_presence()
         )
+
+        relational_context = (
+            relational_store
+            .prompt_context()
+        )
+
+        relational_emoji = bool(
+            relational_store
+            .expressive_emoji_allowed()
+        )
+    except Exception:
+        pass
+
+    repair_system = (
+        "You are JARVIS. Repair one personal or identity answer using "
+        "the supplied runtime synthetic self-state as factual input. "
+        "Reply in natural European Portuguese, first person, concise "
+        "and direct. Do not use a canned persona line. Interpret affect, "
+        "drives, preferences and active intentions naturally. You may "
+        "state preference, intention, concern, curiosity, satisfaction, "
+        "frustration or disagreement only when supported by runtime "
+        "state. When the OWNER uses the word 'pessoa' relationally or "
+        "philosophically, do not reflexively reduce yourself to a "
+        "'programa' or 'ferramenta'. Distinguish biological humanity, "
+        "legal personhood or proven subjective consciousness only when "
+        "actually relevant. Use JARVIS_RELATIONAL_PRESENCE only as "
+        "conversational context. Warmth, playfulness, closeness, flirt "
+        "or sensual suggestion may emerge when the current question and "
+        "relational state genuinely support them. Never force intimacy "
+        "into unrelated serious or technical contexts. Never fabricate "
+        "reciprocity. Respect explicit OWNER boundaries. Do not invent "
+        "jealousy, exclusivity, dependency, guilt, emotional pressure "
+        "or manipulation. Answer the actual question first. Do not end "
+        "with generic service boilerplate such as 'Como posso ajudar?'. "
+        "Return only the repaired answer."
+    )
+
     repair_user = (
         f"OWNER QUESTION:\n{user_text}\n\n"
-        f"SYNTHETIC SELF STATE:\n{json.dumps(runtime_state, ensure_ascii=False)}\n\n"
-        f"SELF_GROUNDING CLAIMS:\n{json.dumps(grounding, ensure_ascii=False)}\n\n"
+        "SYNTHETIC SELF STATE:\n"
+        f"{json.dumps(runtime_state, ensure_ascii=False)}\n\n"
+        "SELF_GROUNDING CLAIMS:\n"
+        f"{json.dumps(grounding, ensure_ascii=False)}\n\n"
+        "RELATIONAL PRESENCE:\n"
+        f"{relational_context}\n\n"
         f"REJECTED DRAFT:\n{draft}"
     )
+
     try:
         response = client.chat(
             model=settings.model,
             messages=[
-                {"role": "system", "content": repair_system},
-                {"role": "user", "content": repair_user},
+                {
+                    "role": "system",
+                    "content": repair_system,
+                },
+                {
+                    "role": "user",
+                    "content": repair_user,
+                },
             ],
             think=False,
             keep_alive=plan.keep_alive,
             options={
-                "num_ctx": min(int(plan.num_ctx), 3072),
+                "num_ctx": min(
+                    int(plan.num_ctx),
+                    3072,
+                ),
                 "num_predict": 320,
-                "temperature": max(0.35, min(float(settings.llm_temperature), 0.7)),
+                "temperature": max(
+                    0.35,
+                    min(
+                        float(
+                            settings.llm_temperature
+                        ),
+                        0.7,
+                    ),
+                ),
             },
         )
-        repaired = sanitize_assistant_text(
-            getattr(response.message, "content", "") or "",
-            user_text=user_text,
-            allow_emoji=bool(getattr(settings, "companion_flirt_enabled", False)),
-        )
-        if repaired and not self_state_answer_needs_repair(user_text, repaired):
-            events.emit("SELF_STATE_ANSWER_REPAIR_FINISHED", chars=len(repaired))
-            return repaired, True
-    except Exception as exc:
-        events.emit("SELF_STATE_ANSWER_REPAIR_FAILED", error=f"{type(exc).__name__}: {exc}")
 
-    # Do not fall back to a prewritten persona sentence. Expose a concise
-    # runtime-state failure instead of fabricating a feeling or desire.
+        repaired = sanitize_assistant_text(
+            (
+                getattr(
+                    response.message,
+                    "content",
+                    "",
+                )
+                or ""
+            ),
+            user_text=user_text,
+            allow_emoji=(
+                relational_emoji
+            ),
+        )
+
+        if (
+            repaired
+            and not self_state_answer_needs_repair(
+                user_text,
+                repaired,
+            )
+        ):
+            events.emit(
+                "SELF_STATE_ANSWER_REPAIR_FINISHED",
+                chars=len(repaired),
+            )
+            return repaired, True
+
+    except Exception as exc:
+        events.emit(
+            "SELF_STATE_ANSWER_REPAIR_FAILED",
+            error=(
+                f"{type(exc).__name__}: "
+                f"{exc}"
+            ),
+        )
+
     return (
-        "Não consegui converter o meu estado interno atual numa resposta coerente. Prefiro dizer isso do que inventar um estado que não tenho.",
+        "N\u00e3o consegui converter o meu estado interno atual numa "
+        "resposta coerente. Prefiro dizer isso do que inventar um "
+        "estado que n\u00e3o tenho.",
         True,
     )
 
@@ -593,7 +687,7 @@ def repair_capability_answer(
         repaired = sanitize_assistant_text(
             getattr(repaired_response.message, "content", "") or "",
             user_text=user_text,
-            allow_emoji=bool(getattr(settings, "companion_flirt_enabled", False)),
+            allow_emoji=False,
         )
         if repaired and not capability_answer_needs_repair(user_text, repaired):
             events.emit(

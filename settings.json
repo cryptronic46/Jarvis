@@ -216,8 +216,6 @@
   "kali_bridge_command_timeout_seconds": 120.0,
   "kali_bridge_output_max_chars": 30000,
   "companion_enabled": true,
-  "companion_flirt_enabled": true,
-  "companion_flirt_intensity": 1.0,
   "companion_temperature": 0.55,
   "companion_check_interval_seconds": 60.0,
   "companion_startup_delay_seconds": 180.0,

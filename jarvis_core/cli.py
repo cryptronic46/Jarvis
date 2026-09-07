@@ -100,6 +100,7 @@ from jarvis_core.services.kali_bridge import (
     format_kali_scan,
 )
 from jarvis_core.services.companion_presence import CompanionPresenceService
+from jarvis_core.services.relational_presence import relational_presence
 from jarvis_core.services.semantic_intent import (
     local_pdf_library_sync_requested,
     resolve_semantic_request,
@@ -800,6 +801,7 @@ def main() -> None:
     except Exception:
         pass
     self_engine = synthetic_self()
+    relational_presence_store = relational_presence()
 
     user_profile = memory.profile()
     active_profile = profiles.active()
@@ -1364,6 +1366,20 @@ def main() -> None:
                 "SYNTHETIC_SELF_INPUT_OBSERVE_ERROR",
                 error=f"{type(exc).__name__}: {exc}",
             )
+
+        try:
+            relational_presence_store.observe_owner_input(
+                user_text
+            )
+        except Exception as exc:
+            events.emit(
+                "RELATIONAL_PRESENCE_INPUT_OBSERVE_ERROR",
+                error=(
+                    f"{type(exc).__name__}: "
+                    f"{exc}"
+                ),
+            )
+
         def before_hybrid():
             if (
                 voice_engine_state.get("effective") == "v2"
@@ -1438,6 +1454,21 @@ def main() -> None:
                 pass
 
             try:
+                relational_presence_store.observe_exchange(
+                    user_text,
+                    answer,
+                )
+            except Exception as exc:
+                events.emit(
+                    "RELATIONAL_PRESENCE_EXCHANGE_OBSERVE_ERROR",
+                    error=(
+                        f"{type(exc).__name__}: "
+                        f"{exc}"
+                    ),
+                    route=route,
+                )
+
+            try:
                 self_engine.observe_outcome(
                     owner_text=user_text,
                     assistant_text=answer,
@@ -1484,6 +1515,21 @@ def main() -> None:
             refresh_after_personal_cognition(_memory_observation_result)
         except Exception:
             pass
+
+        try:
+            relational_presence_store.observe_exchange(
+                user_text,
+                hybrid.text,
+            )
+        except Exception as exc:
+            events.emit(
+                "RELATIONAL_PRESENCE_EXCHANGE_OBSERVE_ERROR",
+                error=(
+                    f"{type(exc).__name__}: "
+                    f"{exc}"
+                ),
+                route=hybrid.route,
+            )
 
         try:
             self_engine.observe_outcome(
@@ -1999,8 +2045,8 @@ def main() -> None:
 
     print(
         f"Persona   : FEMININE | "
-        f"adaptive companion={'ON' if settings.companion_enabled else 'OFF'} | "
-        f"flirt={'ON' if settings.companion_flirt_enabled else 'OFF'}"
+        f"adaptive relational presence="
+        f"{'ON' if settings.companion_enabled else 'OFF'}"
     )
     print(
         f"Language  : pt-PT refinement=ON | "
@@ -2224,8 +2270,6 @@ def main() -> None:
         companion_output_callback,
         state_path=settings.companion_state_path,
         enabled=settings.companion_enabled,
-        flirt_enabled=settings.companion_flirt_enabled,
-        flirt_intensity=settings.companion_flirt_intensity,
         check_interval_seconds=settings.companion_check_interval_seconds,
         startup_delay_seconds=settings.companion_startup_delay_seconds,
         decision_cooldown_seconds=settings.companion_decision_cooldown_seconds,
@@ -2784,33 +2828,6 @@ def main() -> None:
                 companion_service.set_enabled(False)
                 Settings.update_file_values({"companion_enabled": False})
                 print("JARVIS > Presença social adaptativa desativada.")
-                continue
-            if lower == "/companion flirt on":
-                settings.companion_flirt_enabled = True
-                companion_service.set_flirt_enabled(True)
-                Settings.update_file_values({"companion_flirt_enabled": True})
-                print("JARVIS > Flirt contextual ativado.")
-                continue
-            if lower == "/companion flirt off":
-                settings.companion_flirt_enabled = False
-                companion_service.set_flirt_enabled(False)
-                Settings.update_file_values({"companion_flirt_enabled": False})
-                print("JARVIS > Flirt contextual desativado.")
-                continue
-            if lower.startswith("/companion intensity "):
-                raw_value = text[len("/companion intensity "):].strip().replace(",", ".")
-                try:
-                    value = float(raw_value)
-                except ValueError:
-                    print("JARVIS > Usa um valor entre 0 e 1, por exemplo: /companion intensity 0.65")
-                    continue
-                result = companion_service.set_intensity(value)
-                if result.get("ok"):
-                    settings.companion_flirt_intensity = float(result.get("flirt_intensity", value))
-                    Settings.update_file_values({
-                        "companion_flirt_intensity": settings.companion_flirt_intensity
-                    })
-                print("JARVIS >", json.dumps(result, ensure_ascii=False, indent=2))
                 continue
             if lower == "/stt status":
                 payload = {
