@@ -398,7 +398,6 @@ $CyberRangePath = Join-Path $Destination "jarvis_core\services\cyber_range.py"
 $RequestIntentPath = Join-Path $Destination "jarvis_core\services\request_intent.py"
 $KaliBridgePath = Join-Path $Destination "jarvis_core\services\kali_bridge.py"
 $CompanionPresencePath = Join-Path $Destination "jarvis_core\services\companion_presence.py"
-$DesktopIntegrationPath = Join-Path $Destination "jarvis_core\services\desktop_integration.py"
 $FollowupIntentPath = Join-Path $Destination "jarvis_core\services\followup_intent.py"
 $SkillsManagerPath = Join-Path $Destination "jarvis_core\skills\manager.py"
 $TaskPlannerPath = Join-Path $Destination "jarvis_core\skills\builtin\task_planner.py"
@@ -519,9 +518,6 @@ if (-not (Test-Path -LiteralPath $KaliBridgePath -PathType Leaf)) {
 if (-not (Test-Path -LiteralPath $CompanionPresencePath -PathType Leaf)) {
     Fail "Adaptive Companion Presence nao esta presente no Core."
 }
-if (-not (Test-Path -LiteralPath $DesktopIntegrationPath -PathType Leaf)) {
-    Fail "Desktop Integration nao esta presente no Core."
-}
 if (-not (Test-Path -LiteralPath $FollowupIntentPath -PathType Leaf)) {
     Fail "Follow-up Continuity Guard nao esta presente no Core."
 }
@@ -584,9 +580,6 @@ if ($WakeText -notmatch 'preferred_device_index') {
 }
 if (-not (Test-Path -LiteralPath $WallpaperLivePath -PathType Leaf)) {
     Fail "Live Wallpaper async publisher nao esta presente no Core."
-}
-if ($CliText -notmatch '/desktop status') {
-    Fail "Desktop Integration nao esta presente no CLI."
 }
 if ($CliText -notmatch '/cyber kali status') {
     Fail "Kali Execution Bridge nao esta presente no CLI."
@@ -662,7 +655,6 @@ Write-Host "Cyber Range Guard: PRESENTE"
 Write-Host "Capability Intent Guard: PRESENTE"
 Write-Host "Kali Execution Bridge: PRESENTE (fixed LAB profiles)"
 Write-Host "Adaptive Feminine Presence: PRESENTE"
-Write-Host "Desktop Integration / Wallpaper Engine: PRESENTE"
 Write-Host "Follow-up Continuity Guard: PRESENTE"
 Write-Host "Modular Skills Runtime: PRESENTE"
 Write-Host "Desktop Agent / Computer Control: PRESENTE"

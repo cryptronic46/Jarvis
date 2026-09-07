@@ -9,7 +9,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 from jarvis_core.core.config import Settings
-from jarvis_core.services.desktop_integration import DesktopIntegrationService
 from jarvis_core.services.listening import _windows_hostapi_score
 from jarvis_core.services.speech import SpeechConfig, SpeechService
 from jarvis_core.services.voice_engine_v2 import VoiceEngineV2, VoiceV2Config
@@ -85,20 +84,6 @@ class GDriveVoiceReliability0260Tests(unittest.TestCase):
         self.assertLessEqual(_windows_hostapi_score("Windows WDM-KS"), -1000)
         self.assertGreater(_windows_capture_hostapi_score("Windows WASAPI"), 0)
         self.assertLessEqual(_windows_capture_hostapi_score("Windows WDM-KS"), -1000)
-
-    def test_wallpaper_default_is_sibling_of_core(self):
-        with tempfile.TemporaryDirectory() as td:
-            base = Path(td)
-            core = base / "JARVIS"
-            core.mkdir()
-            svc = DesktopIntegrationService(
-                DummyEvents(),
-                core_root=core,
-                wallpaper_root="",
-                bridge_auto_start=False,
-                wallpaper_engine_auto_start=False,
-            )
-            self.assertEqual((base / "JARVIS-Wallpaper").resolve(), svc.wallpaper_root.resolve())
 
     def test_settings_migrate_old_storage_and_add_v2_keys(self):
         with tempfile.TemporaryDirectory() as td:

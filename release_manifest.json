@@ -132,7 +132,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "08798ad23fc4f65148c1f36c04b28d26fe48536f57478ca847155aaf9df93c93"
+      "sha256": "97c6183e565fe63e7c246f2b0c7000bba7976ec605354c614f2d522c6a92bcce"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -249,10 +249,6 @@
     {
       "path": "jarvis_core/services/deep_network_inspection.py",
       "sha256": "de8ea9c63bf2897f9351e732ce7a756df56f75ca3361beb8fd81c8b1e311d21d"
-    },
-    {
-      "path": "jarvis_core/services/desktop_integration.py",
-      "sha256": "08baa175e364191323d1c0bf014e4fa48778fbabacdd214a89d70088f2913fde"
     },
     {
       "path": "jarvis_core/services/disabled_voice.py",
@@ -488,7 +484,7 @@
     },
     {
       "path": "jarvis_core/skills/builtin/self_repair.py",
-      "sha256": "c1f079bc9441ad6fde16e60c6f80bfdf61e691183b3b68ce0ad17807b84a9501"
+      "sha256": "effd81e6a2a00a97691405ef6e295228b361b5c7f627d2b0e3f38e60a1cbcb96"
     },
     {
       "path": "jarvis_core/skills/builtin/system_guardian.py",
@@ -887,10 +883,6 @@
       "sha256": "6b890e12590d9803c03d760416788ee6bf83f2fcffa655a7c7b1d18381fdf2f3"
     },
     {
-      "path": "tests/test_desktop_integration.py",
-      "sha256": "4c5a2228963e6cfcd203970adad852375df5f2e71a74c0d7ebf37db5ed86d611"
-    },
-    {
       "path": "tests/test_direct_learning_execution_contract.py",
       "sha256": "cff4de02a8068c59799d5a60855e65342f1f75fe77dd2dadaf4c5709b0e7af84"
     },
@@ -956,7 +948,7 @@
     },
     {
       "path": "tests/test_g_drive_voice_reliability_0260.py",
-      "sha256": "e8f3dde6555081a84a033ae87ee63cd1472eeb91051f263759e9221faf1000c7"
+      "sha256": "9f3f372e05a89677dea9eedb14eea8ceac261e3bf9acc30d8505e78c52264463"
     },
     {
       "path": "tests/test_guardian_severity_contract.py",
@@ -1648,7 +1640,7 @@
     },
     {
       "path": "update_core.ps1",
-      "sha256": "c297ab599d77d9cc9a08b6bcdd7d41182aa8d020875bd0b87d110db16d6e2396"
+      "sha256": "ac288c3f66964861455882f1b448dd64dd3bd67fea12f446e6d2e5695e68cc9b"
     },
     {
       "path": "verify_release.ps1",

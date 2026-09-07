@@ -19,7 +19,6 @@ from jarvis_core.services.learning_followup import (
     get_learning_followup_context,
 )
 from jarvis_core.services.telemetry import TelemetryService
-from jarvis_core.services.desktop_integration import DesktopIntegrationService
 from jarvis_core.services.disabled_voice import (
     DisabledSpeechService,
     DisabledMicrophoneService,
@@ -249,10 +248,6 @@ VISIBLE_EVENTS = {
     "SPEAKER_LOCK_CHANGED":"VOICEID",
     "PROACTIVE_MESSAGE":"MIND",
     "DESKTOP_INTEGRATION_READY":"DESKTOP",
-    "DESKTOP_BRIDGE_STARTED":"DESKTOP",
-    "WALLPAPER_ENGINE_STARTED":"DESKTOP",
-    "DESKTOP_BRIDGE_UNAVAILABLE":"DESKTOP",
-    "WALLPAPER_ENGINE_UNAVAILABLE":"DESKTOP",
     "DESKTOP_INTEGRATION_ERROR":"DESKTOP",
     "DESKTOP_SCREEN_CAPTURED":"DESKTOP",
     "SKILL_LOADED":"SKILL",
@@ -581,8 +576,6 @@ Comandos:
   /network devices  dispositivos ativos na LAN
   /network devices all todos os dispositivos conhecidos
   /network status full detalhe técnico completo da rede
-  /desktop status   estado da integração Core + Wallpaper Engine
-  /desktop ensure   garantir bridge e Wallpaper Engine ativos
   /desktop agent status estado do Desktop Agent
   /desktop observe  janela ativa, cursor e dimensões do ecrã
   /desktop windows  listar janelas visíveis
@@ -780,17 +773,6 @@ def main() -> None:
         settings.proactive_speech_enabled = False
         settings.voice_v2_preload_stt = False
     events = EventBus(settings.log_dir, max_bytes=settings.log_max_bytes, backup_count=settings.log_backup_count)
-    desktop = DesktopIntegrationService(
-        events,
-        enabled=settings.desktop_integration_enabled,
-        core_root=Path(__file__).resolve().parents[1],
-        wallpaper_root=settings.desktop_wallpaper_root,
-        bridge_port=settings.desktop_bridge_port,
-        bridge_auto_start=settings.desktop_bridge_auto_start,
-        wallpaper_engine_auto_start=settings.desktop_wallpaper_engine_auto_start,
-        wallpaper_engine_path=settings.desktop_wallpaper_engine_path,
-    )
-    desktop_state = desktop.start()
 
     # Quiet terminal is the product default. EventBus continues to persist
     # all diagnostics to logs/events.jsonl; /debug on only changes display.
@@ -1007,7 +989,6 @@ def main() -> None:
         events=events,
         registry=tools,
         brain=brain,
-        desktop=desktop,
         apps=apps,
         memory=memory,
         cyber_range=cyber_range,
@@ -1791,12 +1772,6 @@ def main() -> None:
     print(
         f"Telemetry : CPU/RAM {settings.telemetry_interval_seconds}s | "
         f"GPU {settings.performance_gpu_sample_interval_seconds}s"
-    )
-    print(
-        "Desktop   : "
-        + ("READY" if desktop_state.get("bridge_online") else "BRIDGE STARTING/OFFLINE")
-        + " | Wallpaper Engine "
-        + ("ONLINE" if desktop_state.get("wallpaper_engine_running") else "NOT DETECTED")
     )
     if local_voice_enabled:
         print(
@@ -4185,12 +4160,6 @@ def main() -> None:
                 )
                 continue
 
-            if lower == "/desktop status":
-                print("JARVIS >", json.dumps(desktop.status(), ensure_ascii=False, indent=2))
-                continue
-            if lower == "/desktop ensure":
-                print("JARVIS >", json.dumps(desktop.start(), ensure_ascii=False, indent=2))
-                continue
 
             if lower == "/desktop agent status":
                 print("JARVIS >", json.dumps(read_tool("desktop_agent_status"), ensure_ascii=False, indent=2))

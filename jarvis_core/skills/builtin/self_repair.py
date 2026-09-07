@@ -43,14 +43,6 @@ class SelfRepairService:
         add("edge_tts_module", importlib.util.find_spec("edge_tts") is not None)
         add("psutil_module", importlib.util.find_spec("psutil") is not None)
 
-        if self.context.desktop is not None:
-            try:
-                desktop = self.context.desktop.status()
-                add("desktop_bridge", bool(desktop.get("bridge_online")), detail=desktop)
-                add("wallpaper_engine", bool(desktop.get("wallpaper_engine_running")), detail=desktop)
-            except Exception as exc:
-                add("desktop_integration", False, error=f"{type(exc).__name__}: {exc}")
-
         guardian = self.context.services.get("system_guardian")
         if guardian is not None:
             try:
@@ -66,7 +58,7 @@ class SelfRepairService:
             "failed_count": len(failed),
             "repairable_automatically": [
                 row["name"] for row in failed
-                if row["name"].startswith("runtime_dir:") or row["name"] in {"desktop_bridge", "wallpaper_engine", "settings_file"}
+                if row["name"].startswith("runtime_dir:") or row["name"] == "settings_file"
             ],
             "manual_attention": [
                 row["name"] for row in failed
@@ -92,12 +84,6 @@ class SelfRepairService:
             actions.append({"action": "ensure_settings_schema", "ok": bool(schema.get("ok")), "detail": schema})
         except Exception as exc:
             actions.append({"action": "ensure_settings_schema", "ok": False, "error": str(exc)})
-        if self.context.desktop is not None:
-            try:
-                state = self.context.desktop.start()
-                actions.append({"action": "ensure_desktop_integration", "ok": bool(state.get("bridge_online") or state.get("wallpaper_engine_running")), "detail": state})
-            except Exception as exc:
-                actions.append({"action": "ensure_desktop_integration", "ok": False, "error": str(exc)})
         after = self.diagnose()
         result = {
             "ok": all(row.get("ok") for row in actions) and after.get("failed_count", 0) == 0,
@@ -116,7 +102,7 @@ class SelfRepairService:
     def status(self) -> dict[str, Any]:
         return {
             "ok": True,
-            "safe_repairs": ["runtime directories", "settings schema", "desktop/wallpaper ensure"],
+            "safe_repairs": ["runtime directories", "settings schema"],
             "manual_only": ["Core integrity mismatch", "missing Python packages", "missing native local model"],
         }
 
@@ -136,8 +122,8 @@ class SelfRepairSkill(Skill):
         markers = ("diagnostica-te", "diagnóstico jarvis", "diagnostico jarvis", "repara-te", "self repair", "auto reparação", "auto reparacao", "jarvis avariado", "jarvis não funciona", "jarvis nao funciona")
         return [
             SkillTool("get_self_repair_status", "Read self-diagnostics and safe-repair boundaries.", self.service.status, {"type":"object","properties":{}}, RiskLevel.READ_ONLY, markers),
-            SkillTool("run_self_diagnostics", "Diagnose local JARVIS Core, native model/runtime directories, integrity and desktop integration without changing them.", self.service.diagnose, {"type":"object","properties":{}}, RiskLevel.READ_ONLY, markers),
-            SkillTool("run_safe_self_repair", "Apply bounded idempotent JARVIS repairs: runtime dirs, settings schema, and desktop/wallpaper ensure. It cannot replace Core files or install software.", self.service.repair_safe, {"type":"object","properties":{}}, RiskLevel.LOW, markers),
+            SkillTool("run_self_diagnostics", "Diagnose local JARVIS Core, native model/runtime directories and integrity without changing them.", self.service.diagnose, {"type":"object","properties":{}}, RiskLevel.READ_ONLY, markers),
+            SkillTool("run_safe_self_repair", "Apply bounded idempotent JARVIS repairs: runtime dirs and settings schema. It cannot replace Core files or install software.", self.service.repair_safe, {"type":"object","properties":{}}, RiskLevel.LOW, markers),
         ]
 
     def status(self) -> dict[str, Any]:
