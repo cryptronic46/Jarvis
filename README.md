@@ -150,37 +150,25 @@ When Silence Latch is active, typed `Jarvis, ...` normalization now happens befo
 
 ## 0.26.0 — Dedicated G: + Voice Reliability
 
-- Install Core at `G:\JARVIS`; do not copy the old `.venv` from C:. Recreate it with `setup.ps1`.
-- Keep the live wallpaper add-on at `G:\JARVIS-Wallpaper`; JARVIS derives this sibling path automatically when no custom path is configured.
-- Voice v2 forces ONNX and never silently falls back to TFLite.
-- MCI barge-in waits for playback readiness before pause/resume, preventing the observed error 263 race.
-- Legacy audio prefers stable WASAPI/DirectSound over WDM-KS duplicates.
-- Faster Whisper snapshots stay under `G:\JARVIS\models\faster-whisper` when installed on G:.
-- Use `migrate_to_g.ps1` to import persistent state from the old Core and move/copy the visual add-on safely; use `finalize_g_migration.ps1` only after testing.
+> **Current migration contract (M-08):** `migrate_to_g.ps1` migrates persistent Core state only. External presentation add-ons are outside the Core lifecycle and are managed separately. PC-local speech is retired and is not part of G: migration or validation.
+
+- Install the Core at `G:\JARVIS`; never copy the old `.venv`. Recreate it with `setup.ps1`.
+- `migrate_to_g.ps1` can import `memory`, `knowledge`, `logs`, `models`, `.cache`, `skills`, `settings.json` and `apps.json`.
+- The migration tool does not start, stop, copy or delete external presentation software.
+- `finalize_g_migration.ps1` can remove only the old Core and only with explicit `-RemoveOldCore`.
 
 ### Migração recomendada nesta máquina
 
-1. Fecha o JARVIS com `/quit` e fecha o Wallpaper Engine.
-2. Extrai esta release para que exista `G:\JARVIS\jarvis.py`.
-3. Abre PowerShell e executa:
-
-```powershell
-cd G:\JARVIS
-powershell -ExecutionPolicy Bypass -File .\migrate_to_g.ps1
-.\setup.ps1 -SkipModel
-.\setup_voice_v2.ps1
-.\verify_release.ps1
-.\run.ps1
-```
-
-4. Valida `/voice doctor`, `cala-te`, alguns segundos de conversa/ruído sem dizer Jarvis, depois `Jarvis`, e `/desktop status`.
-5. Só quando G: estiver validado, a limpeza explícita pode ser feita com:
-
-```powershell
-.\finalize_g_migration.ps1 -RemoveOldCore -RemoveOldWallpaper -RemoveOldWallpaperEngine
-```
-
-Se o Wallpaper Engine for gerido pelo Steam, não uses `-RemoveOldWallpaperEngine` para forçar uma mudança: transfere a aplicação para uma biblioteca Steam em G: através do Steam Storage. O script não altera manifests do Steam.
+1. Fecha o JARVIS com `/quit`.
+2. Confirma que a nova release existe em `G:\JARVIS`.
+3. Executa, por ordem:
+   - `cd G:\JARVIS`
+   - `powershell -ExecutionPolicy Bypass -File .\migrate_to_g.ps1`
+   - `.\setup.ps1 -SkipModel`
+   - `.\verify_release.ps1`
+   - `.\run.ps1`
+4. Valida o arranque e as capacidades locais do Core.
+5. Apenas se quiseres remover explicitamente o Core antigo, executa `.\finalize_g_migration.ps1 -RemoveOldCore`.
 
 # JARVIS Core 0.25.4 — False-Wake Hardening
 > **0.25.4 false-wake hotfix:** both wake engines now fail more conservatively. Legacy acoustic profiles are clamped to a safer runtime floor and their isolated Whisper veto uses VAD + tighter confidence limits. Voice Engine v2 explicitly requires Silero speech agreement and temporally confirms medium openWakeWord hits while keeping strong hits fast. The 0.25.3 PCM/App Control workaround is retained, so PyAV remains unnecessary for microphone STT and Windows security does not need to be weakened.

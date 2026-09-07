@@ -1,4 +1,5 @@
 ﻿$ErrorActionPreference = 'Stop'
+
 $CorePath = $PSScriptRoot
 $Startup = [Environment]::GetFolderPath('Startup')
 $ShortcutPath = Join-Path $Startup 'JARVIS Desktop.lnk'
@@ -14,12 +15,16 @@ $oldArgs = [string]$Shortcut.Arguments
 $oldTarget = [string]$Shortcut.TargetPath
 $changed = $false
 
-if ($oldArgs -match '(?i)C:\\JARVIS') {
-    $Shortcut.Arguments = $oldArgs.Replace('C:\JARVIS-Wallpaper','G:\JARVIS-Wallpaper').Replace('C:\JARVIS',$CorePath)
+$corePattern = '(?i)C:\\JARVIS(?![-A-Za-z0-9_])'
+$coreStartPattern = '(?i)^C:\\JARVIS(?![-A-Za-z0-9_])'
+
+if ($oldArgs -match $corePattern) {
+    $Shortcut.Arguments = $oldArgs -replace $corePattern, $CorePath
     $changed = $true
 }
-if ($oldTarget -match '(?i)^C:\\JARVIS') {
-    $Shortcut.TargetPath = $oldTarget -replace '(?i)^C:\\JARVIS', $CorePath
+
+if ($oldTarget -match $coreStartPattern) {
+    $Shortcut.TargetPath = $oldTarget -replace $coreStartPattern, $CorePath
     $changed = $true
 }
 
@@ -27,6 +32,7 @@ if ($changed) {
     $Shortcut.WorkingDirectory = $CorePath
     $Shortcut.Save()
     Write-Host "Startup JARVIS corrigido para $CorePath" -ForegroundColor Green
-} else {
-    Write-Host 'Startup JARVIS: atalho existente não contém referência C:\JARVIS; sem alterações.' -ForegroundColor DarkGray
+}
+else {
+    Write-Host 'Startup JARVIS: atalho existente nao contem referencia ao Core antigo; sem alteracoes.' -ForegroundColor DarkGray
 }

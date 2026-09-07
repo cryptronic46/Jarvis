@@ -76,7 +76,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "da91e69d8b2eaf247f4ca8bc91ba074b0468de592e259d979b3ca0dc4b581922"
+      "sha256": "26d1d912e7a322329c3b55a3a6f301bdc7eb6d672327ee3f651d8cd7744d7a52"
     },
     {
       "path": "acceptance_real_machine.ps1",
@@ -112,7 +112,7 @@
     },
     {
       "path": "finalize_g_migration.ps1",
-      "sha256": "b2ecdb835b347f88d85a8a41abdaa771b6cf996a8a0f981481d41e6ad96fe4cf"
+      "sha256": "17bc3bbd33db829aad44218dea8951b8adfac39b81f2f93401cf61c4efae53da"
     },
     {
       "path": "full_system_validation.ps1",
@@ -148,7 +148,7 @@
     },
     {
       "path": "jarvis_core/core/config.py",
-      "sha256": "03a2a77b594f9f4a82ce15d128ab5e68064247514f5bc0f64c9502a662e84390"
+      "sha256": "dc000dc0abc6fcf77a87f9eed31f32da20583cbf0ec1dd4099ac1d30bfbdabb0"
     },
     {
       "path": "jarvis_core/core/conversation_policy.py",
@@ -544,7 +544,7 @@
     },
     {
       "path": "migrate_to_g.ps1",
-      "sha256": "3c5428d87055a868b96b8919f3626215e1753b76e21b38c3bc04577a0246a90a"
+      "sha256": "b62e83f938a0d43379a7823d57520f53291f3c262b011396aa7fa60b5fc97600"
     },
     {
       "path": "repair_security_baseline.ps1",
@@ -552,7 +552,7 @@
     },
     {
       "path": "repair_startup_shortcut.ps1",
-      "sha256": "08b6060687f2ff62cc3365b8a92630681604345c92ad3508745344ea11395d80"
+      "sha256": "af7950320fe083bde56fedc37caa4bc88be71794cf5e5248efd5add406616bc3"
     },
     {
       "path": "requirements-cloud.txt",
@@ -672,7 +672,7 @@
     },
     {
       "path": "tests/test_0278_performance_autonomy_hotfix_v11.py",
-      "sha256": "0fbbf3842d73190864b716d47b103c644e51dcef195ced6c2a2c507d65e7ceab"
+      "sha256": "20a88715db21275b06d655fea12c5d962e61b4878bc5e772d6fea985434d6ae6"
     },
     {
       "path": "tests/test_0278_runtime_trust_optimization.py",
@@ -948,7 +948,7 @@
     },
     {
       "path": "tests/test_g_drive_voice_reliability_0260.py",
-      "sha256": "9f3f372e05a89677dea9eedb14eea8ceac261e3bf9acc30d8505e78c52264463"
+      "sha256": "3c97d85a1b38712104b4031f4dada48221c20746d78331b8360632116627ee0a"
     },
     {
       "path": "tests/test_guardian_severity_contract.py",
@@ -1344,7 +1344,7 @@
     },
     {
       "path": "tests/test_settings_schema_migration.py",
-      "sha256": "b5a6e3a572ef23e264d479fe430bcbe21cefbd5348ae3f22e2c3299444c0165d"
+      "sha256": "1eb97769422ea337d12c69332b8b6ddd49483ebd24072c6fe1fc975c4e0f663b"
     },
     {
       "path": "tests/test_setup_contract.py",

@@ -85,13 +85,12 @@ class GDriveVoiceReliability0260Tests(unittest.TestCase):
         self.assertGreater(_windows_capture_hostapi_score("Windows WASAPI"), 0)
         self.assertLessEqual(_windows_capture_hostapi_score("Windows WDM-KS"), -1000)
 
-    def test_settings_migrate_old_storage_and_add_v2_keys(self):
+    def test_settings_schema_adds_v2_keys(self):
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "settings.json"
             path.write_text(
                 json.dumps(
                     {
-                        "desktop_wallpaper_root": r"C:\JARVIS-Wallpaper",
                         "voice_v2_wake_threshold": 0.55,
                         "wake_match_floor": 0.62,
                         "wake_candidate_min_avg_logprob": -0.80,
@@ -100,10 +99,15 @@ class GDriveVoiceReliability0260Tests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            result = Settings.ensure_file_schema(path)
+
+            Settings.ensure_file_schema(path)
             data = json.loads(path.read_text(encoding="utf-8"))
-            self.assertEqual("", data["desktop_wallpaper_root"])
-            self.assertGreaterEqual(data["voice_v2_wake_threshold"], 0.40)
+
+            self.assertGreaterEqual(
+                data["voice_v2_wake_threshold"],
+                0.40,
+            )
+
             for key in (
                 "voice_v2_wake_strong_threshold",
                 "voice_v2_wake_confirm_frames",
@@ -112,14 +116,37 @@ class GDriveVoiceReliability0260Tests(unittest.TestCase):
                 "voice_v2_verifier_threshold",
             ):
                 self.assertIn(key, data)
-            self.assertIn("desktop_wallpaper_root", result["storage_migrated"])
 
     def test_g_migration_does_not_copy_old_venv(self):
-        text = Path("migrate_to_g.ps1").read_text(encoding="utf-8")
-        self.assertIn('Destination = "G:\\JARVIS"', text)
-        self.assertIn('WallpaperDestination = "G:\\JARVIS-Wallpaper"', text)
-        self.assertIn("Old .venv intentionally not copied", text)
-        self.assertNotIn(r"'\.venv'", text.split("foreach ($name in @(", 1)[1].split("))", 1)[0])
+        text = Path("migrate_to_g.ps1").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn(
+            'Destination = "G:\\JARVIS"',
+            text,
+        )
+        self.assertIn(
+            "Old .venv intentionally not copied",
+            text,
+        )
+        self.assertNotIn("WallpaperDestination", text)
+        self.assertNotIn("JARVIS-Wallpaper", text)
+        self.assertNotIn("setup_voice_v2.ps1", text)
+        self.assertNotIn("voice_profiles", text)
+
+        persistent_block = text.split(
+            "foreach ($name in @(",
+            1,
+        )[1].split(
+            "))",
+            1,
+        )[0]
+
+        self.assertNotIn(
+            r"'.venv'",
+            persistent_block,
+        )
 
     def test_app_control_doctor_uses_existing_auditor(self):
         text = Path("diagnose_app_control.ps1").read_text(encoding="utf-8")

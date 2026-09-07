@@ -61,15 +61,6 @@ class Settings:
     telemetry_interval_seconds: float = 1.0
     telemetry_history_seconds: int = 120
 
-    # Desktop / Wallpaper Engine integration. The Core only launches known
-    # local components and the bridge remains loopback/read-only.
-    desktop_integration_enabled: bool = True
-    desktop_wallpaper_root: str = ""
-    desktop_bridge_auto_start: bool = True
-    desktop_bridge_port: int = 8765
-    desktop_wallpaper_engine_auto_start: bool = True
-    desktop_wallpaper_engine_path: str = ""
-
     # 0.23 modular capabilities. Built-ins live under jarvis_core/skills;
     # OWNER-trusted external skills live in a persistent runtime folder and are
     # never trusted/installed by the model itself.
@@ -625,14 +616,22 @@ class Settings:
                 data[field_name] = new_value
                 voice_turn_migrated.append(field_name)
 
-        storage_migrated: list[str] = []
-        # 0.26.0 storage migration. The old shipped wallpaper path was tied to
-        # C:. Empty means "sibling of the active Core root", so a Core moved to
-        # G:\JARVIS automatically resolves to G:\JARVIS-Wallpaper. Explicit
-        # OWNER custom paths are preserved.
-        if str(data.get("desktop_wallpaper_root") or "").lower() == r"c:\jarvis-wallpaper":
-            data["desktop_wallpaper_root"] = defaults.desktop_wallpaper_root
-            storage_migrated.append("desktop_wallpaper_root")
+        retired_desktop_settings_removed: list[str] = []
+        # M-08: Core no longer owns Wallpaper, its bridge, or Wallpaper Engine.
+        # Purge only the six retired lifecycle keys. Arbitrary OWNER extension
+        # keys remain untouched.
+        retired_desktop_settings = (
+            "desktop_integration_enabled",
+            "desktop_wallpaper_root",
+            "desktop_bridge_auto_start",
+            "desktop_bridge_port",
+            "desktop_wallpaper_engine_auto_start",
+            "desktop_wallpaper_engine_path",
+        )
+        for field_name in retired_desktop_settings:
+            if field_name in data:
+                data.pop(field_name, None)
+                retired_desktop_settings_removed.append(field_name)
 
         core_state_migrated: list[str] = []
         # M-07: the presentation-state publisher is a Core capability, not a
@@ -727,7 +726,7 @@ class Settings:
                 data[field_name] = value
                 forced.append(field_name)
 
-        if had_utf8_bom or added or forced or voice_migrated or vision_migrated or resource_migrated or encoding_migrated or accuracy_migrated or speed_migrated or wake_hardening_migrated or voice_latency_migrated or voice_turn_migrated or storage_migrated or core_state_migrated or mic_binding_migrated or not p.exists():
+        if had_utf8_bom or added or forced or voice_migrated or vision_migrated or resource_migrated or encoding_migrated or accuracy_migrated or speed_migrated or wake_hardening_migrated or voice_latency_migrated or voice_turn_migrated or retired_desktop_settings_removed or core_state_migrated or mic_binding_migrated or not p.exists():
             p.write_text(
                 json.dumps(data, ensure_ascii=False, indent=2) + "\n",
                 encoding="utf-8",
@@ -759,8 +758,8 @@ class Settings:
             "voice_turn_migrated": voice_turn_migrated,
             "voice_turn_migrated_count": len(voice_turn_migrated),
             "voice_latency_migrated_count": len(voice_latency_migrated),
-            "storage_migrated": storage_migrated,
-            "storage_migrated_count": len(storage_migrated),
+            "retired_desktop_settings_removed": retired_desktop_settings_removed,
+            "retired_desktop_settings_removed_count": len(retired_desktop_settings_removed),
             "core_state_migrated": core_state_migrated,
             "core_state_migrated_count": len(core_state_migrated),
             "mic_binding_migrated": mic_binding_migrated,
@@ -835,7 +834,6 @@ class Settings:
             "JARVIS_USER": "user_name",
             "JARVIS_HYBRID_MODE": "hybrid_mode",
             "JARVIS_CLOUD_MODEL": "cloud_model",
-            "JARVIS_WALLPAPER_ROOT": "desktop_wallpaper_root",
         }
         for env_name, field_name in overrides.items():
             value = os.getenv(env_name)

@@ -43,9 +43,31 @@ class PerformanceAutonomyHotfixV11Tests(unittest.TestCase):
         self.assertIn('min(60.0', text)
 
     def test_startup_repair_never_creates_autostart(self):
-        text=Path('repair_startup_shortcut.ps1').read_text(encoding='utf-8-sig')
-        self.assertIn('sem atalho existente; nada foi criado', text)
-        self.assertIn('G:\\JARVIS-Wallpaper', text)
-        self.assertLess(text.index('Test-Path -LiteralPath $ShortcutPath'), text.index('CreateShortcut($ShortcutPath)'))
+        text = Path(
+            "repair_startup_shortcut.ps1"
+        ).read_text(
+            encoding="utf-8-sig"
+        )
+
+        self.assertIn(
+            "sem atalho existente; nada foi criado",
+            text,
+        )
+        self.assertNotIn(
+            "JARVIS-Wallpaper",
+            text,
+        )
+        self.assertIn(
+            "(?![-A-Za-z0-9_])",
+            text,
+        )
+        self.assertLess(
+            text.index(
+                "Test-Path -LiteralPath $ShortcutPath"
+            ),
+            text.index(
+                "CreateShortcut($ShortcutPath)"
+            ),
+        )
 
 if __name__=='__main__': unittest.main()

@@ -150,6 +150,66 @@ class SettingsSchemaMigrationTests(unittest.TestCase):
             self.assertIn("wallpaper_live_state_path", raw)
             self.assertNotIn("core_state_path", raw)
 
+    def test_retired_desktop_settings_are_purged_selectively(self):
+        retired = {
+            "desktop_integration_enabled": True,
+            "desktop_wallpaper_root": r"C:\JARVIS-Wallpaper",
+            "desktop_bridge_auto_start": True,
+            "desktop_bridge_port": 8765,
+            "desktop_wallpaper_engine_auto_start": True,
+            "desktop_wallpaper_engine_path": r"C:\WallpaperEngine\wallpaper64.exe",
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "settings.json"
+
+            path.write_text(
+                json.dumps(
+                    {
+                        "user_name": "Owner",
+                        "owner_extension_key": "keep-me",
+                        **retired,
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            result = Settings.ensure_file_schema(path)
+
+            data = json.loads(
+                path.read_text(
+                    encoding="utf-8"
+                )
+            )
+
+            loaded = Settings.load(path)
+
+            self.assertEqual(
+                result["retired_desktop_settings_removed_count"],
+                6,
+            )
+
+            self.assertEqual(
+                set(
+                    result[
+                        "retired_desktop_settings_removed"
+                    ]
+                ),
+                set(retired),
+            )
+
+            for key in retired:
+                self.assertNotIn(key, data)
+                self.assertFalse(
+                    hasattr(loaded, key)
+                )
+
+            self.assertEqual(
+                data["owner_extension_key"],
+                "keep-me",
+            )
+
+
     def test_current_release_settings_has_complete_schema(self):
         data = json.loads(
             Path("settings.json").read_text(
