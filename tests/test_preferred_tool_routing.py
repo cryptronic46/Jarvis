@@ -595,6 +595,120 @@ class PreferredToolRoutingTests(unittest.TestCase):
             tools.execute_result,
         )
 
+    def test_authoritative_tool_transports_owner_source_when_supported(self):
+        class OwnerAwareProbeTools(
+            _ProbeTools
+        ):
+            def __init__(self):
+                super().__init__()
+                self.owner_source_calls = []
+
+            def execute(
+                self,
+                name,
+                arguments,
+                owner_source_text="",
+            ):
+                self.execute_calls.append(
+                    (
+                        name,
+                        dict(arguments),
+                    )
+                )
+
+                self.owner_source_calls.append(
+                    str(
+                        owner_source_text
+                        or ""
+                    )
+                )
+
+                if (
+                    self.execute_exception
+                    is not None
+                ):
+                    raise self.execute_exception
+
+                return self.execute_result
+
+        tools = OwnerAwareProbeTools()
+
+        brain = SimpleNamespace(
+            tools=tools,
+        )
+
+        owner_text = (
+            "Jarvis, abre o Spotify."
+        )
+
+        (
+            name,
+            arguments,
+            result,
+            reason,
+        ) = (
+            JarvisBrain
+            ._execute_authoritative_semantic_tool(
+                brain,
+                request=self._request(
+                    requires_tool=True,
+                    preferred_tool=
+                        "open_application",
+                    tool_arguments={
+                        "app_name":
+                            "spotify",
+                    },
+                ),
+                allowed_tool_names={
+                    "open_application",
+                },
+                owner_source_text=
+                    owner_text,
+            )
+        )
+
+        self.assertIsNone(
+            reason
+        )
+
+        self.assertEqual(
+            name,
+            "open_application",
+        )
+
+        self.assertEqual(
+            arguments,
+            {
+                "app_name":
+                    "spotify",
+            },
+        )
+
+        self.assertEqual(
+            result,
+            tools.execute_result,
+        )
+
+        self.assertEqual(
+            tools.execute_calls,
+            [
+                (
+                    "open_application",
+                    {
+                        "app_name":
+                            "spotify",
+                    },
+                )
+            ],
+        )
+
+        self.assertEqual(
+            tools.owner_source_calls,
+            [
+                owner_text,
+            ],
+        )
+
     def test_low_confidence_semantic_tool_is_not_auto_executed(self):
         tools = _ProbeTools()
         brain = SimpleNamespace(

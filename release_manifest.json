@@ -140,7 +140,7 @@
     },
     {
       "path": "jarvis_core/core/brain.py",
-      "sha256": "655cfbc6957e7a55f095349d5535995e3f4df50b2b8203ab1d072dba3f836362"
+      "sha256": "8d117b781107bbbf163e65af5b6bc056dab20c2438653b1f263b8403bb62f315"
     },
     {
       "path": "jarvis_core/core/cloud_brain.py",
@@ -184,7 +184,7 @@
     },
     {
       "path": "jarvis_core/core/tool_registry.py",
-      "sha256": "be3efe17d0f5ed4e0341f67241b038a44048d799ca0477bc8cc75e24fefcf542"
+      "sha256": "572b405ddeefbd63e377c6399bc8baf13900fd74e694ccd5bb29656c7c0ce006"
     },
     {
       "path": "jarvis_core/security/__init__.py",
@@ -240,7 +240,7 @@
     },
     {
       "path": "jarvis_core/services/cyber_range.py",
-      "sha256": "1e4d97d6eb6ef3c522977638684edbadeb401c014fec33fcf4d830327fd0f6ea"
+      "sha256": "f1969a810b2989e7d8fc722469cdab1285e822f0c0a8bd3002cf5a00dd0eb2dd"
     },
     {
       "path": "jarvis_core/services/cybersecurity.py",
@@ -516,7 +516,7 @@
     },
     {
       "path": "jarvis_core/tools/environment_tools.py",
-      "sha256": "51917baf831180e79dfeba47b11d877718042f2b4a64d0ab3ca83353a98e0afe"
+      "sha256": "43efb481b9ceeadfaa4bc99cee9b1ac0875cf09e7acf8f8e1bd7989be876d879"
     },
     {
       "path": "jarvis_core/tools/location_tools.py",
@@ -844,7 +844,7 @@
     },
     {
       "path": "tests/test_cyber_range_manager.py",
-      "sha256": "5b4792d6382b481acfcfd2e63d046311cb820c1ce2bf0a0ac6af954aefb94e8e"
+      "sha256": "22158d36ff4057b5c4e1e94f2c9c3710ec9de6f2c39c946a8466fd7d83a8ed81"
     },
     {
       "path": "tests/test_cyber_sources_contract.py",
@@ -896,7 +896,7 @@
     },
     {
       "path": "tests/test_environment_tools.py",
-      "sha256": "26f63b4e9f820a8fb63230652a6510d0af0e1a7f40b0ca778f952b6c51d63929"
+      "sha256": "875618357d678a3b207da64d20aa4b0d47d9ba05309aa476788dfa4e4b6d0f32"
     },
     {
       "path": "tests/test_epistemic_learning_0278.py",
@@ -1204,7 +1204,7 @@
     },
     {
       "path": "tests/test_preferred_tool_routing.py",
-      "sha256": "5cfe4cb273a60cb573ce775ba3fab1a178d3b46dacaad9c540d07b737b407fed"
+      "sha256": "e4ed717f116f7eb1ea80150a71647c3c7155a693e0a74d5561d8a4ca6a6de914"
     },
     {
       "path": "tests/test_privacy_cloud_gate.py",

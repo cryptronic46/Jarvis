@@ -266,16 +266,9 @@ def _write_cache(data: dict[str, Any]) -> None:
         pass
 
 
-def get_home_environment(force_refresh: bool = False) -> dict[str, Any]:
-    if not force_refresh:
-        cached = _read_cache()
-        if cached:
-            return cached
-    home = _home()
-    if not {"latitude", "longitude"}.issubset(home):
-        return {"ok": False, "error": "HOME_LOCATION_NOT_CONFIGURED"}
-
-    payload = {
+def environment_web_authorization_payload() -> dict[str, Any]:
+    """Return the exact public-Web scope used by the environment tool."""
+    return {
         "operation":
             "get_home_environment",
         "weather":
@@ -286,6 +279,24 @@ def get_home_environment(force_refresh: bool = False) -> dict[str, Any]:
             "configured_home",
     }
 
+
+def get_home_environment(
+    force_refresh: bool = False,
+    *,
+    execution_token: str = "",
+) -> dict[str, Any]:
+    if not force_refresh:
+        cached = _read_cache()
+        if cached:
+            return cached
+    home = _home()
+    if not {"latitude", "longitude"}.issubset(home):
+        return {"ok": False, "error": "HOME_LOCATION_NOT_CONFIGURED"}
+
+    payload = (
+        environment_web_authorization_payload()
+    )
+
     try:
         opened = (
             _EGRESS
@@ -293,6 +304,10 @@ def get_home_environment(force_refresh: bool = False) -> dict[str, Any]:
                 purpose="research",
                 capability="web_research",
                 payload=payload,
+                execution_token=str(
+                    execution_token
+                    or ""
+                ),
             )
         )
     except Exception as exc:

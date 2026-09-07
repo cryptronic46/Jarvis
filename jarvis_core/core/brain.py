@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import inspect
+
 from time import time, monotonic
 from typing import Any
 from threading import RLock
@@ -2071,6 +2073,7 @@ class JarvisBrain:
         *,
         request: StructuredRequest | None,
         allowed_tool_names: set[str],
+        owner_source_text: str = "",
     ) -> tuple[
         str | None,
         dict[str, Any],
@@ -2183,10 +2186,53 @@ class JarvisBrain:
             )
 
         try:
-            result = self.tools.execute(
-                name,
-                arguments,
+            execute_tool = (
+                self.tools.execute
             )
+
+            try:
+                execute_signature = (
+                    inspect.signature(
+                        execute_tool
+                    )
+                )
+
+                execute_parameters = (
+                    execute_signature.parameters
+                )
+
+                supports_owner_source = (
+                    "owner_source_text"
+                    in execute_parameters
+                    or any(
+                        parameter.kind
+                        == inspect.Parameter.VAR_KEYWORD
+                        for parameter
+                        in execute_parameters.values()
+                    )
+                )
+            except (
+                TypeError,
+                ValueError,
+            ):
+                # Unknown/opaque legacy executors receive only the
+                # historical two-argument contract. This is fail-safe:
+                # they cannot mint current-turn OWNER Web authority.
+                supports_owner_source = False
+
+            if supports_owner_source:
+                result = execute_tool(
+                    name,
+                    arguments,
+                    owner_source_text=
+                        owner_source_text,
+                )
+            else:
+                result = execute_tool(
+                    name,
+                    arguments,
+                )
+
         except Exception as exc:
             error_reason = (
                 "execution_exception:"
@@ -2583,6 +2629,7 @@ class JarvisBrain:
         ) = self._execute_authoritative_semantic_tool(
             request=request,
             allowed_tool_names=allowed_tool_names,
+            owner_source_text=user_text,
         )
 
         if (

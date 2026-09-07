@@ -600,8 +600,131 @@ def probe_cyber_lab_target(
     *,
     execution_token: str = "",
 ) -> dict[str, Any]:
-    return cyber_range_manager().probe(
-        target,
-        ports,
-        execution_token=execution_token,
+    """Model-safe wrapper around the exact OWNER network-authority boundary.
+
+    Public tool schemas never expose execution credentials to the model.
+    A direct ToolRegistry call without an internal execution token therefore
+    requests one exact active-network authorization.  If the OWNER has not
+    approved that exact scope yet, execution stops before any socket is opened.
+
+    Once an exact grant is available, the resulting runtime-only credential is
+    passed directly to CyberRangeManager.probe(), where it is consumed one-shot.
+    """
+
+    manager = cyber_range_manager()
+
+    token = str(
+        execution_token
+        or ""
+    ).strip()
+
+    if token:
+        return manager.probe(
+            target,
+            ports,
+            execution_token=token,
+        )
+
+    guardian = getattr(
+        manager,
+        "authority_guardian",
+        None,
+    )
+
+    if guardian is None:
+        return {
+            "ok": False,
+            "error":
+                "OWNER_NETWORK_AUTHORITY_UNAVAILABLE",
+        }
+
+    scoped = (
+        manager.build_probe_authorization_scope(
+            target,
+            ports,
+        )
+    )
+
+    if not scoped.get("ok"):
+        return scoped
+
+    payload = dict(
+        scoped.get("payload")
+        or {}
+    )
+
+    try:
+        gate = guardian.request(
+            capability=
+                "active_network_probe",
+            payload=payload,
+            reason=
+                "cyber_range_tool_execution",
+            description=(
+                "executar sondagem TCP controlada "
+                "apenas no alvo LAB "
+                f"{payload.get('target')} "
+                "e portas "
+                f"{payload.get('ports')}"
+            ),
+            action=
+                "probe_cyber_lab_target",
+            source=
+                "cyber_range_tool",
+        )
+    except Exception as exc:
+        return {
+            "ok": False,
+            "error":
+                "OWNER_NETWORK_AUTHORITY_REQUEST_FAILED",
+            "reason":
+                f"{type(exc).__name__}: {exc}",
+            "authorization_scope":
+                payload,
+        }
+
+    if not gate.get("allowed"):
+        return {
+            "ok": False,
+            "error":
+                "OWNER_AUTHORIZATION_REQUIRED",
+            "pending":
+                bool(
+                    gate.get("pending")
+                ),
+            "token":
+                gate.get("token"),
+            "message":
+                gate.get("message"),
+            "authorization_scope":
+                payload,
+        }
+
+    runtime_token = str(
+        gate.get(
+            "execution_token"
+        )
+        or ""
+    ).strip()
+
+    if not runtime_token:
+        return {
+            "ok": False,
+            "error":
+                "OWNER_NETWORK_EXECUTION_CREDENTIAL_MISSING",
+            "authorization_scope":
+                payload,
+        }
+
+    return manager.probe(
+        str(
+            scoped.get("target")
+            or target
+        ),
+        list(
+            scoped.get("ports")
+            or []
+        ),
+        execution_token=
+            runtime_token,
     )

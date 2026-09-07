@@ -14,7 +14,10 @@ from jarvis_core.services.learning_followup import (
 from jarvis_core.services.telemetry import TelemetryService
 from jarvis_core.tools.system_tools import get_current_time, get_system_status, list_top_processes
 from jarvis_core.tools.location_tools import get_configured_location, get_precise_location
-from jarvis_core.tools.environment_tools import get_home_environment
+from jarvis_core.tools.environment_tools import (
+    get_home_environment,
+    environment_web_authorization_payload,
+)
 from jarvis_core.services.user_memory import get_user_profile, remember_user_fact, recall_user_memory, get_memory_status
 from jarvis_core.tools.security_audit import (
     get_admin_accounts,
@@ -1672,6 +1675,7 @@ class ToolRegistry:
         arguments: dict[str, Any] | None = None,
         bypass_confirmation: bool = False,
         bypass_profile_permission: bool = False,
+        owner_source_text: str = "",
     ) -> str:
         if name not in self._tools:
             self.events.emit("TOOL_BLOCKED", tool=name, reason="unknown_tool")
@@ -1764,6 +1768,81 @@ class ToolRegistry:
         self.events.emit("TOOL_EXECUTING", tool=name, arguments=arguments)
         try:
             result = tool.func(**arguments)
+
+            # A fully resolved current OWNER request may authorize the exact
+            # read-only Web operation required by get_home_environment.
+            #
+            # Cache hits and existing standing authority are tried first.
+            # Only an actual OWNER_WEB_AUTHORIZATION_REQUIRED result reaches
+            # this direct-authority retry. The runtime credential is never
+            # exposed in the model-facing tool schema.
+            if (
+                name == "get_home_environment"
+                and str(owner_source_text or "").strip()
+                and isinstance(result, dict)
+                and result.get("error")
+                == "OWNER_WEB_AUTHORIZATION_REQUIRED"
+            ):
+                payload = (
+                    environment_web_authorization_payload()
+                )
+
+                try:
+                    direct = (
+                        autonomy_guardian()
+                        .record_direct_authorization(
+                            capability="web_research",
+                            payload=payload,
+                            description=(
+                                "consultar o tempo e estado do mar "
+                                "atuais atrav?s das fontes p?blicas "
+                                "Open-Meteo"
+                            ),
+                            source_text=str(
+                                owner_source_text
+                                or ""
+                            ),
+                        )
+                    )
+                except Exception as exc:
+                    direct = {
+                        "ok": False,
+                        "error":
+                            "OWNER_DIRECT_AUTHORITY_ERROR",
+                        "reason":
+                            f"{type(exc).__name__}: {exc}",
+                    }
+
+                runtime_token = str(
+                    direct.get("execution_token")
+                    if isinstance(direct, dict)
+                    else ""
+                ).strip()
+
+                if (
+                    isinstance(direct, dict)
+                    and direct.get("ok")
+                    and direct.get("authorized")
+                    and runtime_token
+                ):
+                    result = tool.func(
+                        **arguments,
+                        execution_token=
+                            runtime_token,
+                    )
+                else:
+                    result = {
+                        "ok": False,
+                        "error":
+                            "OWNER_DIRECT_WEB_AUTHORIZATION_FAILED",
+                        "reason": (
+                            direct.get("error")
+                            if isinstance(direct, dict)
+                            else
+                            "INVALID_AUTHORITY_RESPONSE"
+                        ),
+                    }
+
             result_ok = True
             if isinstance(result, dict):
                 if result.get("ok") is False or result.get("error"):

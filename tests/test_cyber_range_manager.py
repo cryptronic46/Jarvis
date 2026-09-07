@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import jarvis_core.services.cyber_range as cyber_range
 from jarvis_core.services.cyber_range import CyberRangeManager
 
 
@@ -151,6 +152,247 @@ class CyberRangeManagerTests(unittest.TestCase):
             ]["ports"],
             [22, 80],
         )
+
+
+class CyberRangeToolAuthorityTests(
+    unittest.TestCase
+):
+    def setUp(self):
+        self.tmp = (
+            tempfile.TemporaryDirectory()
+        )
+        self.addCleanup(
+            self.tmp.cleanup
+        )
+
+        self.previous_manager = (
+            cyber_range._MANAGER
+        )
+
+        self.addCleanup(
+            self._restore_manager
+        )
+
+    def _restore_manager(self):
+        cyber_range._MANAGER = (
+            self.previous_manager
+        )
+
+    def test_tool_wrapper_requests_exact_authority_and_blocks_replay(
+        self,
+    ):
+        class DummyConnection:
+            def close(self):
+                pass
+
+        class ExactToolGuardian:
+            def __init__(self):
+                self.mode = "pending"
+                self.request_payload = None
+                self.consumed = False
+                self.requests = []
+
+            def request(
+                self,
+                *,
+                capability,
+                payload,
+                reason,
+                description,
+                action,
+                source,
+            ):
+                self.request_payload = dict(
+                    payload
+                )
+
+                self.requests.append({
+                    "capability":
+                        capability,
+                    "payload":
+                        dict(payload),
+                    "reason":
+                        reason,
+                    "action":
+                        action,
+                    "source":
+                        source,
+                })
+
+                if self.mode == "pending":
+                    return {
+                        "ok": True,
+                        "allowed": False,
+                        "pending": True,
+                        "token":
+                            "PENDING-TEST",
+                    }
+
+                return {
+                    "ok": True,
+                    "allowed": True,
+                    "execution_token":
+                        "RUNTIME-TEST",
+                }
+
+            def consume_direct_authorization(
+                self,
+                *,
+                execution_token,
+                capability,
+                payload,
+            ):
+                if (
+                    execution_token
+                    != "RUNTIME-TEST"
+                    or capability
+                    != "active_network_probe"
+                    or payload
+                    != self.request_payload
+                ):
+                    return {
+                        "ok": False,
+                        "allowed": False,
+                        "error":
+                            "SCOPE_MISMATCH",
+                    }
+
+                if self.consumed:
+                    return {
+                        "ok": False,
+                        "allowed": False,
+                        "error":
+                            "TOKEN_REPLAY",
+                    }
+
+                self.consumed = True
+
+                return {
+                    "ok": True,
+                    "allowed": True,
+                }
+
+        guardian = ExactToolGuardian()
+
+        manager = CyberRangeManager(
+            Path(self.tmp.name)
+            / "range.json",
+            authority_guardian=guardian,
+        )
+
+        self.assertTrue(
+            manager.add_lab_scope(
+                "10.255.254.123/32",
+                "Tool authority test",
+            )["ok"]
+        )
+
+        cyber_range.set_cyber_range_manager(
+            manager
+        )
+
+        socket_calls = []
+
+        def fake_connect(
+            address,
+            timeout=None,
+        ):
+            socket_calls.append(
+                (address, timeout)
+            )
+            return DummyConnection()
+
+        with patch(
+            "jarvis_core.services."
+            "cyber_range.socket."
+            "create_connection",
+            side_effect=fake_connect,
+        ):
+            pending = (
+                cyber_range
+                .probe_cyber_lab_target(
+                    "10.255.254.123",
+                    [443],
+                )
+            )
+
+            self.assertFalse(
+                pending["ok"]
+            )
+            self.assertEqual(
+                pending["error"],
+                "OWNER_AUTHORIZATION_REQUIRED",
+            )
+            self.assertEqual(
+                socket_calls,
+                [],
+            )
+
+            self.assertEqual(
+                guardian.requests[0][
+                    "capability"
+                ],
+                "active_network_probe",
+            )
+            self.assertEqual(
+                guardian.requests[0][
+                    "action"
+                ],
+                "probe_cyber_lab_target",
+            )
+            self.assertEqual(
+                guardian.requests[0][
+                    "source"
+                ],
+                "cyber_range_tool",
+            )
+
+            guardian.mode = "allowed"
+
+            allowed = (
+                cyber_range
+                .probe_cyber_lab_target(
+                    "10.255.254.123",
+                    [443],
+                )
+            )
+
+            self.assertTrue(
+                allowed["ok"]
+            )
+            self.assertTrue(
+                guardian.consumed
+            )
+            self.assertEqual(
+                len(socket_calls),
+                1,
+            )
+
+            replay = (
+                cyber_range
+                .probe_cyber_lab_target(
+                    "10.255.254.123",
+                    [443],
+                    execution_token=
+                        "RUNTIME-TEST",
+                )
+            )
+
+            self.assertFalse(
+                replay["ok"]
+            )
+            self.assertEqual(
+                replay["error"],
+                (
+                    "OWNER_AUTHORIZED_"
+                    "NETWORK_SCOPE_INVALID"
+                ),
+            )
+
+            self.assertEqual(
+                len(socket_calls),
+                1,
+            )
 
 
 if __name__ == "__main__":
