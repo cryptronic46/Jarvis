@@ -4,7 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from jarvis_core.core.events import Event
-from jarvis_core.skills.builtin.wallpaper_live import LiveWallpaperStateService
+from jarvis_core.skills.builtin.core_state import CoreStateService
 
 
 class DummyEvents:
@@ -18,15 +18,15 @@ class DummyRegistry:
         return []
 
 
-class WallpaperEventIOTests(unittest.TestCase):
+class CoreStateEventIOTests(unittest.TestCase):
     def test_event_callback_does_not_flush_to_disk_synchronously(self):
         with tempfile.TemporaryDirectory() as td:
             settings = SimpleNamespace(
-                wallpaper_live_state_path=str(Path(td) / "live_hud.json"),
-                wallpaper_live_interval_seconds=2.0,
+                core_state_path=str(Path(td) / "live_hud.json"),
+                core_state_interval_seconds=2.0,
             )
             context = SimpleNamespace(settings=settings, events=DummyEvents(), registry=DummyRegistry())
-            svc = LiveWallpaperStateService(context)
+            svc = CoreStateService(context)
             svc._active = True
             calls = []
             svc._flush = lambda: calls.append("flush")

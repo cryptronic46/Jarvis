@@ -105,6 +105,51 @@ class SettingsSchemaMigrationTests(unittest.TestCase):
             )
             self.assertEqual(data["wake_stt_hotwords"], "Jarvis áudio gráfica")
             self.assertEqual(result["encoding_migrated_count"], 2)
+    def test_live_core_state_settings_migrate_preserving_owner_values(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "settings.json"
+            custom_path = str(Path(tmp) / "owner-core-state.json")
+            path.write_text(
+                json.dumps({
+                    "wallpaper_live_state_path": custom_path,
+                    "wallpaper_live_interval_seconds": 7.5,
+                }),
+                encoding="utf-8",
+            )
+
+            result = Settings.ensure_file_schema(path)
+            data = json.loads(path.read_text(encoding="utf-8"))
+            loaded = Settings.load(path)
+
+            self.assertTrue(result["ok"])
+            self.assertEqual(result["core_state_migrated_count"], 2)
+            self.assertNotIn("wallpaper_live_state_path", data)
+            self.assertNotIn("wallpaper_live_interval_seconds", data)
+            self.assertEqual(data["core_state_path"], custom_path)
+            self.assertEqual(data["core_state_interval_seconds"], 7.5)
+            self.assertEqual(loaded.core_state_path, custom_path)
+            self.assertEqual(loaded.core_state_interval_seconds, 7.5)
+
+    def test_live_core_state_load_accepts_legacy_alias_without_schema_write(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "settings.json"
+            custom_path = str(Path(tmp) / "legacy-owner-state.json")
+            path.write_text(
+                json.dumps({
+                    "wallpaper_live_state_path": custom_path,
+                    "wallpaper_live_interval_seconds": 4.25,
+                }),
+                encoding="utf-8",
+            )
+
+            loaded = Settings.load(path)
+            raw = json.loads(path.read_text(encoding="utf-8"))
+
+            self.assertEqual(loaded.core_state_path, custom_path)
+            self.assertEqual(loaded.core_state_interval_seconds, 4.25)
+            self.assertIn("wallpaper_live_state_path", raw)
+            self.assertNotIn("core_state_path", raw)
+
     def test_current_release_settings_has_complete_schema(self):
         data = json.loads(
             Path("settings.json").read_text(

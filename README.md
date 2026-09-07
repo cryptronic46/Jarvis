@@ -339,9 +339,9 @@ The updater migrates only the exact old shipped `ollama_keep_alive=30m` value to
 - **System Guardian** — continuously compares startup persistence, listening sockets and selected process-path signals against a local baseline and verifies controlled JARVIS release hashes. Alerts are evidence to review, not automatic malware verdicts.
 - **Autonomous Task Planner** — asks the local Qwen model for a JSON plan, validates every step against the real Tool Registry, executes safe steps and pauses at ordinary confirmation tokens. A failed step may trigger one bounded evidence-based adaptation by default; confirmations can never be bypassed.
 - **Relational Memory Graph** — adds entities, relations, decisions and project state on top of explicit accepted memory writes. Ordinary conversation is not silently promoted to permanent graph facts.
-- **Live Wallpaper State** — publishes `memory/live_hud.json` with active skill/tool/task, Guardian alerts, Purple Team and Vision state for the loopback Wallpaper bridge.
+- **Live Core State** — publishes `memory/live_hud.json` with active skill/tool/task, Guardian alerts, Purple Team and Vision state. The file is a read-only presentation contract that external clients may consume.
 - **Local Vision** — screen/camera capture plus a separate JARVIS-owned native llama.cpp multimodal runtime. `setup_vision.ps1` downloads a pinned Qwen2.5-VL-3B-Instruct Q4_K_M GGUF + mmproj pair into `models/vision`, verifies both SHA-256 digests, and uses OpenCV locally for camera capture. Inference stays on `127.0.0.1`; no external AI provider is contacted.
-- **Self Diagnostics & Safe Repair** — checks runtime directories, settings schema, local model readiness, desktop integration and Core integrity, and performs only bounded idempotent repairs. It cannot replace release code, install packages/models automatically or weaken Windows security.
+- **Self Diagnostics & Safe Repair** — checks runtime directories, settings schema, local model readiness and Core integrity, and performs only bounded idempotent repairs. It cannot replace release code, install packages/models automatically or weaken Windows security.
 - **Skills System** — built-ins plus persistent OWNER-trusted external modules, with exact-digest trust and restart-after-trust semantics.
 
 ### Useful commands
@@ -1337,7 +1337,7 @@ Runtime state in release ZIP: 0
 
 ## Listening resilience 0.23.2
 
-If Always Listening stops responding, use `/listening status` to inspect microphone, wake stream, TTS suppression and watchdog state together. `/listening recover` performs a bounded wake-stream recovery without restarting the full Core. The Live Wallpaper publisher is asynchronous in this release so HUD disk I/O no longer runs inside latency-sensitive EventBus callbacks.
+If Always Listening stops responding, use `/listening status` to inspect microphone, wake stream, TTS suppression and watchdog state together. `/listening recover` performs a bounded wake-stream recovery without restarting the full Core. The Live Core State publisher is asynchronous in this release so presentation-state disk I/O no longer runs inside latency-sensitive EventBus callbacks.
 
 ## Webcam A/V binding 0.23.2
 

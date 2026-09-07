@@ -408,7 +408,7 @@ $PurpleSkillPath = Join-Path $Destination "jarvis_core\skills\builtin\purple_tea
 $VisionSetupPath = Join-Path $Destination "setup_vision.ps1"
 $ListeningWatchdogPath = Join-Path $Destination "jarvis_core\services\listening_watchdog.py"
 $AvDevicesPath = Join-Path $Destination "jarvis_core\services\av_devices.py"
-$WallpaperLivePath = Join-Path $Destination "jarvis_core\skills\builtin\wallpaper_live.py"
+$CoreStatePath = Join-Path $Destination "jarvis_core\skills\builtin\core_state.py"
 $SilenceLatchPath = Join-Path $Destination "jarvis_core\services\silence_latch.py"
 $ActivityTracePath = Join-Path $Destination "jarvis_core\services\activity_trace.py"
 $IdleMindPath = Join-Path $Destination "jarvis_core\services\idle_mind.py"
@@ -578,8 +578,8 @@ if ($WakeText -notmatch 'WAKE_ZERO_NOISE_FLOOR') {
 if ($WakeText -notmatch 'preferred_device_index') {
     Fail "OWNER exact microphone binding nao esta presente no Wake Core."
 }
-if (-not (Test-Path -LiteralPath $WallpaperLivePath -PathType Leaf)) {
-    Fail "Live Wallpaper async publisher nao esta presente no Core."
+if (-not (Test-Path -LiteralPath $CoreStatePath -PathType Leaf)) {
+    Fail "Live Core State async publisher nao esta presente no Core."
 }
 if ($CliText -notmatch '/cyber kali status') {
     Fail "Kali Execution Bridge nao esta presente no CLI."
@@ -662,7 +662,7 @@ Write-Host "Purple Team Orchestrator: PRESENTE (LAB only)"
 Write-Host "System Guardian + severity HUD contract: PRESENTE"
 Write-Host "Autonomous Task Planner + bounded adaptation: PRESENTE"
 Write-Host "Relational Memory Graph: PRESENTE"
-Write-Host "Live Wallpaper State Contract: PRESENTE"
+Write-Host "Live Core State Contract: PRESENTE"
 Write-Host "Local Screen/Camera Vision: PRESENTE (native llama.cpp multimodal; explicit setup)"
 Write-Host "Self Diagnostics / Safe Repair: PRESENTE"
 Write-Host "Listening Watchdog / auto-recovery: PRESENTE"

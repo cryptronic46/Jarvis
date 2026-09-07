@@ -15,8 +15,8 @@ def _now() -> str:
     return datetime.now().astimezone().isoformat(timespec="milliseconds")
 
 
-class LiveWallpaperStateService:
-    """Publish a compact, read-only HUD state file for the Wallpaper bridge."""
+class CoreStateService:
+    """Publish compact read-only Core state for external presentation clients."""
 
     ACTIVITY_EVENTS = {
         "THINKING_STARTED": ("THINKING", "A processar"),
@@ -46,9 +46,9 @@ class LiveWallpaperStateService:
 
     def __init__(self, context: SkillContext) -> None:
         self.context = context
-        self.path = Path(getattr(context.settings, "wallpaper_live_state_path", "memory/live_hud.json"))
+        self.path = Path(getattr(context.settings, "core_state_path", "memory/live_hud.json"))
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.interval = max(1.0, float(getattr(context.settings, "wallpaper_live_interval_seconds", 2.0)))
+        self.interval = max(1.0, float(getattr(context.settings, "core_state_interval_seconds", 2.0)))
         self._lock = RLock()
         self._stop = ThreadEvent()
         self._dirty = ThreadEvent()
@@ -181,9 +181,9 @@ class LiveWallpaperStateService:
         self.context.events.subscribe(self._on_event)
         self._stop.clear()
         self._dirty.clear()
-        self._thread = Thread(target=self._loop, name="jarvis-live-wallpaper-state", daemon=True)
+        self._thread = Thread(target=self._loop, name="jarvis-live-core-state", daemon=True)
         self._thread.start()
-        self.context.events.emit("LIVE_WALLPAPER_STATE_STARTED", path=str(self.path))
+        self.context.events.emit("LIVE_CORE_STATE_STARTED", path=str(self.path))
 
     def stop(self) -> None:
         self._active = False
@@ -202,25 +202,25 @@ class LiveWallpaperStateService:
             "running": bool(self._active),
             "path": str(self.path),
             "interval_seconds": self.interval,
-            "bridge_contract": "memory/live_hud.json",
+            "state_contract": "memory/live_hud.json",
         }
 
 
-class WallpaperLiveSkill(Skill):
-    skill_id = "wallpaper_live"
-    name = "Live Wallpaper State"
+class CoreStateSkill(Skill):
+    skill_id = "core_state"
+    name = "Live Core State"
     version = "1.0.0"
-    description = "Publish Core/skill/task/cyber/guardian state for the Wallpaper Engine HUD."
+    description = "Publish compact Core/skill/task/cyber/guardian presentation state."
 
     def __init__(self, context: SkillContext) -> None:
         super().__init__(context)
-        self.service = LiveWallpaperStateService(context)
-        context.services["wallpaper_live"] = self.service
+        self.service = CoreStateService(context)
+        context.services["core_state"] = self.service
 
     def tools(self) -> list[SkillTool]:
-        markers = ("wallpaper", "hud", "interface", "ecrã jarvis", "ecra jarvis", "estado visual")
+        markers = ("hud", "interface", "ecrã jarvis", "ecra jarvis", "estado visual", "estado core", "estado jarvis")
         return [
-            SkillTool("get_live_wallpaper_state", "Read the compact live state currently published to the Wallpaper bridge.", self.service.state, {"type":"object","properties":{}}, RiskLevel.READ_ONLY, markers),
+            SkillTool("get_live_core_state", "Read the compact live Core state published for presentation clients.", self.service.state, {"type":"object","properties":{}}, RiskLevel.READ_ONLY, markers),
         ]
 
     def start(self) -> None:
@@ -234,4 +234,4 @@ class WallpaperLiveSkill(Skill):
 
 
 def create_skill(context: SkillContext) -> Skill:
-    return WallpaperLiveSkill(context)
+    return CoreStateSkill(context)

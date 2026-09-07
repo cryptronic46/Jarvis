@@ -17,7 +17,7 @@ from jarvis_core.skills.builtin.purple_team import PurpleTeamOrchestrator
 from jarvis_core.skills.builtin.system_guardian import SystemGuardianService
 from jarvis_core.skills.builtin.task_planner import AutonomousTaskPlanner
 from jarvis_core.skills.builtin.vision import VisionService
-from jarvis_core.skills.builtin.wallpaper_live import LiveWallpaperStateService
+from jarvis_core.skills.builtin.core_state import CoreStateService
 
 
 class FakeEvents:
@@ -119,8 +119,8 @@ class ModularSkillsTests(unittest.TestCase):
             vision_camera_enabled=True,
             vision_camera_index=0,
             vision_capture_dir=str(root / "vision"),
-            wallpaper_live_state_path=str(root / "live_hud.json"),
-            wallpaper_live_interval_seconds=1.0,
+            core_state_path=str(root / "live_hud.json"),
+            core_state_interval_seconds=1.0,
             memory_graph_path=str(root / "graph.json"),
         )
         values.update(extra)
@@ -762,12 +762,12 @@ class ModularSkillsTests(unittest.TestCase):
                 result = service.capture_camera()
             self.assertEqual(result["error"], "OPENCV_NOT_INSTALLED")
 
-    def test_live_wallpaper_state_tracks_skill_tool_and_guardian(self):
+    def test_live_core_state_tracks_skill_tool_and_guardian(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             registry = FakeRegistry([{"name":"x_tool","description":"x","risk":"LOW","skill_id":"x_skill"}])
             ctx = self._context(root, registry=registry)
-            service = LiveWallpaperStateService(ctx)
+            service = CoreStateService(ctx)
             service._active = True
             service._on_event(SimpleNamespace(name="TOOL_EXECUTING", data={"tool":"x_tool"}, timestamp="t"))
             service._on_event(SimpleNamespace(
@@ -783,7 +783,7 @@ class ModularSkillsTests(unittest.TestCase):
             self.assertEqual(state["guardian"]["high"], 1)
             self.assertEqual(state["guardian"]["attention"], 1)
             self.assertEqual(state["mode"], "ALERT")
-            self.assertTrue(Path(ctx.settings.wallpaper_live_state_path).is_file())
+            self.assertTrue(Path(ctx.settings.core_state_path).is_file())
 
     def test_external_skill_digest_change_requires_retrust(self):
         with tempfile.TemporaryDirectory() as td:
@@ -818,7 +818,7 @@ class ModularSkillsTests(unittest.TestCase):
             names = {row["name"] for row in registry.registered}
             for tool in [
                 "desktop_observe", "run_purple_team_assessment", "run_system_guardian_scan",
-                "run_autonomous_task", "recall_memory_graph", "get_live_wallpaper_state",
+                "run_autonomous_task", "recall_memory_graph", "get_live_core_state",
                 "analyze_current_screen", "run_self_diagnostics", "get_skills_status",
             ]:
                 self.assertIn(tool, names)
@@ -834,7 +834,7 @@ class ModularSkillsTests(unittest.TestCase):
         names = "\n".join(SkillManager.BUILTIN_MODULES)
         for expected in [
             "desktop_agent", "purple_team", "system_guardian", "task_planner",
-            "memory_graph", "wallpaper_live", "vision", "self_repair", "meta",
+            "memory_graph", "core_state", "vision", "self_repair", "meta",
         ]:
             self.assertIn(expected, names)
 

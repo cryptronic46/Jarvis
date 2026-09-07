@@ -124,10 +124,10 @@ class Settings:
     task_planner_max_adaptations: int = 1
     purple_team_report_path: str = "memory/purple_team_last.json"
 
-    # Long-term relational memory + live Wallpaper state contract.
+    # Long-term relational memory + generic live Core state contract.
     memory_graph_path: str = "memory/memory_graph.json"
-    wallpaper_live_state_path: str = "memory/live_hud.json"
-    wallpaper_live_interval_seconds: float = 2.0
+    core_state_path: str = "memory/live_hud.json"
+    core_state_interval_seconds: float = 2.0
 
     # PC-local audio is retired from the active runtime.
     # A future authenticated client such as iPhone/Siri may provide speech transport.
@@ -634,6 +634,22 @@ class Settings:
             data["desktop_wallpaper_root"] = defaults.desktop_wallpaper_root
             storage_migrated.append("desktop_wallpaper_root")
 
+        core_state_migrated: list[str] = []
+        # M-07: the presentation-state publisher is a Core capability, not a
+        # Wallpaper-owned service. Preserve explicit OWNER values while
+        # renaming the old settings keys and remove the legacy aliases.
+        legacy_core_state_fields = {
+            "wallpaper_live_state_path": "core_state_path",
+            "wallpaper_live_interval_seconds": "core_state_interval_seconds",
+        }
+        for legacy_field, current_field in legacy_core_state_fields.items():
+            if legacy_field not in data:
+                continue
+            if current_field not in data:
+                data[current_field] = data[legacy_field]
+            data.pop(legacy_field, None)
+            core_state_migrated.append(legacy_field)
+
         mic_binding_migrated: list[str] = []
         # 0.27.5 microphone binding migration. 0.27.3 accidentally
         # restored the legacy JBL/16 kHz preference even when the OWNER had
@@ -711,7 +727,7 @@ class Settings:
                 data[field_name] = value
                 forced.append(field_name)
 
-        if had_utf8_bom or added or forced or voice_migrated or vision_migrated or resource_migrated or encoding_migrated or accuracy_migrated or speed_migrated or wake_hardening_migrated or voice_latency_migrated or voice_turn_migrated or storage_migrated or mic_binding_migrated or not p.exists():
+        if had_utf8_bom or added or forced or voice_migrated or vision_migrated or resource_migrated or encoding_migrated or accuracy_migrated or speed_migrated or wake_hardening_migrated or voice_latency_migrated or voice_turn_migrated or storage_migrated or core_state_migrated or mic_binding_migrated or not p.exists():
             p.write_text(
                 json.dumps(data, ensure_ascii=False, indent=2) + "\n",
                 encoding="utf-8",
@@ -745,6 +761,8 @@ class Settings:
             "voice_latency_migrated_count": len(voice_latency_migrated),
             "storage_migrated": storage_migrated,
             "storage_migrated_count": len(storage_migrated),
+            "core_state_migrated": core_state_migrated,
+            "core_state_migrated_count": len(core_state_migrated),
             "mic_binding_migrated": mic_binding_migrated,
             "mic_binding_migrated_count": len(mic_binding_migrated),
             "utf8_bom_normalized": had_utf8_bom,
@@ -800,6 +818,16 @@ class Settings:
                 data = json.loads(p.read_text(encoding="utf-8-sig"))
             except (UnicodeDecodeError, json.JSONDecodeError):
                 data = {}
+
+        # Read-only compatibility for callers that load an old settings file
+        # without first running ensure_file_schema(). Current names always win.
+        legacy_core_state_fields = {
+            "wallpaper_live_state_path": "core_state_path",
+            "wallpaper_live_interval_seconds": "core_state_interval_seconds",
+        }
+        for legacy_field, current_field in legacy_core_state_fields.items():
+            if current_field not in data and legacy_field in data:
+                data[current_field] = data[legacy_field]
 
         overrides = {
             "JARVIS_MODEL": "model",

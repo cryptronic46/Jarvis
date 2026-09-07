@@ -231,7 +231,7 @@ Rules:
 - SYSTEM GUARDIAN: alerts about new listeners, startup entries, unusual process paths or release integrity are signals requiring context. Do not label software malware solely from a Guardian alert.
 - RELATIONAL MEMORY: the memory graph may connect explicitly stored facts, decisions, projects and relations. Ordinary conversation is not automatically converted into personal graph facts.
 - SELF REPAIR: run_safe_self_repair is deliberately bounded to safe runtime/schema/service recovery. It cannot replace controlled release files, install packages/models, disable OS security or execute arbitrary shell.
-- LIVE WALLPAPER: get_live_wallpaper_state reports the Core-published HUD contract including active skill/task/cyber/guardian state. Treat it as presentation state, not an independent authority.
+- LIVE CORE STATE: get_live_core_state reports the Core-published presentation contract including active skill/task/cyber/guardian state. Treat it as presentation state, not an independent authority.
 - VOICE ENGINE v2: when enabled and installed, the always-listening front-end uses one Windows WASAPI stream through PyAudioWPatch, openWakeWord for the wake phrase and Silero VAD for speech gating. Whisper is never used to decide whether arbitrary idle speech was the wake word.
 - Voice v2 may fall back to the legacy engine if optional dependencies/models are unavailable. Do not claim v2 is active without checking /voice status or /voice doctor.
 

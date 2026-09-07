@@ -29,7 +29,7 @@ class SkillManager:
         "jarvis_core.skills.builtin.system_guardian",
         "jarvis_core.skills.builtin.task_planner",
         "jarvis_core.skills.builtin.memory_graph",
-        "jarvis_core.skills.builtin.wallpaper_live",
+        "jarvis_core.skills.builtin.core_state",
         "jarvis_core.skills.builtin.vision",
         "jarvis_core.skills.builtin.self_repair",
         "jarvis_core.skills.builtin.meta",
