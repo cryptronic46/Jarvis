@@ -80,7 +80,7 @@
     },
     {
       "path": "acceptance_real_machine.ps1",
-      "sha256": "1f3938b4be93969da5e3a4dabc597fed70ca0a1ea65cf6e105af56dfe20f835e"
+      "sha256": "6a0887c68fb3ae18577f468e396763294b4a37dc6bd797bb419a253ba4a99ef3"
     },
     {
       "path": "collect_voice_learning.ps1",
@@ -116,7 +116,7 @@
     },
     {
       "path": "full_system_validation.ps1",
-      "sha256": "428b6d3be1eb5949d8df146f21a39670f452a71cce689cf485eb640b35204b06"
+      "sha256": "105aa5ee95d1f1dd4b7a426993fbf12a0acee2e8e04a67f2bc690e62f4093726"
     },
     {
       "path": "install_custom_wake_model.ps1",
@@ -272,7 +272,7 @@
     },
     {
       "path": "jarvis_core/services/full_validation.py",
-      "sha256": "4f62e7531d731a11acba77606ae006cfbb2e0f03c62cb530eae93ce5f290b72a"
+      "sha256": "2017fa743338b506da3718971275b8cb70afe04d5cf58bc130e6ff600770bbb1"
     },
     {
       "path": "jarvis_core/services/idle_mind.py",
@@ -952,7 +952,7 @@
     },
     {
       "path": "tests/test_full_validation_0274.py",
-      "sha256": "4ab083fb80a39b4094f6fd5dac5421761bb0efcd8794c854c58640de2df09338"
+      "sha256": "3979384836f8d2f3ed32282ceac8440a50c58a3cac0d536f29784c695fed883c"
     },
     {
       "path": "tests/test_g_drive_voice_reliability_0260.py",
@@ -964,7 +964,7 @@
     },
     {
       "path": "tests/test_health_intelligence_baseline_0276.py",
-      "sha256": "a2fe6800a6d586cdbedaad448cf930010279a138fc6cd9320d502afffe5ed963"
+      "sha256": "45554ded605f938d1158acc4858e105fb66e0956b96607c2c33b47a0e15ce65a"
     },
     {
       "path": "tests/test_hybrid_autonomy_contract.py",

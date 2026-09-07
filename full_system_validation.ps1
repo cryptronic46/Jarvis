@@ -10,7 +10,7 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 Write-Host "[2/3] Suite completa do Core..."
 & $Python -m unittest discover -s tests -v
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-Write-Host "[3/3] Runtime real: native/audio/STT/local-brain/router/security..."
+Write-Host "[3/3] Runtime real: local-brain/router/security; PC local voice retired..."
 & $Python -m jarvis_core.services.full_validation
 if ($LASTEXITCODE -ne 0) {
     Write-Host "FULL VALIDATION: FALHOU - consulta logs\full_validation_0277.json" -ForegroundColor Red

@@ -41,19 +41,46 @@ class HealthIntelligenceBaseline0276Tests(unittest.TestCase):
         reset=Path('setup_voice_reset.ps1').read_text(encoding='utf-8')
         self.assertIn("'voice_v2_stt_device':'cpu'", reset.replace(' ', ''))
 
-    def test_full_validation_uses_runtime_voice_factory(self):
-        text=Path('jarvis_core/services/full_validation.py').read_text(encoding='utf-8')
-        self.assertIn('listening_config_from_settings(settings, voice_v2=True)', text)
-        self.assertIn('voice_v2_config_from_settings(settings)', text)
-        self.assertIn('MicrophoneService(', text)
-        self.assertIn('VoiceEngineV2(', text)
-        self.assertIn('voice.probe_live_input(seconds=0.60)', text)
-        self.assertIn('cleanup_callback=microphone.cleanup_capture', text)
-        self.assertIn('wake_transcribe_callback=microphone.transcribe_wake_file', text)
-        self.assertNotIn('cleanup_callback=microphone.cleanup,', text)
-        self.assertIn('finally:', text)
-        self.assertIn('voice.stop()', text)
-        self.assertNotIn('load_whisper_model_class()', text)
+    def test_full_validation_never_opens_retired_local_voice(self):
+        text = Path(
+            'jarvis_core/services/full_validation.py'
+        ).read_text(encoding='utf-8')
+
+        self.assertIn(
+            'validate_local_voice_retired',
+            text,
+        )
+
+        for marker in (
+            'local_voice_enabled',
+            'speech_enabled',
+            'speaker_lock_enabled',
+            'wake_enabled',
+            'voice_v2_preload_stt',
+            'microphone_opened=False',
+            'stt_started=False',
+            'wakeword_started=False',
+            'audio_playback_started=False',
+        ):
+            self.assertIn(marker, text)
+
+        for forbidden in (
+            'from jarvis_core.services.listening import',
+            'from jarvis_core.services.voice_engine_v2 import',
+            'from jarvis_core.services.speaker_verification import',
+            'from jarvis_core.services.voice_pipeline import',
+            'MicrophoneService(',
+            'VoiceEngineV2(',
+            'SpeakerVerifier(',
+            'voice.probe_live_input(',
+            'microphone.preload_stt(',
+            'import sounddevice',
+            'import pyaudiowpatch',
+        ):
+            self.assertNotIn(
+                forbidden,
+                text,
+            )
 
     def test_voice_lock_auto_disables_when_backend_unhealthy(self):
         text=Path('jarvis_core/cli.py').read_text(encoding='utf-8')

@@ -11,7 +11,7 @@ try {
 $Failures = [System.Collections.Generic.List[string]]::new()
 Write-Host "=== JARVIS 0.27.8 REAL-MACHINE ACCEPTANCE ===" -ForegroundColor Cyan
 
-# 1. Full validator: same Voice v2 config/classes as runtime.
+# 1. Full validator: Core runtime only; retired PC-local voice must remain disabled.
 & .\full_system_validation.ps1 -Destination $PSScriptRoot
 if ($LASTEXITCODE -ne 0) { $Failures.Add("full_system_validation") }
 
