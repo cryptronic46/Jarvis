@@ -140,7 +140,7 @@
     },
     {
       "path": "jarvis_core/core/brain.py",
-      "sha256": "8d117b781107bbbf163e65af5b6bc056dab20c2438653b1f263b8403bb62f315"
+      "sha256": "a9bdab950736f5aa8686439dc594c380df28db2a34940a40630bbf50c4bd866a"
     },
     {
       "path": "jarvis_core/core/cloud_brain.py",
@@ -336,7 +336,7 @@
     },
     {
       "path": "jarvis_core/services/performance.py",
-      "sha256": "f68adc6d275d293335aa738904c91497acb90e28be00357f38318a67348cade0"
+      "sha256": "9af59d06452cdc9603451252b212e18ca21336fa272d5cf0b3032d1ab8594989"
     },
     {
       "path": "jarvis_core/services/personal_cognition.py",
@@ -1156,7 +1156,7 @@
     },
     {
       "path": "tests/test_performance_governor.py",
-      "sha256": "2781a4ed790fefeca621d2a10a3c20fee3238267fc0759b7dd2727c817fe2257"
+      "sha256": "f0df6da2c4389ad1dec2a21db8cea2cd5e74fa65bc4c1aeaeb24f73cfafe614e"
     },
     {
       "path": "tests/test_performance_integration_contract.py",

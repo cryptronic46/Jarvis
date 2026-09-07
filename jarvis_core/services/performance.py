@@ -30,6 +30,11 @@ class PerformancePlan:
     reason: str
     pressure: str
     think: bool
+    # Legacy compatibility field.
+    #
+    # In the JARVIS-owned native llama.cpp runtime this value does NOT
+    # resize the server context per request. It represents the request
+    # prompt budget selected by the PerformanceGovernor.
     num_ctx: int
     num_predict: int
     max_tool_rounds: int
@@ -37,8 +42,41 @@ class PerformancePlan:
     max_tools: int
     keep_alive: str
 
+    # Actual context capacity configured when llama-server starts.
+    # Legacy/manual PerformancePlan constructions may omit it; in that
+    # case the safest truthful value available is the legacy num_ctx.
+    runtime_ctx: int = 0
+
+    def __post_init__(self) -> None:
+        prompt_budget = max(
+            1,
+            int(self.num_ctx),
+        )
+        runtime_ctx = max(
+            prompt_budget,
+            int(
+                self.runtime_ctx
+                or prompt_budget
+            ),
+        )
+
+        self.num_ctx = prompt_budget
+        self.runtime_ctx = runtime_ctx
+
+    @property
+    def prompt_budget_ctx(self) -> int:
+        """Request prompt budget; not a native per-request context resize."""
+        return int(self.num_ctx)
+
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        data = asdict(self)
+        data["prompt_budget_ctx"] = (
+            self.prompt_budget_ctx
+        )
+        data["context_contract"] = (
+            "fixed_runtime_ctx_with_request_prompt_budget"
+        )
+        return data
 
 
 class PerformanceGovernor:
@@ -319,6 +357,7 @@ class PerformanceGovernor:
                 reason="resource_pressure",
                 pressure=pressure,
                 think=False,
+                runtime_ctx=base_ctx,
                 num_ctx=min(
                     base_ctx,
                     int(self.settings.performance_eco_ctx),
@@ -348,6 +387,7 @@ class PerformanceGovernor:
                 reason="simple_request",
                 pressure=pressure,
                 think=False,
+                runtime_ctx=base_ctx,
                 num_ctx=min(
                     base_ctx,
                     int(self.settings.performance_fast_ctx),
@@ -375,6 +415,7 @@ class PerformanceGovernor:
                 reason="complex_request",
                 pressure=pressure,
                 think=True,
+                runtime_ctx=base_ctx,
                 num_ctx=min(
                     base_ctx,
                     int(self.settings.performance_deep_ctx),
@@ -402,6 +443,7 @@ class PerformanceGovernor:
             reason="normal_reasoning",
             pressure=pressure,
             think=should_think,
+            runtime_ctx=base_ctx,
             num_ctx=min(
                 base_ctx,
                 int(self.settings.performance_balanced_ctx),

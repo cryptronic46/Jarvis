@@ -836,7 +836,21 @@ class JarvisBrain:
             plan, cyber_context, learning_context, request_contract, self_context
         )
         tools = list(tool_schemas or [])
-        target_chars = max(12000, int(plan.num_ctx) * 3)
+        prompt_budget_ctx = int(
+            getattr(
+                plan,
+                "prompt_budget_ctx",
+                getattr(
+                    plan,
+                    "num_ctx",
+                    self.settings.llm_num_ctx,
+                ),
+            )
+        )
+        target_chars = max(
+            12000,
+            prompt_budget_ctx * 3,
+        )
 
         def size(rows: list[Any]) -> int:
             try:
@@ -2742,6 +2756,21 @@ class JarvisBrain:
             "THINKING_STARTED",
             profile=plan.profile,
             think=plan.think,
+            runtime_ctx=int(
+                getattr(
+                    plan,
+                    "runtime_ctx",
+                    self.settings.llm_num_ctx,
+                )
+            ),
+            prompt_budget_ctx=int(
+                getattr(
+                    plan,
+                    "prompt_budget_ctx",
+                    plan.num_ctx,
+                )
+            ),
+            # Legacy telemetry key retained for compatibility.
             num_ctx=plan.num_ctx,
             num_predict=model_num_predict,
             history_messages=plan.history_messages,

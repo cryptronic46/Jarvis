@@ -1,7 +1,9 @@
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
+from jarvis_core.core.brain import JarvisBrain
 from jarvis_core.core.config import Settings
 from jarvis_core.services.performance import PerformanceGovernor
 
@@ -37,6 +39,169 @@ class PerformanceGovernorTests(unittest.TestCase):
             state_path=Path(tmp.name) / "perf.json",
         )
         return tmp, governor
+
+    def test_brain_compaction_uses_prompt_budget_not_runtime_context(self):
+        class CapturingEvents:
+            def __init__(self):
+                self.rows = []
+
+            def emit(
+                self,
+                name,
+                **payload,
+            ):
+                self.rows.append(
+                    (
+                        name,
+                        dict(payload),
+                    )
+                )
+
+        brain = JarvisBrain.__new__(
+            JarvisBrain
+        )
+
+        brain.settings = SimpleNamespace(
+            llm_num_ctx=8192,
+        )
+
+        brain.events = CapturingEvents()
+
+        old_history = (
+            "OLD_HISTORY_MARKER_"
+            + ("x" * 14000)
+        )
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "BASE_SYSTEM_CONTRACT"
+                ),
+            },
+            {
+                "role": "user",
+                "content": old_history,
+            },
+            {
+                "role": "assistant",
+                "content": (
+                    "old assistant reply"
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    "CURRENT_OWNER_TURN"
+                ),
+            },
+        ]
+
+        brain._request_messages = (
+            lambda *args, **kwargs:
+                list(messages)
+        )
+
+        # Deliberately make the legacy num_ctx look like the
+        # full runtime capacity. If the Brain incorrectly uses
+        # it, this request will not be compacted.
+        plan = SimpleNamespace(
+            prompt_budget_ctx=2048,
+            num_ctx=8192,
+        )
+
+        bounded = (
+            JarvisBrain
+            ._bounded_request_messages(
+                brain,
+                plan,
+            )
+        )
+
+        rendered = str(bounded)
+
+        self.assertNotIn(
+            "OLD_HISTORY_MARKER_",
+            rendered,
+        )
+
+        self.assertIn(
+            "BASE_SYSTEM_CONTRACT",
+            rendered,
+        )
+
+        self.assertIn(
+            "CURRENT_OWNER_TURN",
+            rendered,
+        )
+
+        compacted = [
+            payload
+            for name, payload
+            in brain.events.rows
+            if name
+            == "PROMPT_BUDGET_COMPACTED"
+        ]
+
+        self.assertEqual(
+            len(compacted),
+            1,
+        )
+
+        self.assertEqual(
+            compacted[0][
+                "target_chars"
+            ],
+            12000,
+        )
+
+    def test_plan_separates_runtime_context_from_prompt_budget(self):
+        tmp, governor = self.make_governor()
+        try:
+            plan = governor.plan(
+                "Quem ? Alan Turing?"
+            )
+
+            self.assertEqual(
+                plan.runtime_ctx,
+                int(
+                    governor.settings.llm_num_ctx
+                ),
+            )
+
+            self.assertEqual(
+                plan.prompt_budget_ctx,
+                plan.num_ctx,
+            )
+
+            self.assertLess(
+                plan.prompt_budget_ctx,
+                plan.runtime_ctx,
+            )
+
+            data = plan.to_dict()
+
+            self.assertEqual(
+                data["runtime_ctx"],
+                int(
+                    governor.settings.llm_num_ctx
+                ),
+            )
+
+            self.assertEqual(
+                data["prompt_budget_ctx"],
+                plan.num_ctx,
+            )
+
+            self.assertEqual(
+                data["context_contract"],
+                (
+                    "fixed_runtime_ctx_with_"
+                    "request_prompt_budget"
+                ),
+            )
+        finally:
+            tmp.cleanup()
 
     def test_simple_query_is_fast_when_idle(self):
         tmp, governor = self.make_governor()
