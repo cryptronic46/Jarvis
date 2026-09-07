@@ -9,6 +9,10 @@ from threading import RLock
 import unicodedata
 from uuid import uuid4
 
+from jarvis_core.services.memory_index import (
+    UnifiedMemoryIndex,
+)
+
 
 def _norm(value: str) -> str:
     text = unicodedata.normalize("NFKD", str(value or "").lower())
@@ -327,6 +331,444 @@ class ContextStore:
             'end_hour': end_hour,
             'turns': rows,
             'evidence_available': bool(rows),
+        }
+
+    @staticmethod
+    def _historical_recall_search_query(
+        query: str,
+    ) -> str:
+        """Remove recall boilerplate before lexical history retrieval."""
+
+        tokens = re.findall(
+            r"[a-z0-9_]{2,}",
+            _norm(query),
+        )
+
+        stopwords = {
+            "a",
+            "agora",
+            "ainda",
+            "alguma",
+            "algum",
+            "aquela",
+            "aquele",
+            "aquilo",
+            "as",
+            "com",
+            "conversa",
+            "conversas",
+            "da",
+            "daquela",
+            "daquele",
+            "das",
+            "de",
+            "dessa",
+            "desse",
+            "do",
+            "dos",
+            "e",
+            "em",
+            "essa",
+            "esse",
+            "eu",
+            "falamos",
+            "fal?mos",
+            "foi",
+            "jarvis",
+            "lembra",
+            "lembras",
+            "lembro",
+            "me",
+            "minha",
+            "meu",
+            "na",
+            "nas",
+            "no",
+            "nos",
+            "nossa",
+            "nosso",
+            "o",
+            "os",
+            "owner",
+            "qual",
+            "que",
+            "recorda",
+            "recordas",
+            "recordo",
+            "sobre",
+            "te",
+            "tema",
+            "tivemos",
+            "uma",
+            "um",
+        }
+
+        selected = []
+        seen = set()
+
+        for token in tokens:
+            if token in stopwords:
+                continue
+
+            if token in seen:
+                continue
+
+            seen.add(token)
+            selected.append(token)
+
+            if len(selected) >= 12:
+                break
+
+        return " ".join(selected)
+
+    @staticmethod
+    def _has_explicit_temporal_recall_scope(
+        query: str,
+    ) -> bool:
+        text = _norm(query)
+
+        if "ontem" in text:
+            return True
+
+        if re.search(
+            r"\bhoje\b",
+            text,
+        ):
+            return True
+
+        return any(
+            marker in text
+            for marker in (
+                "ultima conversa",
+                "conversa anterior",
+                "antes desta conversa",
+            )
+        )
+
+    def recall_for_query_with_history(
+        self,
+        query: str,
+        *,
+        limit: int = 16,
+        root: str | Path = ".",
+        index: UnifiedMemoryIndex | None = None,
+        index_path: str | Path = (
+            "memory/unified_memory.sqlite3"
+        ),
+    ) -> dict:
+        """Recall temporal context first, then gated lexical history.
+
+        Historical retrieval is used only by the explicit
+        CONVERSATION_RECALL path. The SQLite index is derived evidence;
+        returned turns are resolved back to canonical context.jsonl rows.
+        """
+
+        base = self.recall_for_query(
+            query,
+            limit=limit,
+        )
+
+        if self._has_explicit_temporal_recall_scope(
+            query
+        ):
+            output = dict(base)
+            output["retrieval_mode"] = (
+                "temporal_context_store"
+            )
+            return output
+
+        search_query = (
+            self._historical_recall_search_query(
+                query
+            )
+        )
+
+        # Generic "do you remember our conversation?" keeps the
+        # established recent-conversation behavior.
+        if not search_query:
+            output = dict(base)
+            output["retrieval_mode"] = (
+                "recent_context_store"
+            )
+            return output
+
+        root_path = Path(
+            root
+        ).resolve()
+
+        active_index = (
+            index
+            if index is not None
+            else UnifiedMemoryIndex(
+                index_path
+            )
+        )
+
+        try:
+            refresh = (
+                active_index.refresh_sources(
+                    root=root_path,
+                    sources=(
+                        "conversation",
+                    ),
+                )
+            )
+        except Exception as exc:
+            return {
+                "ok": False,
+                "period":
+                    "hist?rico relevante",
+                "turns": [],
+                "evidence_available":
+                    False,
+                "retrieval_mode":
+                    "conversation_fts5",
+                "reason":
+                    (
+                        "CONVERSATION_INDEX_REFRESH_"
+                        "FAILED:"
+                        + type(exc).__name__
+                    ),
+            }
+
+        if not bool(
+            refresh.get("ok")
+        ):
+            return {
+                "ok": False,
+                "period":
+                    "hist?rico relevante",
+                "turns": [],
+                "evidence_available":
+                    False,
+                "retrieval_mode":
+                    "conversation_fts5",
+                "reason": str(
+                    refresh.get("error")
+                    or "CONVERSATION_INDEX_REFRESH_FAILED"
+                ),
+            }
+
+        try:
+            search = active_index.search(
+                search_query,
+                limit=max(
+                    1,
+                    min(
+                        int(limit),
+                        16,
+                    ),
+                ),
+                sources=(
+                    "conversation",
+                ),
+            )
+        except Exception as exc:
+            return {
+                "ok": False,
+                "period":
+                    "hist?rico relevante",
+                "turns": [],
+                "evidence_available":
+                    False,
+                "retrieval_mode":
+                    "conversation_fts5",
+                "reason":
+                    (
+                        "CONVERSATION_INDEX_SEARCH_"
+                        "FAILED:"
+                        + type(exc).__name__
+                    ),
+            }
+
+        if not bool(
+            search.get("ok")
+        ):
+            return {
+                "ok": False,
+                "period":
+                    "hist?rico relevante",
+                "turns": [],
+                "evidence_available":
+                    False,
+                "retrieval_mode":
+                    "conversation_fts5",
+                "reason": str(
+                    search.get("error")
+                    or "CONVERSATION_INDEX_SEARCH_FAILED"
+                ),
+            }
+
+        canonical = self._all()
+
+        by_turn_id = {}
+        by_content_hash = {}
+        by_timestamp = {}
+
+        for row in canonical:
+            turn_id = str(
+                row.get("turn_id")
+                or ""
+            ).strip()
+
+            if turn_id:
+                by_turn_id[
+                    turn_id
+                ] = row
+
+            content_hash = str(
+                row.get(
+                    "content_hash"
+                )
+                or ""
+            ).strip()
+
+            if content_hash:
+                by_content_hash[
+                    content_hash
+                ] = row
+
+            timestamp = str(
+                row.get("timestamp")
+                or ""
+            ).strip()
+
+            if timestamp:
+                by_timestamp.setdefault(
+                    timestamp,
+                    [],
+                ).append(
+                    row
+                )
+
+        selected = []
+        selected_identity = set()
+
+        for hit in list(
+            search.get("results")
+            or []
+        ):
+            metadata = (
+                hit.get("metadata")
+                if isinstance(
+                    hit.get("metadata"),
+                    dict,
+                )
+                else {}
+            )
+
+            turn_id = str(
+                metadata.get("turn_id")
+                or hit.get("source_id")
+                or ""
+            ).strip()
+
+            row = (
+                by_turn_id.get(
+                    turn_id
+                )
+                if turn_id
+                else None
+            )
+
+            if row is None:
+                source_hash = str(
+                    metadata.get(
+                        "source_content_hash"
+                    )
+                    or ""
+                ).strip()
+
+                if source_hash:
+                    row = (
+                        by_content_hash.get(
+                            source_hash
+                        )
+                    )
+
+            if row is None:
+                timestamp = str(
+                    hit.get("created_at")
+                    or ""
+                ).strip()
+
+                timestamp_rows = (
+                    by_timestamp.get(
+                        timestamp,
+                        [],
+                    )
+                    if timestamp
+                    else []
+                )
+
+                if len(
+                    timestamp_rows
+                ) == 1:
+                    row = (
+                        timestamp_rows[0]
+                    )
+
+            if row is None:
+                continue
+
+            identity = str(
+                row.get("turn_id")
+                or row.get(
+                    "content_hash"
+                )
+                or (
+                    str(
+                        row.get(
+                            "timestamp"
+                        )
+                        or ""
+                    )
+                    + "\0"
+                    + str(
+                        row.get("user")
+                        or ""
+                    )
+                )
+            )
+
+            if identity in selected_identity:
+                continue
+
+            selected_identity.add(
+                identity
+            )
+
+            selected.append(
+                dict(row)
+            )
+
+            if len(selected) >= max(
+                1,
+                min(
+                    int(limit),
+                    16,
+                ),
+            ):
+                break
+
+        return {
+            "ok": True,
+            "period":
+                "hist?rico relevante",
+            "turns":
+                selected,
+            "evidence_available":
+                bool(selected),
+            "retrieval_mode":
+                "conversation_fts5",
+            "search_query":
+                search_query,
+            "candidate_count": int(
+                search.get(
+                    "candidate_count"
+                )
+                or 0
+            ),
         }
 
     @staticmethod

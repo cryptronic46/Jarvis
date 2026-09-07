@@ -2479,7 +2479,10 @@ class JarvisBrain:
                 recall_result = (
                     self._conversation_recall_anchor
                     if recall_followup and self._conversation_recall_anchor is not None
-                    else context_store().recall_for_query(user_text, limit=16)
+                    else context_store().recall_for_query_with_history(
+                        user_text,
+                        limit=16,
+                    )
                 )
                 if not recall_followup:
                     self._conversation_recall_anchor = recall_result
@@ -2490,6 +2493,12 @@ class JarvisBrain:
                     period=str(recall_result.get("period") or ""),
                     turns=len(recall_result.get("turns") or []),
                     followup=recall_followup,
+                    retrieval_mode=str(
+                        recall_result.get(
+                            "retrieval_mode"
+                        )
+                        or ""
+                    ),
                 )
             except Exception as exc:
                 self.events.emit("CONVERSATION_RECALL_ERROR", error=f"{type(exc).__name__}: {exc}")

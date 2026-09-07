@@ -7,6 +7,7 @@ from pathlib import Path
 from jarvis_core.core.config import Settings
 from jarvis_core.core.hybrid_brain import HybridRoutePolicy
 from jarvis_core.services.context_store import ContextStore, recall_answer_needs_repair, deterministic_recall_answer
+from jarvis_core.services.memory_index import UnifiedMemoryIndex
 from jarvis_core.services.request_intent import classify_request_intent
 
 
@@ -65,6 +66,262 @@ class NativeBrain0277Tests(unittest.TestCase):
             block = store.recall_prompt_block(result)
             self.assertIn('Only say you remember', block)
             self.assertIn('evidence_available=true', block)
+
+    def test_temporal_recall_never_enters_historical_index(self):
+        class ForbiddenIndex:
+            def refresh_sources(
+                self,
+                *args,
+                **kwargs,
+            ):
+                raise AssertionError(
+                    "historical index must not be used"
+                )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            store = ContextStore(
+                Path(tmp)
+                / "context.jsonl"
+            )
+
+            result = (
+                store
+                .recall_for_query_with_history(
+                    (
+                        "Recordas-te da nossa "
+                        "conversa de ontem ? noite?"
+                    ),
+                    index=ForbiddenIndex(),
+                )
+            )
+
+            self.assertEqual(
+                result[
+                    "retrieval_mode"
+                ],
+                "temporal_context_store",
+            )
+
+    def test_generic_recall_without_topic_preserves_recent_context(self):
+        class ForbiddenIndex:
+            def refresh_sources(
+                self,
+                *args,
+                **kwargs,
+            ):
+                raise AssertionError(
+                    "historical index must not be used"
+                )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            store = ContextStore(
+                Path(tmp)
+                / "context.jsonl"
+            )
+
+            store.record(
+                (
+                    "Fal?mos sobre a configura??o "
+                    "da Jarvis."
+                ),
+                (
+                    "Sim, analis?mos a "
+                    "configura??o local."
+                ),
+                route="LOCAL",
+            )
+
+            result = (
+                store
+                .recall_for_query_with_history(
+                    "Recordas-te da nossa conversa?",
+                    index=ForbiddenIndex(),
+                )
+            )
+
+            self.assertEqual(
+                result[
+                    "retrieval_mode"
+                ],
+                "recent_context_store",
+            )
+
+            self.assertTrue(
+                result[
+                    "evidence_available"
+                ]
+            )
+
+            self.assertEqual(
+                len(
+                    result["turns"]
+                ),
+                1,
+            )
+
+            self.assertIn(
+                "configura??o",
+                result[
+                    "turns"
+                ][0]["user"],
+            )
+
+    def test_topic_recall_can_retrieve_old_canonical_conversation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            memory = root / "memory"
+            memory.mkdir(parents=True, exist_ok=True)
+
+            store = ContextStore(
+                memory / "context.jsonl"
+            )
+
+            now = datetime.now().astimezone()
+
+            old_row = {
+                "turn_id": "old-wallpaper-turn",
+                "timestamp": (
+                    now
+                    - timedelta(days=40)
+                ).isoformat(
+                    timespec="seconds"
+                ),
+                "user": (
+                    "Tivemos um problema com a temperatura "
+                    "da CPU no wallpaper."
+                ),
+                "assistant": (
+                    "Analis?mos o bridge e a leitura "
+                    "da temperatura."
+                ),
+                "route": "LOCAL",
+                "content_hash": "old-hash",
+            }
+
+            recent_row = {
+                "turn_id": "recent-unrelated-turn",
+                "timestamp": now.isoformat(
+                    timespec="seconds"
+                ),
+                "user": "Bom dia.",
+                "assistant": "Bom dia.",
+                "route": "LOCAL",
+                "content_hash": "recent-hash",
+            }
+
+            store.path.write_text(
+                "\n".join(
+                    json.dumps(
+                        row,
+                        ensure_ascii=False,
+                    )
+                    for row in (
+                        old_row,
+                        recent_row,
+                    )
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            index = UnifiedMemoryIndex(
+                memory
+                / "unified_memory.sqlite3"
+            )
+
+            index.rebuild(
+                root=root
+            )
+
+            # Add a newer matching canonical turn after rebuild.
+            # recall_for_query_with_history must refresh only the
+            # conversation lane before searching.
+            refreshed_row = {
+                "turn_id": "refreshed-cpu-turn",
+                "timestamp": (
+                    now
+                    - timedelta(days=20)
+                ).isoformat(
+                    timespec="seconds"
+                ),
+                "user": (
+                    "Volt?mos ao problema do wallpaper "
+                    "e da temperatura CPU."
+                ),
+                "assistant": (
+                    "Confirm?mos a origem no bridge."
+                ),
+                "route": "LOCAL",
+                "content_hash": "refreshed-hash",
+            }
+
+            with store.path.open(
+                "a",
+                encoding="utf-8",
+            ) as stream:
+                stream.write(
+                    json.dumps(
+                        refreshed_row,
+                        ensure_ascii=False,
+                    )
+                    + "\n"
+                )
+
+            result = (
+                store
+                .recall_for_query_with_history(
+                    (
+                        "Lembras-te do problema da "
+                        "temperatura CPU no wallpaper?"
+                    ),
+                    index=index,
+                    root=root,
+                    limit=8,
+                )
+            )
+
+            self.assertTrue(
+                result[
+                    "evidence_available"
+                ]
+            )
+
+            self.assertEqual(
+                result[
+                    "retrieval_mode"
+                ],
+                "conversation_fts5",
+            )
+
+            turn_ids = [
+                row.get("turn_id")
+                for row in result["turns"]
+            ]
+
+            self.assertIn(
+                "old-wallpaper-turn",
+                turn_ids,
+            )
+
+            self.assertIn(
+                "refreshed-cpu-turn",
+                turn_ids,
+            )
+
+            self.assertNotIn(
+                "recent-unrelated-turn",
+                turn_ids,
+            )
+
+            self.assertIn(
+                "temperatura",
+                result["search_query"],
+            )
+
+            self.assertIn(
+                "wallpaper",
+                result["search_query"],
+            )
 
     def test_recall_without_evidence_is_explicitly_false(self):
         with tempfile.TemporaryDirectory() as tmp:
