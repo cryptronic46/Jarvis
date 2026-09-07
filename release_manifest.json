@@ -132,7 +132,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "d891b7f439797ef0a79a008494c61b20dbae53ae251bcdc9ef75459cd1b79b09"
+      "sha256": "47023d5da138272ccc690ae8c77f66db2e052f6efebb351ed21eb15a22c36940"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -168,11 +168,11 @@
     },
     {
       "path": "jarvis_core/core/hybrid_brain.py",
-      "sha256": "82fd16233a141ec41d485312c04bda7632057c49b286deb98b1bd444c25d76ff"
+      "sha256": "9e343d0e77c7830b8280448c35b766d645a01720bdbf95cade685e87b3143e6c"
     },
     {
       "path": "jarvis_core/core/local_llm.py",
-      "sha256": "1f6d96b3a1356bebecb41da5938a99080becf617db54d21a6677d0c825a47db0"
+      "sha256": "48315387f00767a391356c54fbca6919b945dfe82b2eef9a588ff910f9244d9c"
     },
     {
       "path": "jarvis_core/core/local_vision.py",
@@ -212,7 +212,7 @@
     },
     {
       "path": "jarvis_core/services/autonomy.py",
-      "sha256": "1059b1cca10708b728e28e5c4d9fc5121ec0aa80140465d05e9044d8372914ae"
+      "sha256": "acc7301c79d22b53a56f39398f1186101302469a0184ef9cb4b84603970b8024"
     },
     {
       "path": "jarvis_core/services/av_devices.py",
@@ -236,11 +236,11 @@
     },
     {
       "path": "jarvis_core/services/cyber_knowledge.py",
-      "sha256": "8680f0d18c142c127bbe169121e9b1aa395416a2f0438a34e2371467ae2e96e4"
+      "sha256": "442c7df491daf6dd475b26606936097a8a727ff0ac31c2e6a30bd6db04963d42"
     },
     {
       "path": "jarvis_core/services/cyber_range.py",
-      "sha256": "fcf384b8c2243ad0266c945b49bbe5a0482d590c3acbd1fb81fcfc168b55b3fa"
+      "sha256": "1e4d97d6eb6ef3c522977638684edbadeb401c014fec33fcf4d830327fd0f6ea"
     },
     {
       "path": "jarvis_core/services/cybersecurity.py",
@@ -256,7 +256,7 @@
     },
     {
       "path": "jarvis_core/services/external_learning.py",
-      "sha256": "99abe6f21f928b0778cec2316f1d2fba5c8c73ecb6c7aa5fa4e9338cd48d6832"
+      "sha256": "2a70c79a3b43896ed61f441b5ebbee2e495301f01d0fd0b954ec58b436e9b7bf"
     },
     {
       "path": "jarvis_core/services/file_index.py",
@@ -280,7 +280,7 @@
     },
     {
       "path": "jarvis_core/services/kali_bridge.py",
-      "sha256": "377d92ddc5cc02dc74588f6cbba85af32a3073648a5403bc1021df2217348061"
+      "sha256": "3c09beac32c43ee0afa643e70ec1b6a8de7c13e214d29d4f2cb4276bee54261b"
     },
     {
       "path": "jarvis_core/services/language_refinement.py",
@@ -304,7 +304,7 @@
     },
     {
       "path": "jarvis_core/services/local_research.py",
-      "sha256": "ba0feb3c355f9f6f43831ba3061dcddbb7d0f37c9eb26c5b5a7a7c74c917c10e"
+      "sha256": "d43715deb93ba41ccbde8721cbb78a585ce56b95fc64cc23bbb8dc619f8323e5"
     },
     {
       "path": "jarvis_core/services/memory_index.py",
@@ -317,6 +317,10 @@
     {
       "path": "jarvis_core/services/memory_retrieval.py",
       "sha256": "f90b6393ef3e417c0a8777059b50cce9ae6daebf28d88b10790f80b876acc50f"
+    },
+    {
+      "path": "jarvis_core/services/network_egress.py",
+      "sha256": "b9c22c0ca7f20eeb705de2109c3be0de2c06c64d574227995425327776445f25"
     },
     {
       "path": "jarvis_core/services/network_inventory.py",
@@ -444,7 +448,7 @@
     },
     {
       "path": "jarvis_core/services/windows_block_audit.py",
-      "sha256": "5b377702cebb899aba6e1cd30c901296b4c526840618f71d9e97b22666ecbb43"
+      "sha256": "ff6273bf89454d7b58f23d4790880f18c88746ca64ab5483fb01a87140f64225"
     },
     {
       "path": "jarvis_core/setup_secret.py",
@@ -476,7 +480,7 @@
     },
     {
       "path": "jarvis_core/skills/builtin/purple_team.py",
-      "sha256": "6d9c31529827c1821adb30c61505031b93d636f327ee81fcd07d50f725fbab37"
+      "sha256": "d5f36f9b3ee4aea2788b88de92f0e154f5d2569a0547a23d0e41bb3a9d84e0ea"
     },
     {
       "path": "jarvis_core/skills/builtin/self_repair.py",
@@ -512,7 +516,7 @@
     },
     {
       "path": "jarvis_core/tools/environment_tools.py",
-      "sha256": "2613fc433fd53e5ebc6fba841dd1a10c85896ff6443f22a79f4d0d87238d00fc"
+      "sha256": "51917baf831180e79dfeba47b11d877718042f2b4a64d0ab3ca83353a98e0afe"
     },
     {
       "path": "jarvis_core/tools/location_tools.py",
@@ -716,7 +720,7 @@
     },
     {
       "path": "tests/test_autonomy_guardian.py",
-      "sha256": "852e79fb82af1eea1ddfc07bfd616b7ae7a23b99ca989eaef93ea1af312ba273"
+      "sha256": "d404235ec58fdaa1b4d7b780ffb6c38da267a0ce351989ae1f8d2398a9a3d74d"
     },
     {
       "path": "tests/test_bargein_v2_contract.py",
@@ -832,7 +836,7 @@
     },
     {
       "path": "tests/test_cyber_knowledge_vault.py",
-      "sha256": "969f950c3812092a49670bf3cf8a8bc90bcce5d4b3b8a14a45c28794bbe10987"
+      "sha256": "f379e07e3280ce29bdcd2755a9287a8c17d9589bbe76b441fab51591bfbbac95"
     },
     {
       "path": "tests/test_cyber_range_contract.py",
@@ -840,7 +844,7 @@
     },
     {
       "path": "tests/test_cyber_range_manager.py",
-      "sha256": "fbd39a962f8ab5695baafe6723b761958f2fc894bb5faf5b49f8d25cdf89473b"
+      "sha256": "5b4792d6382b481acfcfd2e63d046311cb820c1ce2bf0a0ac6af954aefb94e8e"
     },
     {
       "path": "tests/test_cyber_sources_contract.py",
@@ -892,7 +896,7 @@
     },
     {
       "path": "tests/test_environment_tools.py",
-      "sha256": "7640e902162796b79062785575d351b7213213ed215ec56a312138bcd6ffd0f7"
+      "sha256": "26f63b4e9f820a8fb63230652a6510d0af0e1a7f40b0ca778f952b6c51d63929"
     },
     {
       "path": "tests/test_epistemic_learning_0278.py",
@@ -904,11 +908,11 @@
     },
     {
       "path": "tests/test_external_learning_approved_grant.py",
-      "sha256": "141427995c44bd88a4cf3e96789c90b4719dda6ceab91a6f39da4f3694304c7e"
+      "sha256": "78f1f6c62ae30b89caadf34c0e78ba2dd2b8ebe5a0f4bef016c8f76cf0aa0c1b"
     },
     {
       "path": "tests/test_external_learning_semantic_authority.py",
-      "sha256": "ad40c68aed3dce5e4fdeb4bb07056d25d179a4ef7879ccfa8cef6ca2a588a141"
+      "sha256": "c4f9b26e140454c307c4f2bfb7badefec70ba5457f4f832b7f2ac0dfe0f765a2"
     },
     {
       "path": "tests/test_false_wake_hardening_0254.py",
@@ -976,7 +980,7 @@
     },
     {
       "path": "tests/test_kali_bridge.py",
-      "sha256": "059aef3b6d77be06cb4ffc696afda4afcd19285d2828001499e54922abe847ad"
+      "sha256": "c38be35479d3bc0cc291ea368ce35f4b05955c3d734fffda84729cf61dd1e48b"
     },
     {
       "path": "tests/test_kali_bridge_contract.py",
@@ -988,7 +992,7 @@
     },
     {
       "path": "tests/test_learning_followup_semantic_authority.py",
-      "sha256": "31fe88bc55798c2155a041feb40d12f4be1c18c8d1f7d16b000aedb727b08ee6"
+      "sha256": "a86e98b56b337a8f0385d974db5858accbb6422dec620058538af14ad65c69a5"
     },
     {
       "path": "tests/test_learning_goal_permission_contract.py",
@@ -1104,7 +1108,7 @@
     },
     {
       "path": "tests/test_modular_skills_023.py",
-      "sha256": "130afbb4ecff8bf0982ecafafdf8c3f0fbb60c043d824d41bbda7197df9b0e76"
+      "sha256": "65a46349a7ee0cc31c38a79a6572b64f74db5378a3886103168487668e8896b8"
     },
     {
       "path": "tests/test_native_brain_0277.py",
@@ -1125,6 +1129,10 @@
     {
       "path": "tests/test_network_default_route_contract.py",
       "sha256": "510ffa5e755e43de89c1fce1a5ada7392e4e1a2a5995bd64f7c96d987cffb226"
+    },
+    {
+      "path": "tests/test_network_egress.py",
+      "sha256": "0b62a4a3ad08de302f7b78f617a05ae8ccf49a4c41e50aa6e971c8e3e588aa37"
     },
     {
       "path": "tests/test_network_inventory.py",
@@ -1236,7 +1244,7 @@
     },
     {
       "path": "tests/test_research_relevance_guard.py",
-      "sha256": "f16288f0c331a739f02ea49b4108c5834df2d7620455da798872362025b34b8b"
+      "sha256": "51817ba3b96de1244227634f7ee28f190165c075b085e35099ce011f45088956"
     },
     {
       "path": "tests/test_response_completion.py",

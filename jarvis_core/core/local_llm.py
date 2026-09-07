@@ -24,6 +24,11 @@ import socket
 import subprocess
 import shutil
 
+from jarvis_core.services.network_egress import (
+    NetworkEgressError,
+    require_loopback_url,
+)
+
 
 class LocalLLMError(RuntimeError):
     pass
@@ -51,7 +56,12 @@ class NativeLlamaRuntime:
 
     @property
     def host(self) -> str:
-        return str(getattr(self.settings, "native_llama_host", "127.0.0.1"))
+        host = str(getattr(self.settings, "native_llama_host", "127.0.0.1"))
+        try:
+            require_loopback_url(f"http://{host}:{self.port}")
+        except NetworkEgressError as exc:
+            raise LocalLLMError("Native llama.cpp host must be loopback-only.") from exc
+        return host
 
     @property
     def port(self) -> int:
@@ -755,7 +765,11 @@ class OllamaLocalCompatClient:
     def __init__(self, settings, events=None):
         self.settings = settings
         self.events = events
-        self.base_url = str(getattr(settings, "ollama_host", "http://127.0.0.1:11434") or "http://127.0.0.1:11434").rstrip("/")
+        candidate = str(getattr(settings, "ollama_host", "http://127.0.0.1:11434") or "http://127.0.0.1:11434").rstrip("/")
+        try:
+            self.base_url = require_loopback_url(candidate).rstrip("/")
+        except NetworkEgressError as exc:
+            raise LocalLLMError("Ollama compatibility executor must be loopback-only.") from exc
 
     def _emit(self, name: str, **payload: Any) -> None:
         if self.events is not None:

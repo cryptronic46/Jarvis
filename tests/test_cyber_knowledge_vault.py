@@ -116,7 +116,7 @@ class CyberKnowledgeVaultTests(unittest.TestCase):
                 }],
             }
             raw = json.dumps(payload).encode("utf-8")
-            vault._download = lambda unused: DownloadedSource(
+            vault._download = lambda unused, **kwargs: DownloadedSource(
                 raw=raw,
                 content_type="application/json",
                 final_url=source["url"],
@@ -143,7 +143,7 @@ class CyberKnowledgeVaultTests(unittest.TestCase):
                 "url": "https://www.cisa.gov/feed.json",
             }
             vault.sources = lambda: [source]
-            vault._download = lambda unused: DownloadedSource(
+            vault._download = lambda unused, **kwargs: DownloadedSource(
                 raw=b"not-json",
                 content_type="application/json; charset=utf-8",
                 final_url=source["url"],
@@ -161,6 +161,11 @@ class CyberKnowledgeVaultTests(unittest.TestCase):
     def test_download_rejects_declared_content_over_safe_limit(self):
         tmp, vault = self.make()
         try:
+            source = {
+                "url": "https://www.cisa.gov/feed.json",
+                "max_bytes": 64_000,
+            }
+
             class OversizedResponse:
                 headers = {
                     "Content-Length": "64001",
@@ -173,17 +178,47 @@ class CyberKnowledgeVaultTests(unittest.TestCase):
                 def __exit__(self, *args):
                     return False
 
-            source = {
-                "url": "https://www.cisa.gov/feed.json",
-                "max_bytes": 64_000,
-            }
-            with patch(
-                "jarvis_core.services.cyber_knowledge.urlopen",
-                return_value=OversizedResponse(),
+                def geturl(self):
+                    return source["url"]
+
+                def read(self, amount):
+                    return b""
+
+            class Opener:
+                def open(
+                    self,
+                    request,
+                    timeout,
+                ):
+                    return OversizedResponse()
+
+            with (
+                patch(
+                    "jarvis_core.services.cyber_knowledge.build_opener",
+                    return_value=Opener(),
+                ),
+                patch.object(
+                    vault.egress,
+                    "allow_public_web",
+                    return_value={
+                        "ok": True,
+                        "allowed": True,
+                    },
+                ),
             ):
-                with self.assertRaises(CyberSourceError) as caught:
-                    vault._download(source)
-            self.assertEqual(caught.exception.reason_code, "CYBER_SOURCE_TOO_LARGE")
+                with self.assertRaises(
+                    CyberSourceError
+                ) as caught:
+                    vault._download(
+                        source,
+                        session_token=
+                            "TEST-CYBER-SESSION",
+                    )
+
+            self.assertEqual(
+                caught.exception.reason_code,
+                "CYBER_SOURCE_TOO_LARGE",
+            )
         finally:
             tmp.cleanup()
 

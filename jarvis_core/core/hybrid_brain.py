@@ -239,6 +239,7 @@ class HybridBrain:
         decision: HybridDecision,
         reason: str,
         description: str,
+        execution_context: dict[str, str] | None = None,
     ) -> HybridAnswer | None:
         if (
             self.autonomy is None
@@ -350,6 +351,11 @@ class HybridBrain:
             )
 
         if gate.get("allowed"):
+            if execution_context is not None:
+                execution_context["execution_token"] = str(
+                    gate.get("execution_token")
+                    or ""
+                )
             return None
 
         pending = bool(
@@ -539,6 +545,14 @@ class HybridBrain:
                 "explicit_url",
             }
 
+            web_payload = {
+                "query": decision.text,
+                "use_web": True,
+                "deep": bool(decision.deep),
+                "route_reason": decision.reason,
+            }
+            web_auth_context: dict[str, str] = {}
+
             if direct_authority:
                 if self.autonomy is None:
                     return HybridAnswer(
@@ -556,12 +570,7 @@ class HybridBrain:
                         used_web=False,
                     )
 
-                direct_payload = {
-                    "query": decision.text,
-                    "use_web": True,
-                    "deep": bool(decision.deep),
-                    "route_reason": decision.reason,
-                }
+                direct_payload = dict(web_payload)
 
                 try:
                     direct_record = (
@@ -639,6 +648,27 @@ class HybridBrain:
                         used_web=False,
                     )
 
+                web_auth_context["execution_token"] = str(
+                    direct_record.get("execution_token")
+                    or ""
+                )
+
+                if not web_auth_context["execution_token"]:
+                    return HybridAnswer(
+                        text=(
+                            "A pesquisa Web foi bloqueada porque "
+                            "a autoriza??o OWNER n?o produziu "
+                            "uma credencial de execu??o v?lida."
+                        ),
+                        route="AUTH/BLOCKED",
+                        model=None,
+                        elapsed_ms=round(
+                            (monotonic() - started) * 1000
+                        ),
+                        reason="owner_execution_credential_missing",
+                        used_web=False,
+                    )
+
             else:
                 gated = self._autonomy_gate(
                     decision=decision,
@@ -647,6 +677,7 @@ class HybridBrain:
                         "pesquisar diretamente na Internet "
                         f"sobre: {decision.text[:220]}"
                     ),
+                    execution_context=web_auth_context,
                 )
 
                 if gated is not None:
@@ -667,18 +698,105 @@ class HybridBrain:
                     reason="research_unavailable",
                 )
 
-            subject = self.policy.research_subject(decision.text)
-            url_match = re.search(r"https?://[^\s<>\"']+", decision.text, flags=re.IGNORECASE)
-            if url_match:
-                url = url_match.group(0).rstrip(".,;!?)\"]}")
-                result = self.research.research_url(
-                    url, query=decision.text, topic=subject, deep=decision.deep,
+            try:
+                web_session = self.research.open_public_web_session(
+                    purpose="research",
+                    capability="web_research",
+                    payload=web_payload,
+                    execution_token=str(
+                        web_auth_context.get("execution_token")
+                        or ""
+                    ),
                 )
-            else:
-                search_query = self.policy.research_search_query(subject, decision.text)
-                result = self.research.research(
-                    decision.text, topic=subject, search_query=search_query, deep=decision.deep,
+            except Exception as exc:
+                self.events.emit(
+                    "NETWORK_EGRESS_AUTHORITY_ERROR",
+                    operation="open_public_web_session",
+                    error=type(exc).__name__,
                 )
+                return HybridAnswer(
+                    text=(
+                        "A pesquisa Web foi bloqueada porque "
+                        "n?o foi poss?vel abrir uma sess?o "
+                        "de rede autorizada."
+                    ),
+                    route="AUTH/BLOCKED",
+                    model=None,
+                    elapsed_ms=round(
+                        (monotonic() - started) * 1000
+                    ),
+                    reason="network_egress_authority_error",
+                    used_web=False,
+                )
+
+            if (
+                not isinstance(web_session, dict)
+                or not web_session.get("allowed")
+            ):
+                return HybridAnswer(
+                    text=(
+                        "A pesquisa Web foi bloqueada pela "
+                        "fronteira central de rede."
+                    ),
+                    route="AUTH/BLOCKED",
+                    model=None,
+                    elapsed_ms=round(
+                        (monotonic() - started) * 1000
+                    ),
+                    reason=(
+                        str(
+                            web_session.get(
+                                "error"
+                            )
+                            if isinstance(
+                                web_session,
+                                dict,
+                            )
+                            else ""
+                        )
+                        or "network_egress_blocked"
+                    ),
+                    used_web=False,
+                )
+
+            try:
+                subject = self.policy.research_subject(
+                    decision.text
+                )
+                url_match = re.search(
+                    r"https?://[^\s<>\"']+",
+                    decision.text,
+                    flags=re.IGNORECASE,
+                )
+
+                if url_match:
+                    url = url_match.group(0).rstrip(
+                        ".,;!?)\"]}"
+                    )
+                    result = self.research.research_url(
+                        url,
+                        query=decision.text,
+                        topic=subject,
+                        deep=decision.deep,
+                    )
+                else:
+                    search_query = (
+                        self.policy.research_search_query(
+                            subject,
+                            decision.text,
+                        )
+                    )
+                    result = self.research.research(
+                        decision.text,
+                        topic=subject,
+                        search_query=search_query,
+                        deep=decision.deep,
+                    )
+            finally:
+                self.research.close_public_web_session(
+                    web_session
+                )
+
             if result.ok:
                 return HybridAnswer(
                     text=result.text,

@@ -10,12 +10,19 @@ from pathlib import Path
 from threading import Event, Thread, RLock
 from typing import Any
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import (
+    HTTPRedirectHandler,
+    ProxyHandler,
+    Request,
+    build_opener,
+)
 import html
 import json
 import re
 import sqlite3
 import time
+
+from jarvis_core.services.network_egress import NetworkEgressGate
 
 
 SCHEMA_VERSION = 1
@@ -185,22 +192,83 @@ def _attack_external_id(obj: dict[str, Any]) -> str | None:
     return None
 
 
+class _CyberRedirectHandler(HTTPRedirectHandler):
+    def __init__(self, validator):
+        super().__init__()
+        self._validator = validator
+
+    def redirect_request(
+        self,
+        req,
+        fp,
+        code,
+        msg,
+        headers,
+        newurl,
+    ):
+        self._validator(str(newurl or ""))
+        return super().redirect_request(
+            req,
+            fp,
+            code,
+            msg,
+            headers,
+            newurl,
+        )
+
+
 class CyberKnowledgeVault:
     def __init__(
         self,
         db_path: str | Path = DEFAULT_DB,
         sources_path: str | Path = DEFAULT_SOURCES,
         state_path: str | Path = DEFAULT_STATE,
+        *,
+        egress_guardian=None,
     ):
         self.db_path = Path(db_path)
         self.sources_path = Path(sources_path)
         self.state_path = Path(state_path)
+        self.egress = NetworkEgressGate(
+            egress_guardian
+        )
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = RLock()
         self._fts = False
         self._init_db()
         self.seed_foundation()
+
+    def set_egress_guardian(self, guardian) -> None:
+        self.egress = NetworkEgressGate(
+            guardian
+        )
+
+    def _authorize_web_url(
+        self,
+        url: str,
+        *,
+        session_token: str,
+    ) -> str:
+        self._validate_url(url)
+
+        decision = self.egress.allow_public_web(
+            url,
+            purpose="learning",
+            session_token=session_token,
+        )
+
+        if not decision.get("allowed"):
+            code = str(
+                decision.get("error")
+                or "NETWORK_EGRESS_BLOCKED"
+            )
+            raise CyberSourceError(
+                code,
+                f"Cyber knowledge egress blocked: {code}",
+            )
+
+        return url
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path, timeout=30)
@@ -381,44 +449,116 @@ class CyberKnowledgeVault:
                 f"Host público não autorizado: {host}",
             )
 
-    def _download(self, source: dict[str, Any]) -> DownloadedSource:
+    def _download(
+        self,
+        source: dict[str, Any],
+        *,
+        session_token: str,
+    ) -> DownloadedSource:
         url = str(source.get("url") or "")
-        self._validate_url(url)
+
+        self._authorize_web_url(
+            url,
+            session_token=session_token,
+        )
+
         max_bytes = max(
             MIN_DOWNLOAD_LIMIT_BYTES,
             min(
-                int(source.get("max_bytes") or DEFAULT_DOWNLOAD_LIMIT_BYTES),
+                int(
+                    source.get("max_bytes")
+                    or DEFAULT_DOWNLOAD_LIMIT_BYTES
+                ),
                 HARD_DOWNLOAD_LIMIT_BYTES,
             ),
         )
+
         req = Request(
             url,
             headers={
                 "User-Agent": USER_AGENT,
-                "Accept": "application/json,text/html,*/*;q=0.8",
+                "Accept": (
+                    "application/json,"
+                    "text/html,*/*;q=0.8"
+                ),
             },
         )
-        with urlopen(req, timeout=35) as response:
-            length = response.headers.get("Content-Length")
+
+        def authorize_redirect(target: str) -> None:
+            self._authorize_web_url(
+                target,
+                session_token=session_token,
+            )
+
+        opener = build_opener(
+            ProxyHandler({}),
+            _CyberRedirectHandler(
+                authorize_redirect
+            ),
+        )
+
+        with opener.open(
+            req,
+            timeout=35,
+        ) as response:
+            final_url = str(
+                response.geturl()
+                or url
+            )
+
+            self._authorize_web_url(
+                final_url,
+                session_token=session_token,
+            )
+
+            length = response.headers.get(
+                "Content-Length"
+            )
+
             try:
-                declared_length = int(length) if length else None
+                declared_length = (
+                    int(length)
+                    if length
+                    else None
+                )
             except (TypeError, ValueError):
                 declared_length = None
-            if declared_length is not None and declared_length > max_bytes:
+
+            if (
+                declared_length is not None
+                and declared_length > max_bytes
+            ):
                 raise CyberSourceError(
                     "CYBER_SOURCE_TOO_LARGE",
-                    f"Tamanho declarado {declared_length} excede o limite {max_bytes}",
+                    (
+                        f"Tamanho declarado "
+                        f"{declared_length} excede "
+                        f"o limite {max_bytes}"
+                    ),
                 )
-            raw = response.read(max_bytes + 1)
+
+            raw = response.read(
+                max_bytes + 1
+            )
+
             if len(raw) > max_bytes:
                 raise CyberSourceError(
                     "CYBER_SOURCE_TOO_LARGE",
-                    f"Tamanho recebido excede o limite {max_bytes}",
+                    (
+                        "Tamanho recebido excede "
+                        f"o limite {max_bytes}"
+                    ),
                 )
+
             return DownloadedSource(
                 raw=raw,
-                content_type=_media_type(response.headers.get("Content-Type", "")),
-                final_url=str(response.geturl() or url),
+                content_type=_media_type(
+                    response.headers.get(
+                        "Content-Type",
+                        "",
+                    )
+                ),
+                final_url=final_url,
             )
 
     def _sync_html(
@@ -618,7 +758,12 @@ class CyberKnowledgeVault:
             "types": dict(type_counts),
         }
 
-    def sync_source(self, source_id: str) -> dict[str, Any]:
+    def sync_source(
+        self,
+        source_id: str,
+        *,
+        session_token: str = "",
+    ) -> dict[str, Any]:
         source = next(
             (x for x in self.sources() if x.get("id") == source_id),
             None,
@@ -633,7 +778,10 @@ class CyberKnowledgeVault:
 
         started = time.monotonic()
         try:
-            downloaded = self._download(source)
+            downloaded = self._download(
+                source,
+                session_token=session_token,
+            )
             kind = str(source.get("kind") or "html")
             if _routes_as_json(downloaded, kind):
                 if kind == "cisa_kev":
@@ -701,30 +849,140 @@ class CyberKnowledgeVault:
         *,
         full: bool = False,
         source_id: str = "",
+        execution_token: str = "",
     ) -> dict[str, Any]:
-        if source_id:
-            results = [self.sync_source(source_id)]
-        else:
-            selected = [
-                source
-                for source in self.sources()
-                if full or source.get("auto_sync") is True
-            ]
-            results = [
-                self.sync_source(str(source["id"]))
-                for source in selected
-            ]
+        source_id = str(
+            source_id
+            or ""
+        ).strip()
 
-        ok_count = sum(1 for x in results if x.get("ok"))
-        failed = len(results) - ok_count
+        payload = {
+            "operation":
+                "cyber_knowledge_sync",
+            "full": bool(full),
+            "source_id": source_id,
+        }
+
+        try:
+            opened = (
+                self.egress
+                .open_public_web_session(
+                    purpose="learning",
+                    capability="external_learning",
+                    payload=payload,
+                    execution_token=str(
+                        execution_token
+                        or ""
+                    ),
+                )
+            )
+        except Exception as exc:
+            return {
+                "ok": False,
+                "mode":
+                    "full"
+                    if full
+                    else "standard",
+                "sources_attempted": 0,
+                "sources_ok": 0,
+                "sources_failed": 0,
+                "results": [],
+                "error":
+                    "NETWORK_EGRESS_AUTHORITY_ERROR",
+                "reason_code":
+                    "NETWORK_EGRESS_AUTHORITY_ERROR",
+                "message": (
+                    f"{type(exc).__name__}: "
+                    f"{exc}"
+                ),
+                "stats": self.stats(),
+            }
+
+        if not opened.get("allowed"):
+            code = str(
+                opened.get("error")
+                or "OWNER_WEB_AUTHORIZATION_REQUIRED"
+            )
+
+            return {
+                "ok": False,
+                "mode":
+                    "full"
+                    if full
+                    else "standard",
+                "sources_attempted": 0,
+                "sources_ok": 0,
+                "sources_failed": 0,
+                "results": [],
+                "error": code,
+                "reason_code": code,
+                "stats": self.stats(),
+            }
+
+        session_token = str(
+            opened.get("session_token")
+            or ""
+        )
+
+        try:
+            if source_id:
+                results = [
+                    self.sync_source(
+                        source_id,
+                        session_token=session_token,
+                    )
+                ]
+            else:
+                selected = [
+                    source
+                    for source in self.sources()
+                    if (
+                        full
+                        or source.get(
+                            "auto_sync"
+                        ) is True
+                    )
+                ]
+
+                results = [
+                    self.sync_source(
+                        str(source["id"]),
+                        session_token=session_token,
+                    )
+                    for source in selected
+                ]
+        finally:
+            self.egress.close_public_web_session(
+                session_token
+            )
+
+        ok_count = sum(
+            1
+            for row in results
+            if row.get("ok")
+        )
+
+        failed = (
+            len(results)
+            - ok_count
+        )
+
         return {
             "ok": failed == 0,
-            "mode": "full" if full else "standard",
-            "sources_attempted": len(results),
-            "sources_ok": ok_count,
-            "sources_failed": failed,
-            "results": results,
-            "stats": self.stats(),
+            "mode":
+                "full"
+                if full
+                else "standard",
+            "sources_attempted":
+                len(results),
+            "sources_ok":
+                ok_count,
+            "sources_failed":
+                failed,
+            "results":
+                results,
+            "stats":
+                self.stats(),
         }
 
     def _load_state(self) -> dict[str, Any]:
@@ -992,6 +1250,17 @@ def cyber_vault() -> CyberKnowledgeVault:
     if _VAULT is None:
         _VAULT = CyberKnowledgeVault()
     return _VAULT
+
+
+
+def configure_cyber_knowledge_egress(
+    guardian,
+) -> CyberKnowledgeVault:
+    vault = cyber_vault()
+    vault.set_egress_guardian(
+        guardian
+    )
+    return vault
 
 
 def get_cyber_knowledge_status() -> dict[str, Any]:

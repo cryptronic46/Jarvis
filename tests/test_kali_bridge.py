@@ -16,6 +16,27 @@ NMAP_XML = """<?xml version=\"1.0\"?>
 </ports></host></nmaprun>"""
 
 
+class AllowKaliSessionGuardian:
+    def consume_direct_authorization(
+        self,
+        *,
+        execution_token,
+        capability,
+        payload,
+    ):
+        if capability != "kali_security_session":
+            return {
+                "ok": False,
+                "allowed": False,
+                "error": "CAPABILITY_MISMATCH",
+            }
+
+        return {
+            "ok": True,
+            "allowed": True,
+        }
+
+
 class KaliBridgeTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -27,9 +48,30 @@ class KaliBridgeTests(unittest.TestCase):
             root / "kali.json",
             known_hosts_path=root / "known_hosts",
         )
+        self.bridge.set_authority_guardian(
+            AllowKaliSessionGuardian()
+        )
 
     def tearDown(self):
         self.tmp.cleanup()
+
+    def _open_lab_session(
+        self,
+        target,
+        profiles,
+        ports,
+    ):
+        opened = self.bridge.open_security_session(
+            target=target,
+            profiles=profiles,
+            ports=ports,
+            scope="LAB",
+            execution_token="TEST-OWNER-AUTH",
+        )
+        self.assertTrue(opened["ok"])
+        self.assertTrue(opened["allowed"])
+        self.assertTrue(opened["session_token"])
+        return opened["session_token"]
 
     def test_configure_requires_owner_authorized_lab_host(self):
         denied = self.bridge.configure("192.168.1.10", "kali")
@@ -54,7 +96,16 @@ class KaliBridgeTests(unittest.TestCase):
         self.assertTrue(self.bridge.configure("192.168.56.2", "kali")["ok"])
         run.return_value = CompletedProcess([], 0, stdout=NMAP_XML, stderr="")
 
-        result = self.bridge.nmap_service_scan("192.168.56.10", [22, 80, 443])
+        session = self._open_lab_session(
+            "192.168.56.10",
+            ["nmap_services"],
+            [22, 80, 443],
+        )
+        result = self.bridge.nmap_service_scan(
+            "192.168.56.10",
+            [22, 80, 443],
+            session_token=session,
+        )
 
         self.assertTrue(result["ok"])
         self.assertEqual([x["port"] for x in result["open_services"]], [22, 80])
@@ -72,7 +123,17 @@ class KaliBridgeTests(unittest.TestCase):
     def test_whatweb_does_not_follow_redirects(self, run, _which):
         self.assertTrue(self.bridge.configure("192.168.56.2", "kali")["ok"])
         run.return_value = CompletedProcess([], 0, stdout="Apache[2.4]", stderr="")
-        result = self.bridge.whatweb_fingerprint("192.168.56.10", 8080, False)
+        session = self._open_lab_session(
+            "192.168.56.10",
+            ["whatweb_fingerprint"],
+            [8080],
+        )
+        result = self.bridge.whatweb_fingerprint(
+            "192.168.56.10",
+            8080,
+            False,
+            session_token=session,
+        )
         self.assertTrue(result["ok"])
         argv = run.call_args.args[0]
         self.assertIn("--follow-redirect=never", argv)
@@ -85,7 +146,17 @@ class KaliBridgeTests(unittest.TestCase):
     def test_nikto_profile_excludes_high_impact_tuning(self, run, _which):
         self.assertTrue(self.bridge.configure("192.168.56.2", "kali")["ok"])
         run.return_value = CompletedProcess([], 0, stdout="+ Server: Apache", stderr="")
-        result = self.bridge.nikto_safe_web_scan("192.168.56.10", 80, False)
+        session = self._open_lab_session(
+            "192.168.56.10",
+            ["nikto_safe_web"],
+            [80],
+        )
+        result = self.bridge.nikto_safe_web_scan(
+            "192.168.56.10",
+            80,
+            False,
+            session_token=session,
+        )
         self.assertTrue(result["ok"])
         argv = run.call_args.args[0]
         tuning_index = argv.index("-Tuning")
@@ -106,6 +177,77 @@ class KaliBridgeTests(unittest.TestCase):
             "KALI_HOST_NO_LONGER_AUTHORIZED_LAB",
             "TARGET_NOT_AUTHORIZED_LAB",
         })
+        run.assert_not_called()
+
+
+    @patch(
+        "jarvis_core.services.kali_bridge.shutil.which",
+        return_value="ssh",
+    )
+    @patch(
+        "jarvis_core.services.kali_bridge.subprocess.run"
+    )
+    def test_security_session_blocks_scope_escape_before_ssh(
+        self,
+        run,
+        _which,
+    ):
+        self.assertTrue(
+            self.bridge.configure(
+                "192.168.56.2",
+                "kali",
+            )["ok"]
+        )
+
+        session = self._open_lab_session(
+            "192.168.56.10",
+            ["nmap_services"],
+            [80],
+        )
+
+        wrong_port = self.bridge.nmap_service_scan(
+            "192.168.56.10",
+            [443],
+            session_token=session,
+        )
+
+        self.assertFalse(wrong_port["ok"])
+        self.assertEqual(
+            wrong_port["error"],
+            "KALI_SECURITY_SESSION_PORT_MISMATCH",
+        )
+        run.assert_not_called()
+
+        wrong_target = self.bridge.nmap_service_scan(
+            "192.168.56.11",
+            [80],
+            session_token=session,
+        )
+
+        self.assertFalse(wrong_target["ok"])
+        self.assertEqual(
+            wrong_target["error"],
+            "KALI_SECURITY_SESSION_TARGET_MISMATCH",
+        )
+        run.assert_not_called()
+
+        closed = self.bridge.close_security_session(
+            session
+        )
+
+        self.assertTrue(closed["closed"])
+
+        after_close = self.bridge.nmap_service_scan(
+            "192.168.56.10",
+            [80],
+            session_token=session,
+        )
+
+        self.assertFalse(after_close["ok"])
+        self.assertEqual(
+            after_close["error"],
+            "KALI_SECURITY_SESSION_UNKNOWN",
+        )
         run.assert_not_called()
 
     def test_no_arbitrary_shell_api_is_exposed(self):

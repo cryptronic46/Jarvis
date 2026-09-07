@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from jarvis_core.security.policy import RiskLevel
 from jarvis_core.skills.base import SkillContext
@@ -167,19 +167,161 @@ class ModularSkillsTests(unittest.TestCase):
             self.assertEqual(result["error"], "PURPLE_TEAM_TARGET_NOT_LAB")
             bridge.assert_not_called()
 
-    def test_purple_team_uses_only_bounded_profiles_in_lab(self):
+    def test_purple_team_uses_one_bounded_security_session_in_lab(
+        self,
+    ):
         with tempfile.TemporaryDirectory() as td:
-            service = PurpleTeamOrchestrator(self._context(Path(td)))
-            with patch("jarvis_core.skills.builtin.purple_team.classify_cyber_target", return_value={"scope": "LAB", "authorized": True, "ip": "192.168.56.10"}), \
-                 patch("jarvis_core.skills.builtin.purple_team.get_kali_bridge_status", return_value={"ok": True, "configured": True, "ready_scope": True}), \
-                 patch("jarvis_core.skills.builtin.purple_team.run_kali_nmap_service_scan", return_value={"ok": True, "requested_ports": [80,445], "open_services": [{"port":80,"name":"http"},{"port":445,"name":"microsoft-ds"}]}), \
-                 patch("jarvis_core.skills.builtin.purple_team.run_kali_whatweb_fingerprint", return_value={"ok": True, "report": "Apache"}) as whatweb, \
-                 patch("jarvis_core.skills.builtin.purple_team.run_kali_nikto_safe_web_scan", return_value={"ok": True, "report": "X-Frame-Options not present"}) as nikto:
-                result = service.run("192.168.56.10", [80, 445])
+            service = PurpleTeamOrchestrator(
+                self._context(Path(td))
+            )
+
+            manager = MagicMock()
+            manager.build_security_session_scope.return_value = {
+                "ok": True,
+                "payload": {
+                    "authority":
+                        "KALI_SECURITY_SESSION",
+                    "scope": "LAB",
+                    "target": "192.168.56.10",
+                    "profiles": [
+                        "nikto_safe_web",
+                        "nmap_services",
+                        "whatweb_fingerprint",
+                    ],
+                    "ports": [80, 445],
+                    "bridge_host":
+                        "192.168.56.2",
+                    "bridge_port": 22,
+                    "transport": "ssh",
+                },
+            }
+            manager.open_security_session.return_value = {
+                "ok": True,
+                "allowed": True,
+                "session_token":
+                    "TEST-KALI-SESSION",
+            }
+            manager.close_security_session.return_value = {
+                "ok": True,
+                "closed": True,
+            }
+
+            guardian = MagicMock()
+            guardian.request.return_value = {
+                "ok": True,
+                "allowed": True,
+                "execution_token":
+                    "TEST-EXECUTION-TOKEN",
+            }
+
+            with patch(
+                "jarvis_core.skills.builtin.purple_team.classify_cyber_target",
+                return_value={
+                    "scope": "LAB",
+                    "authorized": True,
+                    "ip": "192.168.56.10",
+                },
+            ), patch(
+                "jarvis_core.skills.builtin.purple_team.get_kali_bridge_status",
+                return_value={
+                    "ok": True,
+                    "configured": True,
+                    "ready_scope": True,
+                },
+            ), patch(
+                "jarvis_core.skills.builtin.purple_team.kali_bridge_manager",
+                return_value=manager,
+            ), patch(
+                "jarvis_core.skills.builtin.purple_team.autonomy_guardian",
+                return_value=guardian,
+            ), patch(
+                "jarvis_core.skills.builtin.purple_team.run_kali_nmap_service_scan",
+                return_value={
+                    "ok": True,
+                    "requested_ports":
+                        [80, 445],
+                    "open_services": [
+                        {
+                            "port": 80,
+                            "name": "http",
+                        },
+                        {
+                            "port": 445,
+                            "name":
+                                "microsoft-ds",
+                        },
+                    ],
+                },
+            ) as nmap, patch(
+                "jarvis_core.skills.builtin.purple_team.run_kali_whatweb_fingerprint",
+                return_value={
+                    "ok": True,
+                    "report": "Apache",
+                },
+            ) as whatweb, patch(
+                "jarvis_core.skills.builtin.purple_team.run_kali_nikto_safe_web_scan",
+                return_value={
+                    "ok": True,
+                    "report":
+                        "X-Frame-Options not present",
+                },
+            ) as nikto:
+                result = service.run(
+                    "192.168.56.10",
+                    [80, 445],
+                )
+
             self.assertTrue(result["ok"])
-            self.assertIn("no exploitation", result["boundaries"])
-            self.assertTrue(any("SMB" in row["finding"] for row in result["recommendations"]))
-            whatweb.assert_called_once(); nikto.assert_called_once()
+
+            self.assertEqual(
+                result["authority"],
+                "KALI_SECURITY_SESSION",
+            )
+
+            self.assertIn(
+                "exact bounded session",
+                result["boundaries"],
+            )
+
+            self.assertTrue(
+                any(
+                    "SMB" in row["finding"]
+                    for row
+                    in result["recommendations"]
+                )
+            )
+
+            guardian.request.assert_called_once()
+            manager.open_security_session.assert_called_once()
+            manager.close_security_session.assert_called_once_with(
+                "TEST-KALI-SESSION"
+            )
+
+            nmap.assert_called_once()
+            whatweb.assert_called_once()
+            nikto.assert_called_once()
+
+            self.assertEqual(
+                nmap.call_args.kwargs[
+                    "session_token"
+                ],
+                "TEST-KALI-SESSION",
+            )
+
+            self.assertEqual(
+                whatweb.call_args.kwargs[
+                    "session_token"
+                ],
+                "TEST-KALI-SESSION",
+            )
+
+            self.assertEqual(
+                nikto.call_args.kwargs[
+                    "session_token"
+                ],
+                "TEST-KALI-SESSION",
+            )
+
 
     def test_guardian_detects_new_listener_and_integrity_change(self):
         with tempfile.TemporaryDirectory() as td:

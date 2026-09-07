@@ -14,6 +14,7 @@ import psutil
 
 DEFAULT_PROBE_PORTS = [22, 80, 443, 445, 3389, 8080, 8443]
 MAX_PROBE_PORTS = 32
+OWNER_AUTHORIZED_NETWORK_SCOPE = "OWNER_AUTHORIZED_NETWORK_SCOPE"
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,12 +52,26 @@ class CyberRangeManager:
         *,
         enabled: bool = True,
         probe_timeout_seconds: float = 0.45,
+        authority_guardian=None,
     ) -> None:
         self.state_path = Path(state_path)
         self.enabled = bool(enabled)
-        self.probe_timeout_seconds = max(0.05, min(float(probe_timeout_seconds), 3.0))
+        self.probe_timeout_seconds = max(
+            0.05,
+            min(
+                float(probe_timeout_seconds),
+                3.0,
+            ),
+        )
+        self.authority_guardian = authority_guardian
         self._lock = RLock()
         self._state = self._load()
+
+    def set_authority_guardian(
+        self,
+        guardian,
+    ) -> None:
+        self.authority_guardian = guardian
 
     @staticmethod
     def _now() -> str:
@@ -271,7 +286,7 @@ class CyberRangeManager:
             "lab_scope_count": len(scopes),
             "owner_addresses": sorted(self._owner_addresses()),
             "execution_policy": {
-                "LAB": "controlled_security_testing_allowed",
+                "LAB": "requires_exact_owner_one_shot_network_scope",
                 "OWNER_MACHINE": "defensive_audit_and_hardening_only",
                 "PRIVATE_UNAUTHORIZED": "active_testing_blocked",
                 "EXTERNAL": "active_testing_blocked",
@@ -294,32 +309,195 @@ class CyberRangeManager:
                 break
         return normalized
 
-    def probe(self, target: str, ports: list[int] | None = None) -> dict[str, Any]:
+    def build_probe_authorization_scope(
+        self,
+        target: str,
+        ports: list[int] | None = None,
+    ) -> dict[str, Any]:
         decision = self.classify(target)
-        if decision.get("scope") != "LAB" or not decision.get("authorized"):
+
+        if (
+            decision.get("scope") != "LAB"
+            or not decision.get("authorized")
+        ):
             return {
                 "ok": False,
-                "error": "TARGET_NOT_AUTHORIZED_LAB",
+                "error":
+                    "TARGET_NOT_AUTHORIZED_LAB",
                 "decision": decision,
             }
 
-        ip = str(decision["ip"])
-        port_list = self._normalize_ports(ports)
+        ip = str(
+            decision.get("ip")
+            or ""
+        )
+
+        port_list = self._normalize_ports(
+            ports
+        )
+
         if not port_list:
-            return {"ok": False, "error": "NO_VALID_PORTS", "decision": decision}
+            return {
+                "ok": False,
+                "error": "NO_VALID_PORTS",
+                "decision": decision,
+            }
+
+        payload = {
+            "scope":
+                OWNER_AUTHORIZED_NETWORK_SCOPE,
+            "action":
+                "tcp_connect_probe",
+            "protocol":
+                "tcp",
+            "target":
+                ip,
+            "ports":
+                port_list,
+        }
+
+        return {
+            "ok": True,
+            "decision": decision,
+            "target": ip,
+            "ports": port_list,
+            "payload": payload,
+        }
+
+    def probe(
+        self,
+        target: str,
+        ports: list[int] | None = None,
+        *,
+        execution_token: str = "",
+    ) -> dict[str, Any]:
+        scoped = (
+            self.build_probe_authorization_scope(
+                target,
+                ports,
+            )
+        )
+
+        if not scoped.get("ok"):
+            return scoped
+
+        decision = dict(
+            scoped.get("decision")
+            or {}
+        )
+
+        payload = dict(
+            scoped.get("payload")
+            or {}
+        )
+
+        ip = str(
+            scoped.get("target")
+            or ""
+        )
+
+        port_list = list(
+            scoped.get("ports")
+            or []
+        )
+
+        if self.authority_guardian is None:
+            return {
+                "ok": False,
+                "error":
+                    "OWNER_NETWORK_AUTHORITY_UNAVAILABLE",
+                "decision": decision,
+                "authorization_scope":
+                    payload,
+            }
+
+        token = str(
+            execution_token
+            or ""
+        ).strip()
+
+        if not token:
+            return {
+                "ok": False,
+                "error":
+                    "OWNER_AUTHORIZED_NETWORK_SCOPE_REQUIRED",
+                "decision": decision,
+                "authorization_scope":
+                    payload,
+            }
+
+        try:
+            consumed = (
+                self.authority_guardian
+                .consume_direct_authorization(
+                    execution_token=token,
+                    capability=
+                        "active_network_probe",
+                    payload=payload,
+                )
+            )
+        except Exception as exc:
+            return {
+                "ok": False,
+                "error":
+                    "OWNER_NETWORK_AUTHORITY_ERROR",
+                "reason":
+                    f"{type(exc).__name__}: {exc}",
+                "decision": decision,
+                "authorization_scope":
+                    payload,
+            }
+
+        if (
+            not isinstance(
+                consumed,
+                dict,
+            )
+            or not consumed.get("ok")
+            or not consumed.get(
+                "allowed",
+                False,
+            )
+        ):
+            return {
+                "ok": False,
+                "error":
+                    "OWNER_AUTHORIZED_NETWORK_SCOPE_INVALID",
+                "reason_code": str(
+                    consumed.get("error")
+                    if isinstance(
+                        consumed,
+                        dict,
+                    )
+                    else ""
+                )
+                or
+                "OWNER_AUTHORIZED_NETWORK_SCOPE_INVALID",
+                "decision": decision,
+                "authorization_scope":
+                    payload,
+            }
 
         open_ports: list[int] = []
         closed_or_filtered: list[int] = []
+
         for port in port_list:
             try:
                 conn = socket.create_connection(
                     (ip, port),
-                    timeout=self.probe_timeout_seconds,
+                    timeout=(
+                        self.probe_timeout_seconds
+                    ),
                 )
             except (OSError, TimeoutError):
-                closed_or_filtered.append(port)
+                closed_or_filtered.append(
+                    port
+                )
             else:
-                open_ports.append(port)
+                open_ports.append(
+                    port
+                )
+
                 try:
                     conn.close()
                 except Exception:
@@ -329,14 +507,30 @@ class CyberRangeManager:
             "ok": True,
             "scope": "LAB",
             "target": ip,
-            "label": decision.get("label"),
-            "probe": "tcp_connect",
-            "ports_tested": port_list,
-            "open_ports": open_ports,
-            "closed_or_filtered_ports": closed_or_filtered,
+            "label": decision.get(
+                "label"
+            ),
+            "probe":
+                "tcp_connect",
+            "authority":
+                OWNER_AUTHORIZED_NETWORK_SCOPE,
+            "authority_mode":
+                "exact_owner_one_shot",
+            "ports_tested":
+                port_list,
+            "open_ports":
+                open_ports,
+            "closed_or_filtered_ports":
+                closed_or_filtered,
             "limitations": [
-                "TCP connect probe only; no exploitation or payload execution.",
-                "Closed and filtered are intentionally not distinguished.",
+                (
+                    "TCP connect probe only; "
+                    "no exploitation or payload execution."
+                ),
+                (
+                    "Closed and filtered are intentionally "
+                    "not distinguished."
+                ),
             ],
         }
 
@@ -403,5 +597,11 @@ def classify_cyber_target(target: str) -> dict[str, Any]:
 def probe_cyber_lab_target(
     target: str,
     ports: list[int] | None = None,
+    *,
+    execution_token: str = "",
 ) -> dict[str, Any]:
-    return cyber_range_manager().probe(target, ports)
+    return cyber_range_manager().probe(
+        target,
+        ports,
+        execution_token=execution_token,
+    )

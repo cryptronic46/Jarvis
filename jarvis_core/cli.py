@@ -68,6 +68,7 @@ from jarvis_core.services.cybersecurity import (
 )
 from jarvis_core.services.cyber_knowledge import (
     CyberKnowledgeService,
+    configure_cyber_knowledge_egress,
     cyber_vault,
 )
 from jarvis_core.services.book_library import (
@@ -126,6 +127,7 @@ from jarvis_core.services.autonomy import (
 from jarvis_core.services.external_learning import (
     configure_external_learning_runtime,
 )
+from jarvis_core.tools.environment_tools import configure_environment_egress
 from jarvis_core.tools.security_audit import (
     format_security_overview,
     format_security_full,
@@ -966,6 +968,219 @@ def main() -> None:
         autonomy
     )
 
+    configure_cyber_knowledge_egress(
+        autonomy
+    )
+
+    configure_environment_egress(
+        autonomy
+    )
+
+    kali_bridge.set_authority_guardian(
+        autonomy
+    )
+
+    def open_owner_kali_session(
+        *,
+        target: str = "",
+        profiles,
+        ports=None,
+        scope: str,
+        source_text: str,
+    ) -> dict:
+        scoped = (
+            kali_bridge
+            .build_security_session_scope(
+                target=target,
+                profiles=list(profiles),
+                ports=ports,
+                scope=scope,
+            )
+        )
+
+        if not scoped.get("ok"):
+            return scoped
+
+        payload = dict(
+            scoped.get("payload")
+            or {}
+        )
+
+        try:
+            authorization = (
+                autonomy
+                .record_direct_authorization(
+                    capability=
+                        "kali_security_session",
+                    payload=payload,
+                    description=(
+                        "abrir uma sess?o Kali limitada "
+                        f"ao scope {payload.get('scope')}, "
+                        f"alvo {payload.get('target')} "
+                        "e perfis "
+                        f"{payload.get('profiles')}"
+                    ),
+                    source_text=source_text,
+                )
+            )
+        except Exception as exc:
+            return {
+                "ok": False,
+                "error":
+                    "KALI_DIRECT_AUTHORITY_ERROR",
+                "reason":
+                    f"{type(exc).__name__}: {exc}",
+            }
+
+        if (
+            not isinstance(
+                authorization,
+                dict,
+            )
+            or not authorization.get("ok")
+            or not authorization.get(
+                "authorized",
+                False,
+            )
+        ):
+            return {
+                "ok": False,
+                "error":
+                    "KALI_DIRECT_AUTHORIZATION_FAILED",
+                "reason_code": str(
+                    authorization.get("error")
+                    if isinstance(
+                        authorization,
+                        dict,
+                    )
+                    else ""
+                )
+                or
+                "KALI_DIRECT_AUTHORIZATION_FAILED",
+            }
+
+        execution_token = str(
+            authorization.get(
+                "execution_token"
+            )
+            or ""
+        )
+
+        if not execution_token:
+            return {
+                "ok": False,
+                "error":
+                    "KALI_EXECUTION_CREDENTIAL_MISSING",
+            }
+
+        return kali_bridge.open_security_session(
+            target=target,
+            profiles=list(profiles),
+            ports=ports,
+            scope=scope,
+            execution_token=execution_token,
+        )
+
+    cyber_range.set_authority_guardian(
+        autonomy
+    )
+
+    def owner_authorized_cyber_sync(
+        *,
+        full: bool = False,
+        source_id: str = "",
+        source_text: str,
+    ) -> dict:
+        source_id = str(
+            source_id
+            or ""
+        ).strip()
+
+        payload = {
+            "operation":
+                "cyber_knowledge_sync",
+            "full": bool(full),
+            "source_id": source_id,
+        }
+
+        try:
+            authorization = (
+                autonomy
+                .record_direct_authorization(
+                    capability="external_learning",
+                    payload=payload,
+                    description=(
+                        "sincronizar fontes oficiais "
+                        "da Cyber Knowledge Vault"
+                    ),
+                    source_text=source_text,
+                )
+            )
+        except Exception as exc:
+            return {
+                "ok": False,
+                "error":
+                    "OWNER_AUTHORITY_ERROR",
+                "reason_code":
+                    "OWNER_AUTHORITY_ERROR",
+                "message": (
+                    f"{type(exc).__name__}: "
+                    f"{exc}"
+                ),
+            }
+
+        if (
+            not isinstance(
+                authorization,
+                dict,
+            )
+            or not authorization.get(
+                "ok"
+            )
+            or not authorization.get(
+                "authorized",
+                False,
+            )
+        ):
+            return {
+                "ok": False,
+                "error":
+                    "OWNER_AUTHORIZATION_FAILED",
+                "reason_code": str(
+                    authorization.get(
+                        "error"
+                    )
+                    if isinstance(
+                        authorization,
+                        dict,
+                    )
+                    else ""
+                )
+                or "OWNER_AUTHORIZATION_FAILED",
+            }
+
+        execution_token = str(
+            authorization.get(
+                "execution_token"
+            )
+            or ""
+        )
+
+        if not execution_token:
+            return {
+                "ok": False,
+                "error":
+                    "OWNER_EXECUTION_CREDENTIAL_MISSING",
+                "reason_code":
+                    "OWNER_EXECUTION_CREDENTIAL_MISSING",
+            }
+
+        return cyber_knowledge.sync(
+            full=bool(full),
+            source_id=source_id,
+            execution_token=execution_token,
+        )
+
     brain = JarvisBrain(
         settings,
         events,
@@ -974,7 +1189,12 @@ def main() -> None:
     )
     # External AI is not part of the live runtime. HybridBrain orchestrates
     # only local JARVIS/Qwen reasoning and bounded public-web research.
-    research_engine = LocalResearchEngine(settings, events, brain)
+    research_engine = LocalResearchEngine(
+        settings,
+        events,
+        brain,
+        egress_guardian=autonomy,
+    )
     configure_external_learning_runtime(
         research_engine,
         events,
@@ -3533,19 +3753,146 @@ def main() -> None:
                 print("JARVIS >", json.dumps(result, ensure_ascii=False, indent=2))
                 continue
             if lower.startswith("/cyber lab probe "):
-                raw = text[len("/cyber lab probe "):].strip()
-                parts = raw.split(maxsplit=1)
-                target = parts[0] if parts else ""
+                raw = text[
+                    len("/cyber lab probe "):
+                ].strip()
+
+                parts = raw.split(
+                    maxsplit=1
+                )
+
+                target = (
+                    parts[0]
+                    if parts
+                    else ""
+                )
+
                 ports = None
+
                 if len(parts) > 1:
                     ports = []
-                    for item in parts[1].replace(" ", "").split(","):
+
+                    for item in (
+                        parts[1]
+                        .replace(" ", "")
+                        .split(",")
+                    ):
                         try:
-                            ports.append(int(item))
+                            ports.append(
+                                int(item)
+                            )
                         except ValueError:
                             pass
-                result = cyber_range.probe(target, ports)
-                print(f"JARVIS >\n{format_lab_probe(result)}")
+
+                scoped = (
+                    cyber_range
+                    .build_probe_authorization_scope(
+                        target,
+                        ports,
+                    )
+                )
+
+                if not scoped.get("ok"):
+                    result = scoped
+                else:
+                    payload = dict(
+                        scoped.get("payload")
+                        or {}
+                    )
+
+                    try:
+                        authorization = (
+                            autonomy
+                            .record_direct_authorization(
+                                capability=
+                                    "active_network_probe",
+                                payload=payload,
+                                description=(
+                                    "executar sondagem TCP "
+                                    "controlada no LAB "
+                                    f"{payload.get('target')} "
+                                    "nas portas "
+                                    f"{payload.get('ports')}"
+                                ),
+                                source_text=text,
+                            )
+                        )
+                    except Exception as exc:
+                        authorization = {
+                            "ok": False,
+                            "authorized": False,
+                            "error":
+                                "OWNER_NETWORK_AUTHORITY_ERROR",
+                            "message":
+                                f"{type(exc).__name__}: {exc}",
+                        }
+
+                    if (
+                        not isinstance(
+                            authorization,
+                            dict,
+                        )
+                        or not authorization.get(
+                            "ok"
+                        )
+                        or not authorization.get(
+                            "authorized",
+                            False,
+                        )
+                    ):
+                        result = {
+                            "ok": False,
+                            "error":
+                                "OWNER_AUTHORIZED_NETWORK_SCOPE_FAILED",
+                            "reason_code": str(
+                                authorization.get(
+                                    "error"
+                                )
+                                if isinstance(
+                                    authorization,
+                                    dict,
+                                )
+                                else ""
+                            )
+                            or
+                            "OWNER_AUTHORIZED_NETWORK_SCOPE_FAILED",
+                            "decision":
+                                scoped.get(
+                                    "decision"
+                                ),
+                        }
+                    else:
+                        execution_token = str(
+                            authorization.get(
+                                "execution_token"
+                            )
+                            or ""
+                        )
+
+                        if not execution_token:
+                            result = {
+                                "ok": False,
+                                "error":
+                                    "OWNER_NETWORK_EXECUTION_CREDENTIAL_MISSING",
+                                "decision":
+                                    scoped.get(
+                                        "decision"
+                                    ),
+                            }
+                        else:
+                            result = (
+                                cyber_range.probe(
+                                    target,
+                                    ports,
+                                    execution_token=
+                                        execution_token,
+                                )
+                            )
+
+                print(
+                    f"JARVIS >\n"
+                    f"{format_lab_probe(result)}"
+                )
                 continue
 
             if lower.startswith("/cyber kali vm configure "):
@@ -3572,12 +3919,84 @@ def main() -> None:
                 print(f"JARVIS >\n{format_kali_bridge_status(kali_bridge.status())}")
                 continue
             if lower == "/cyber kali doctor":
-                result = kali_bridge.doctor()
-                print("JARVIS >", json.dumps(result, ensure_ascii=False, indent=2))
+                opened = open_owner_kali_session(
+                    profiles=[
+                        "bridge_doctor",
+                    ],
+                    ports=[],
+                    scope=
+                        "KALI_BRIDGE_DIAGNOSTIC",
+                    source_text=text,
+                )
+
+                if not opened.get("ok"):
+                    result = opened
+                else:
+                    kali_session = str(
+                        opened.get(
+                            "session_token"
+                        )
+                        or ""
+                    )
+
+                    try:
+                        result = (
+                            kali_bridge.doctor(
+                                session_token=
+                                    kali_session,
+                            )
+                        )
+                    finally:
+                        kali_bridge.close_security_session(
+                            kali_session
+                        )
+
+                print(
+                    "JARVIS >",
+                    json.dumps(
+                        result,
+                        ensure_ascii=False,
+                        indent=2,
+                    ),
+                )
                 continue
             if lower == "/cyber kali inventory":
-                result = kali_bridge.inventory()
-                print(f"JARVIS >\n{format_kali_inventory(result)}")
+                opened = open_owner_kali_session(
+                    profiles=[
+                        "bridge_inventory",
+                    ],
+                    ports=[],
+                    scope=
+                        "KALI_BRIDGE_DIAGNOSTIC",
+                    source_text=text,
+                )
+
+                if not opened.get("ok"):
+                    result = opened
+                else:
+                    kali_session = str(
+                        opened.get(
+                            "session_token"
+                        )
+                        or ""
+                    )
+
+                    try:
+                        result = (
+                            kali_bridge.inventory(
+                                session_token=
+                                    kali_session,
+                            )
+                        )
+                    finally:
+                        kali_bridge.close_security_session(
+                            kali_session
+                        )
+
+                print(
+                    f"JARVIS >\n"
+                    f"{format_kali_inventory(result)}"
+                )
                 continue
             if lower == "/cyber kali clear":
                 result = kali_bridge.clear()
@@ -3616,8 +4035,51 @@ def main() -> None:
                             ports.append(int(item))
                         except ValueError:
                             pass
-                result = kali_bridge.nmap_service_scan(target, ports)
-                print(f"JARVIS >\n{format_kali_scan(result)}")
+                effective_ports = (
+                    kali_bridge._normalize_ports(
+                        ports
+                    )
+                )
+
+                opened = open_owner_kali_session(
+                    target=target,
+                    profiles=[
+                        "nmap_services",
+                    ],
+                    ports=effective_ports,
+                    scope="LAB",
+                    source_text=text,
+                )
+
+                if not opened.get("ok"):
+                    result = opened
+                else:
+                    kali_session = str(
+                        opened.get(
+                            "session_token"
+                        )
+                        or ""
+                    )
+
+                    try:
+                        result = (
+                            kali_bridge
+                            .nmap_service_scan(
+                                target,
+                                effective_ports,
+                                session_token=
+                                    kali_session,
+                            )
+                        )
+                    finally:
+                        kali_bridge.close_security_session(
+                            kali_session
+                        )
+
+                print(
+                    f"JARVIS >\n"
+                    f"{format_kali_scan(result)}"
+                )
                 continue
             if lower.startswith("/cyber kali whatweb "):
                 raw = text[len("/cyber kali whatweb "):].strip()
@@ -3632,8 +4094,46 @@ def main() -> None:
                     print("JARVIS > Porta inválida.")
                     continue
                 https = len(parts) >= 3 and parts[2].lower() in {"https", "ssl", "tls", "true", "1"}
-                result = kali_bridge.whatweb_fingerprint(target, port, https)
-                print(f"JARVIS >\n{format_kali_scan(result)}")
+                opened = open_owner_kali_session(
+                    target=target,
+                    profiles=[
+                        "whatweb_fingerprint",
+                    ],
+                    ports=[port],
+                    scope="LAB",
+                    source_text=text,
+                )
+
+                if not opened.get("ok"):
+                    result = opened
+                else:
+                    kali_session = str(
+                        opened.get(
+                            "session_token"
+                        )
+                        or ""
+                    )
+
+                    try:
+                        result = (
+                            kali_bridge
+                            .whatweb_fingerprint(
+                                target,
+                                port,
+                                https,
+                                session_token=
+                                    kali_session,
+                            )
+                        )
+                    finally:
+                        kali_bridge.close_security_session(
+                            kali_session
+                        )
+
+                print(
+                    f"JARVIS >\n"
+                    f"{format_kali_scan(result)}"
+                )
                 continue
             if lower.startswith("/cyber kali nikto "):
                 raw = text[len("/cyber kali nikto "):].strip()
@@ -3648,8 +4148,46 @@ def main() -> None:
                     print("JARVIS > Porta inválida.")
                     continue
                 https = len(parts) >= 3 and parts[2].lower() in {"https", "ssl", "tls", "true", "1"}
-                result = kali_bridge.nikto_safe_web_scan(target, port, https)
-                print(f"JARVIS >\n{format_kali_scan(result)}")
+                opened = open_owner_kali_session(
+                    target=target,
+                    profiles=[
+                        "nikto_safe_web",
+                    ],
+                    ports=[port],
+                    scope="LAB",
+                    source_text=text,
+                )
+
+                if not opened.get("ok"):
+                    result = opened
+                else:
+                    kali_session = str(
+                        opened.get(
+                            "session_token"
+                        )
+                        or ""
+                    )
+
+                    try:
+                        result = (
+                            kali_bridge
+                            .nikto_safe_web_scan(
+                                target,
+                                port,
+                                https,
+                                session_token=
+                                    kali_session,
+                            )
+                        )
+                    finally:
+                        kali_bridge.close_security_session(
+                            kali_session
+                        )
+
+                print(
+                    f"JARVIS >\n"
+                    f"{format_kali_scan(result)}"
+                )
                 continue
 
             if lower == "/cyber inspect network":
@@ -3743,7 +4281,10 @@ def main() -> None:
                 )
                 continue
             if lower == "/cyber knowledge sync":
-                result = cyber_knowledge.sync(full=False)
+                result = owner_authorized_cyber_sync(
+                    full=False,
+                    source_text=text,
+                )
                 print(
                     f"JARVIS >\n"
                     f"{format_cyber_knowledge_sync(result)}"
@@ -3754,7 +4295,10 @@ def main() -> None:
                     "JARVIS > A sincronizar também o MITRE ATT&CK completo. "
                     "Esta fonte é bastante maior que as restantes."
                 )
-                result = cyber_knowledge.sync(full=True)
+                result = owner_authorized_cyber_sync(
+                    full=True,
+                    source_text=text,
+                )
                 print(
                     f"JARVIS >\n"
                     f"{format_cyber_knowledge_sync(result)}"
@@ -3764,7 +4308,10 @@ def main() -> None:
                 source_id = text[
                     len("/cyber knowledge sync source "):
                 ].strip()
-                result = cyber_knowledge.sync(source_id=source_id)
+                result = owner_authorized_cyber_sync(
+                    source_id=source_id,
+                    source_text=text,
+                )
                 print(
                     f"JARVIS >\n"
                     f"{format_cyber_knowledge_sync(result)}"

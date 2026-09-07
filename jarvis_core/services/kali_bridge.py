@@ -10,6 +10,8 @@ import json
 import re
 import shutil
 import subprocess
+import secrets
+import time
 
 from jarvis_core.core.subprocess_text import decode_subprocess_stream
 import xml.etree.ElementTree as ET
@@ -19,6 +21,12 @@ from jarvis_core.services.cyber_range import cyber_range_manager
 
 _USERNAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]{0,31}$")
 MAX_SCAN_PORTS = 64
+KALI_SECURITY_SESSION = "KALI_SECURITY_SESSION"
+KALI_SESSION_TTL_SECONDS = 300
+KALI_DIAGNOSTIC_PROFILES = {
+    "bridge_doctor",
+    "bridge_inventory",
+}
 DEFAULT_SERVICE_PORTS = [21, 22, 25, 53, 80, 110, 139, 143, 443, 445, 3306, 3389, 5432, 8080, 8443]
 WEB_PORTS = {80, 443, 8000, 8008, 8080, 8081, 8443, 8888, 9000, 9443}
 
@@ -92,6 +100,14 @@ class KaliBridgeManager:
         self.activity_log_path = Path(activity_log_path)
         self._lock = RLock()
         self._state = self._load()
+        self.authority_guardian = None
+        self._security_sessions: dict[str, dict[str, Any]] = {}
+
+    def set_authority_guardian(
+        self,
+        guardian,
+    ) -> None:
+        self.authority_guardian = guardian
 
     @staticmethod
     def _now() -> str:
@@ -395,6 +411,490 @@ class KaliBridgeManager:
             }
         return {"ok": True, "target": ip, "decision": decision}
 
+    def build_security_session_scope(
+        self,
+        *,
+        target: str = "",
+        profiles: list[str] | tuple[str, ...],
+        ports: list[int] | None = None,
+        scope: str = "LAB",
+    ) -> dict[str, Any]:
+        wanted_scope = str(
+            scope
+            or ""
+        ).strip().upper()
+
+        allowed_profile_names = (
+            set(PROFILES)
+            | set(KALI_DIAGNOSTIC_PROFILES)
+        )
+
+        clean_profiles = sorted({
+            str(profile or "").strip()
+            for profile in profiles
+            if str(profile or "").strip()
+        })
+
+        if (
+            not clean_profiles
+            or any(
+                profile not in allowed_profile_names
+                for profile in clean_profiles
+            )
+        ):
+            return {
+                "ok": False,
+                "error":
+                    "INVALID_KALI_SESSION_PROFILE",
+            }
+
+        clean_ports: list[int] = []
+
+        for raw in (
+            ports
+            or []
+        ):
+            try:
+                port = int(raw)
+            except (TypeError, ValueError):
+                continue
+
+            if (
+                1 <= port <= 65535
+                and port not in clean_ports
+            ):
+                clean_ports.append(port)
+
+            if len(clean_ports) >= MAX_SCAN_PORTS:
+                break
+
+        bridge = self._bridge_decision()
+
+        if not bridge.get("ok"):
+            return bridge
+
+        bridge_state = dict(
+            bridge.get("state")
+            or {}
+        )
+
+        if wanted_scope == "LAB":
+            target_decision = self._target_decision(
+                target
+            )
+
+            if not target_decision.get("ok"):
+                return target_decision
+
+            target_ip = str(
+                target_decision.get("target")
+                or ""
+            )
+
+        elif wanted_scope == "OWNER_MACHINE_DEFENSIVE":
+            target_decision = (
+                self._owner_defensive_target_decision(
+                    target
+                )
+            )
+
+            if not target_decision.get("ok"):
+                return target_decision
+
+            target_ip = str(
+                target_decision.get("target")
+                or ""
+            )
+
+        elif wanted_scope == "KALI_BRIDGE_DIAGNOSTIC":
+            if not all(
+                profile in KALI_DIAGNOSTIC_PROFILES
+                for profile in clean_profiles
+            ):
+                return {
+                    "ok": False,
+                    "error":
+                        "INVALID_KALI_DIAGNOSTIC_PROFILE",
+                }
+
+            target_ip = str(
+                bridge_state.get("host")
+                or ""
+            )
+
+            clean_ports = []
+
+        else:
+            return {
+                "ok": False,
+                "error":
+                    "INVALID_KALI_SESSION_SCOPE",
+            }
+
+        payload = {
+            "authority":
+                KALI_SECURITY_SESSION,
+            "scope":
+                wanted_scope,
+            "target":
+                target_ip,
+            "profiles":
+                clean_profiles,
+            "ports":
+                clean_ports,
+            "bridge_host":
+                str(
+                    bridge_state.get("host")
+                    or ""
+                ),
+            "bridge_port":
+                int(
+                    bridge_state.get("port")
+                    or 22
+                ),
+            "transport":
+                "ssh",
+        }
+
+        return {
+            "ok": True,
+            "payload": payload,
+            "target": target_ip,
+            "profiles": clean_profiles,
+            "ports": clean_ports,
+            "bridge_state": bridge_state,
+        }
+
+    def open_security_session(
+        self,
+        *,
+        target: str = "",
+        profiles: list[str] | tuple[str, ...],
+        ports: list[int] | None = None,
+        scope: str = "LAB",
+        execution_token: str = "",
+    ) -> dict[str, Any]:
+        scoped = self.build_security_session_scope(
+            target=target,
+            profiles=profiles,
+            ports=ports,
+            scope=scope,
+        )
+
+        if not scoped.get("ok"):
+            return scoped
+
+        if self.authority_guardian is None:
+            return {
+                "ok": False,
+                "error":
+                    "KALI_AUTHORITY_GUARDIAN_UNAVAILABLE",
+            }
+
+        token = str(
+            execution_token
+            or ""
+        ).strip()
+
+        if not token:
+            return {
+                "ok": False,
+                "error":
+                    "KALI_SECURITY_SESSION_AUTHORIZATION_REQUIRED",
+                "authorization_scope":
+                    scoped.get("payload"),
+            }
+
+        payload = dict(
+            scoped.get("payload")
+            or {}
+        )
+
+        try:
+            consumed = (
+                self.authority_guardian
+                .consume_direct_authorization(
+                    execution_token=token,
+                    capability=
+                        "kali_security_session",
+                    payload=payload,
+                )
+            )
+        except Exception as exc:
+            return {
+                "ok": False,
+                "error":
+                    "KALI_SECURITY_SESSION_AUTHORITY_ERROR",
+                "reason":
+                    f"{type(exc).__name__}: {exc}",
+            }
+
+        if (
+            not isinstance(
+                consumed,
+                dict,
+            )
+            or not consumed.get("ok")
+            or not consumed.get(
+                "allowed",
+                False,
+            )
+        ):
+            return {
+                "ok": False,
+                "error":
+                    "KALI_SECURITY_SESSION_AUTHORIZATION_INVALID",
+                "reason_code": str(
+                    consumed.get("error")
+                    if isinstance(
+                        consumed,
+                        dict,
+                    )
+                    else ""
+                )
+                or
+                "KALI_SECURITY_SESSION_AUTHORIZATION_INVALID",
+            }
+
+        session_token = secrets.token_urlsafe(
+            24
+        )
+
+        expires_at = (
+            time.monotonic()
+            + KALI_SESSION_TTL_SECONDS
+        )
+
+        row = {
+            "payload": payload,
+            "expires_at":
+                expires_at,
+        }
+
+        with self._lock:
+            self._security_sessions[
+                session_token
+            ] = row
+
+        return {
+            "ok": True,
+            "allowed": True,
+            "session_token":
+                session_token,
+            "expires_in_seconds":
+                KALI_SESSION_TTL_SECONDS,
+            "authorization_scope":
+                payload,
+        }
+
+    def close_security_session(
+        self,
+        session_token: str,
+    ) -> dict[str, Any]:
+        token = str(
+            session_token
+            or ""
+        ).strip()
+
+        with self._lock:
+            existed = (
+                self._security_sessions.pop(
+                    token,
+                    None,
+                )
+                is not None
+            )
+
+        return {
+            "ok": True,
+            "closed": existed,
+        }
+
+    def _require_security_session(
+        self,
+        *,
+        session_token: str,
+        target: str,
+        profile: str,
+        ports: list[int] | None = None,
+        scope: str = "LAB",
+    ) -> dict[str, Any]:
+        token = str(
+            session_token
+            or ""
+        ).strip()
+
+        if not token:
+            return {
+                "ok": False,
+                "error":
+                    "KALI_SECURITY_SESSION_REQUIRED",
+            }
+
+        with self._lock:
+            row = self._security_sessions.get(
+                token
+            )
+
+            if row is None:
+                return {
+                    "ok": False,
+                    "error":
+                        "KALI_SECURITY_SESSION_UNKNOWN",
+                }
+
+            if (
+                float(
+                    row.get("expires_at")
+                    or 0.0
+                )
+                <= time.monotonic()
+            ):
+                self._security_sessions.pop(
+                    token,
+                    None,
+                )
+
+                return {
+                    "ok": False,
+                    "error":
+                        "KALI_SECURITY_SESSION_EXPIRED",
+                }
+
+            payload = dict(
+                row.get("payload")
+                or {}
+            )
+
+        bridge = self._bridge_decision()
+
+        if not bridge.get("ok"):
+            return bridge
+
+        bridge_state = dict(
+            bridge.get("state")
+            or {}
+        )
+
+        if (
+            str(
+                payload.get("bridge_host")
+                or ""
+            )
+            != str(
+                bridge_state.get("host")
+                or ""
+            )
+            or int(
+                payload.get("bridge_port")
+                or 0
+            )
+            != int(
+                bridge_state.get("port")
+                or 22
+            )
+        ):
+            return {
+                "ok": False,
+                "error":
+                    "KALI_SECURITY_SESSION_BRIDGE_CHANGED",
+            }
+
+        if (
+            str(
+                payload.get("scope")
+                or ""
+            )
+            != str(
+                scope
+                or ""
+            ).strip().upper()
+        ):
+            return {
+                "ok": False,
+                "error":
+                    "KALI_SECURITY_SESSION_SCOPE_MISMATCH",
+            }
+
+        if (
+            str(
+                payload.get("target")
+                or ""
+            )
+            != str(
+                target
+                or ""
+            )
+        ):
+            return {
+                "ok": False,
+                "error":
+                    "KALI_SECURITY_SESSION_TARGET_MISMATCH",
+            }
+
+        wanted_profile = str(
+            profile
+            or ""
+        ).strip()
+
+        if wanted_profile not in set(
+            payload.get("profiles")
+            or []
+        ):
+            return {
+                "ok": False,
+                "error":
+                    "KALI_SECURITY_SESSION_PROFILE_MISMATCH",
+            }
+
+        allowed_ports = {
+            int(port)
+            for port in (
+                payload.get("ports")
+                or []
+            )
+        }
+
+        requested_ports: set[int] = set()
+
+        for raw in (
+            ports
+            or []
+        ):
+            try:
+                port = int(raw)
+            except (TypeError, ValueError):
+                return {
+                    "ok": False,
+                    "error":
+                        "KALI_SECURITY_SESSION_PORT_MISMATCH",
+                }
+
+            if not 1 <= port <= 65535:
+                return {
+                    "ok": False,
+                    "error":
+                        "KALI_SECURITY_SESSION_PORT_MISMATCH",
+                }
+
+            requested_ports.add(port)
+
+        if not requested_ports.issubset(
+            allowed_ports
+        ):
+            return {
+                "ok": False,
+                "error":
+                    "KALI_SECURITY_SESSION_PORT_MISMATCH",
+            }
+
+        return {
+            "ok": True,
+            "allowed": True,
+            "authorization_scope":
+                payload,
+        }
+
     def _ssh_path(self) -> str | None:
         raw = self.ssh_executable
         if Path(raw).is_file():
@@ -427,28 +927,76 @@ class KaliBridgeManager:
         self,
         remote_args: list[str],
         *,
+        session_token: str,
+        target: str,
+        profile: str,
+        ports: list[int] | None = None,
+        scope: str,
         timeout_seconds: float | None = None,
     ) -> dict[str, Any]:
+        session = self._require_security_session(
+            session_token=session_token,
+            target=target,
+            profile=profile,
+            ports=ports,
+            scope=scope,
+        )
+
+        if not session.get("ok"):
+            return session
+
         bridge = self._bridge_decision()
+
         if not bridge.get("ok"):
             return bridge
+
         state = bridge["state"]
+
         try:
-            argv = self._ssh_argv(state, list(remote_args))
+            argv = self._ssh_argv(
+                state,
+                list(remote_args),
+            )
         except RuntimeError as exc:
-            return {"ok": False, "error": str(exc)}
+            return {
+                "ok": False,
+                "error": str(exc),
+            }
 
         timeout = max(
             5.0,
-            min(float(timeout_seconds or self.command_timeout_seconds), 300.0),
+            min(
+                float(
+                    timeout_seconds
+                    or self.command_timeout_seconds
+                ),
+                300.0,
+            ),
         )
-        profile_name = Path(str(remote_args[0] if remote_args else "remote")).name
+
+        profile_name = str(
+            profile
+            or Path(
+                str(
+                    remote_args[0]
+                    if remote_args
+                    else "remote"
+                )
+            ).name
+        )
+
         self._activity(
             "remote_action_started",
             profile=profile_name,
             host=state.get("host"),
-            arguments=[str(x) for x in remote_args[1:12]],
+            target=target,
+            scope=scope,
+            arguments=[
+                str(x)
+                for x in remote_args[1:12]
+            ],
         )
+
         try:
             completed = subprocess.run(
                 argv,
@@ -459,30 +1007,52 @@ class KaliBridgeManager:
         except subprocess.TimeoutExpired:
             return {
                 "ok": False,
-                "error": "KALI_COMMAND_TIMEOUT",
-                "timeout_seconds": timeout,
+                "error":
+                    "KALI_COMMAND_TIMEOUT",
+                "timeout_seconds":
+                    timeout,
             }
         except OSError as exc:
             return {
                 "ok": False,
-                "error": "KALI_SSH_EXECUTION_FAILED",
-                "message": str(exc),
+                "error":
+                    "KALI_SSH_EXECUTION_FAILED",
+                "message":
+                    str(exc),
             }
 
-        stdout = decode_subprocess_stream(completed.stdout)[: self.output_max_chars]
-        stderr = decode_subprocess_stream(completed.stderr)[: min(self.output_max_chars, 10000)]
+        stdout = decode_subprocess_stream(
+            completed.stdout
+        )[: self.output_max_chars]
+
+        stderr = decode_subprocess_stream(
+            completed.stderr
+        )[: min(
+            self.output_max_chars,
+            10000,
+        )]
+
         self._activity(
             "remote_action_finished",
             profile=profile_name,
             host=state.get("host"),
-            returncode=int(completed.returncode),
-            ok=completed.returncode == 0,
+            target=target,
+            scope=scope,
+            returncode=
+                int(completed.returncode),
+            ok=
+                completed.returncode == 0,
         )
+
         return {
-            "ok": completed.returncode == 0,
-            "returncode": int(completed.returncode),
-            "stdout": stdout,
-            "stderr": stderr,
+            "ok":
+                completed.returncode == 0,
+            "returncode":
+                int(completed.returncode),
+            "stdout":
+                stdout,
+            "stderr":
+                stderr,
         }
 
     def status(self) -> dict[str, Any]:
@@ -511,13 +1081,31 @@ class KaliBridgeManager:
             },
         }
 
-    def doctor(self) -> dict[str, Any]:
+    def doctor(
+        self,
+        *,
+        session_token: str = "",
+    ) -> dict[str, Any]:
         bridge = self._bridge_decision()
         if not bridge.get("ok"):
             return bridge
         if not self._ssh_path():
             return {"ok": False, "error": "OPENSSH_CLIENT_NOT_FOUND"}
-        result = self._run_remote(["/bin/echo", "JARVIS_KALI_BRIDGE_OK"], timeout_seconds=15)
+        result = self._run_remote(
+            [
+                "/bin/echo",
+                "JARVIS_KALI_BRIDGE_OK",
+            ],
+            session_token=session_token,
+            target=str(
+                bridge["state"].get("host")
+                or ""
+            ),
+            profile="bridge_doctor",
+            ports=[],
+            scope="KALI_BRIDGE_DIAGNOSTIC",
+            timeout_seconds=15,
+        )
         if not result.get("ok"):
             result["error"] = result.get("error") or "KALI_SSH_CONNECTION_FAILED"
             return result
@@ -530,7 +1118,11 @@ class KaliBridgeManager:
             "message": marker,
         }
 
-    def inventory(self) -> dict[str, Any]:
+    def inventory(
+        self,
+        *,
+        session_token: str = "",
+    ) -> dict[str, Any]:
         bridge = self._bridge_decision()
         if not bridge.get("ok"):
             return bridge
@@ -541,7 +1133,18 @@ class KaliBridgeManager:
         }
         items: dict[str, Any] = {}
         for name, args in checks.items():
-            result = self._run_remote(args, timeout_seconds=20)
+            result = self._run_remote(
+                args,
+                session_token=session_token,
+                target=str(
+                    bridge["state"].get("host")
+                    or ""
+                ),
+                profile="bridge_inventory",
+                ports=[],
+                scope="KALI_BRIDGE_DIAGNOSTIC",
+                timeout_seconds=20,
+            )
             combined = (str(result.get("stdout") or "") + "\n" + str(result.get("stderr") or "")).strip()
             first_line = combined.splitlines()[0][:300] if combined else ""
             items[name] = {
@@ -604,6 +1207,8 @@ class KaliBridgeManager:
         self,
         target: str,
         ports: list[int] | None = None,
+        *,
+        session_token: str = "",
     ) -> dict[str, Any]:
         auth = self._target_decision(target)
         if not auth.get("ok"):
@@ -625,7 +1230,15 @@ class KaliBridgeManager:
             "-p", ",".join(str(p) for p in port_list),
             target_ip,
         ]
-        result = self._run_remote(remote, timeout_seconds=110)
+        result = self._run_remote(
+            remote,
+            session_token=session_token,
+            target=target_ip,
+            profile="nmap_services",
+            ports=port_list,
+            scope="LAB",
+            timeout_seconds=110,
+        )
         if not result.get("ok"):
             return {
                 "ok": False,
@@ -655,6 +1268,8 @@ class KaliBridgeManager:
         self,
         target: str,
         ports: list[int] | None = None,
+        *,
+        session_token: str = "",
     ) -> dict[str, Any]:
         auth = self._owner_defensive_target_decision(target)
         if not auth.get("ok"):
@@ -672,7 +1287,16 @@ class KaliBridgeManager:
             "--max-retries", "1", "--host-timeout", "45s",
             "-oX", "-", "-p", ",".join(str(p) for p in port_list), target_ip,
         ]
-        result = self._run_remote(remote, timeout_seconds=65)
+        result = self._run_remote(
+            remote,
+            session_token=session_token,
+            target=target_ip,
+            profile=
+                "owner_machine_defensive_services",
+            ports=port_list,
+            scope="OWNER_MACHINE_DEFENSIVE",
+            timeout_seconds=65,
+        )
         if not result.get("ok"):
             return {
                 "ok": False,
@@ -710,6 +1334,8 @@ class KaliBridgeManager:
         target: str,
         port: int = 80,
         https: bool = False,
+        *,
+        session_token: str = "",
     ) -> dict[str, Any]:
         auth = self._target_decision(target)
         if not auth.get("ok"):
@@ -730,7 +1356,15 @@ class KaliBridgeManager:
             "--no-cookies",
             url,
         ]
-        result = self._run_remote(remote, timeout_seconds=45)
+        result = self._run_remote(
+            remote,
+            session_token=session_token,
+            target=target_ip,
+            profile="whatweb_fingerprint",
+            ports=[web_port],
+            scope="LAB",
+            timeout_seconds=45,
+        )
         if not result.get("ok"):
             return {
                 "ok": False,
@@ -757,6 +1391,8 @@ class KaliBridgeManager:
         target: str,
         port: int = 80,
         https: bool = False,
+        *,
+        session_token: str = "",
     ) -> dict[str, Any]:
         auth = self._target_decision(target)
         if not auth.get("ok"):
@@ -783,7 +1419,15 @@ class KaliBridgeManager:
         ]
         if bool(https):
             remote.append("-ssl")
-        result = self._run_remote(remote, timeout_seconds=110)
+        result = self._run_remote(
+            remote,
+            session_token=session_token,
+            target=target_ip,
+            profile="nikto_safe_web",
+            ports=[web_port],
+            scope="LAB",
+            timeout_seconds=110,
+        )
         # Nikto may use non-zero status for findings/runtime conditions; preserve
         # its output as evidence while distinguishing transport failure.
         if result.get("error"):
@@ -886,37 +1530,406 @@ def get_kali_bridge_status() -> dict[str, Any]:
     return kali_bridge_manager().status()
 
 
-def get_kali_tool_inventory() -> dict[str, Any]:
-    return kali_bridge_manager().inventory()
+def _request_kali_tool_session(
+    *,
+    target: str = "",
+    profiles: list[str],
+    ports: list[int] | None,
+    scope: str,
+    action: str,
+    description: str,
+) -> dict[str, Any]:
+    manager = kali_bridge_manager()
+    guardian = getattr(
+        manager,
+        "authority_guardian",
+        None,
+    )
+
+    if guardian is None:
+        return {
+            "ok": False,
+            "error":
+                "KALI_AUTHORITY_GUARDIAN_REQUIRED",
+        }
+
+    scoped = manager.build_security_session_scope(
+        target=target,
+        profiles=list(profiles),
+        ports=ports,
+        scope=scope,
+    )
+
+    if not scoped.get("ok"):
+        return scoped
+
+    payload = dict(
+        scoped.get("payload")
+        or {}
+    )
+
+    try:
+        gate = guardian.request(
+            capability=
+                "kali_security_session",
+            payload=payload,
+            reason=
+                "kali_tool_execution",
+            description=description,
+            action=action,
+            source=
+                "kali_bridge_tool",
+        )
+    except Exception as exc:
+        return {
+            "ok": False,
+            "error":
+                "KALI_AUTHORITY_REQUEST_FAILED",
+            "reason":
+                f"{type(exc).__name__}: {exc}",
+        }
+
+    if not gate.get("allowed"):
+        return {
+            "ok": False,
+            "error":
+                "OWNER_AUTHORIZATION_REQUIRED",
+            "pending":
+                bool(
+                    gate.get("pending")
+                ),
+            "token":
+                gate.get("token"),
+            "message":
+                gate.get("message"),
+            "authorization_scope":
+                payload,
+        }
+
+    execution_token = str(
+        gate.get(
+            "execution_token"
+        )
+        or ""
+    )
+
+    if not execution_token:
+        return {
+            "ok": False,
+            "error":
+                "KALI_EXECUTION_CREDENTIAL_MISSING",
+        }
+
+    return manager.open_security_session(
+        target=target,
+        profiles=list(profiles),
+        ports=ports,
+        scope=scope,
+        execution_token=
+            execution_token,
+    )
+
+
+def get_kali_tool_inventory(
+    *,
+    session_token: str = "",
+) -> dict[str, Any]:
+    manager = kali_bridge_manager()
+
+    if session_token:
+        return manager.inventory(
+            session_token=session_token,
+        )
+
+    opened = _request_kali_tool_session(
+        profiles=[
+            "bridge_inventory",
+        ],
+        ports=[],
+        scope=
+            "KALI_BRIDGE_DIAGNOSTIC",
+        action=
+            "get_kali_tool_inventory",
+        description=(
+            "consultar o invent?rio de ferramentas "
+            "do Kali atrav?s do bridge SSH autorizado"
+        ),
+    )
+
+    if not opened.get("ok"):
+        return opened
+
+    token = str(
+        opened.get("session_token")
+        or ""
+    )
+
+    try:
+        return manager.inventory(
+            session_token=token,
+        )
+    finally:
+        manager.close_security_session(
+            token
+        )
 
 
 def run_kali_nmap_service_scan(
     target: str,
     ports: list[int] | None = None,
+    *,
+    session_token: str = "",
 ) -> dict[str, Any]:
-    return kali_bridge_manager().nmap_service_scan(target, ports)
+    manager = kali_bridge_manager()
+
+    if session_token:
+        return manager.nmap_service_scan(
+            target,
+            ports,
+            session_token=session_token,
+        )
+
+    try:
+        effective_ports = (
+            manager._normalize_ports(
+                ports
+            )
+        )
+    except Exception as exc:
+        return {
+            "ok": False,
+            "error": "INVALID_PORTS",
+            "reason":
+                f"{type(exc).__name__}: {exc}",
+        }
+
+    opened = _request_kali_tool_session(
+        target=target,
+        profiles=[
+            "nmap_services",
+        ],
+        ports=effective_ports,
+        scope="LAB",
+        action=
+            "run_kali_nmap_service_scan",
+        description=(
+            "executar descoberta Nmap limitada "
+            f"no alvo LAB {target}"
+        ),
+    )
+
+    if not opened.get("ok"):
+        return opened
+
+    token = str(
+        opened.get("session_token")
+        or ""
+    )
+
+    try:
+        return manager.nmap_service_scan(
+            target,
+            effective_ports,
+            session_token=token,
+        )
+    finally:
+        manager.close_security_session(
+            token
+        )
+
 
 def run_kali_owner_machine_defensive_audit(
     target: str,
     ports: list[int] | None = None,
+    *,
+    session_token: str = "",
 ) -> dict[str, Any]:
-    return kali_bridge_manager().owner_machine_defensive_service_audit(target, ports)
+    manager = kali_bridge_manager()
+
+    if session_token:
+        return (
+            manager
+            .owner_machine_defensive_service_audit(
+                target,
+                ports,
+                session_token=session_token,
+            )
+        )
+
+    try:
+        effective_ports = (
+            manager._normalize_ports(
+                ports
+            )
+        )
+    except Exception as exc:
+        return {
+            "ok": False,
+            "error": "INVALID_PORTS",
+            "reason":
+                f"{type(exc).__name__}: {exc}",
+        }
+
+    opened = _request_kali_tool_session(
+        target=target,
+        profiles=[
+            "owner_machine_defensive_services",
+        ],
+        ports=effective_ports,
+        scope=
+            "OWNER_MACHINE_DEFENSIVE",
+        action=
+            "run_kali_owner_machine_defensive_audit",
+        description=(
+            "executar invent?rio defensivo limitado "
+            "contra a pr?pria m?quina OWNER "
+            f"{target}"
+        ),
+    )
+
+    if not opened.get("ok"):
+        return opened
+
+    token = str(
+        opened.get("session_token")
+        or ""
+    )
+
+    try:
+        return (
+            manager
+            .owner_machine_defensive_service_audit(
+                target,
+                effective_ports,
+                session_token=token,
+            )
+        )
+    finally:
+        manager.close_security_session(
+            token
+        )
 
 
 def run_kali_whatweb_fingerprint(
     target: str,
     port: int = 80,
     https: bool = False,
+    *,
+    session_token: str = "",
 ) -> dict[str, Any]:
-    return kali_bridge_manager().whatweb_fingerprint(target, port, https)
+    manager = kali_bridge_manager()
+
+    if session_token:
+        return manager.whatweb_fingerprint(
+            target,
+            port,
+            https,
+            session_token=session_token,
+        )
+
+    try:
+        web_port = int(port)
+    except (TypeError, ValueError):
+        return {
+            "ok": False,
+            "error": "INVALID_WEB_PORT",
+        }
+
+    opened = _request_kali_tool_session(
+        target=target,
+        profiles=[
+            "whatweb_fingerprint",
+        ],
+        ports=[web_port],
+        scope="LAB",
+        action=
+            "run_kali_whatweb_fingerprint",
+        description=(
+            "executar fingerprint WhatWeb limitado "
+            f"no alvo LAB {target}:{web_port}"
+        ),
+    )
+
+    if not opened.get("ok"):
+        return opened
+
+    token = str(
+        opened.get("session_token")
+        or ""
+    )
+
+    try:
+        return manager.whatweb_fingerprint(
+            target,
+            web_port,
+            https,
+            session_token=token,
+        )
+    finally:
+        manager.close_security_session(
+            token
+        )
 
 
 def run_kali_nikto_safe_web_scan(
     target: str,
     port: int = 80,
     https: bool = False,
+    *,
+    session_token: str = "",
 ) -> dict[str, Any]:
-    return kali_bridge_manager().nikto_safe_web_scan(target, port, https)
+    manager = kali_bridge_manager()
+
+    if session_token:
+        return manager.nikto_safe_web_scan(
+            target,
+            port,
+            https,
+            session_token=session_token,
+        )
+
+    try:
+        web_port = int(port)
+    except (TypeError, ValueError):
+        return {
+            "ok": False,
+            "error": "INVALID_WEB_PORT",
+        }
+
+    opened = _request_kali_tool_session(
+        target=target,
+        profiles=[
+            "nikto_safe_web",
+        ],
+        ports=[web_port],
+        scope="LAB",
+        action=
+            "run_kali_nikto_safe_web_scan",
+        description=(
+            "executar Nikto limitado "
+            f"no alvo LAB {target}:{web_port}"
+        ),
+    )
+
+    if not opened.get("ok"):
+        return opened
+
+    token = str(
+        opened.get("session_token")
+        or ""
+    )
+
+    try:
+        return manager.nikto_safe_web_scan(
+            target,
+            web_port,
+            https,
+            session_token=token,
+        )
+    finally:
+        manager.close_security_session(
+            token
+        )
 
 
 def get_kali_vm_status() -> dict[str, Any]:

@@ -238,6 +238,7 @@ def execute_authorized_external_learning(
     using_followup = False
     guardian = None
     authorization_token_for_store = ""
+    egress_execution_token = ""
     payload: dict[str, Any]
 
     if mode == "current_turn":
@@ -326,6 +327,20 @@ def execute_authorized_external_learning(
                     "ok": False,
                     "error":
                         "DIRECT_AUTHORIZATION_RECORD_FAILED",
+                }
+
+            egress_execution_token = str(
+                authorization.get(
+                    "execution_token"
+                )
+                or ""
+            )
+
+            if not egress_execution_token:
+                return {
+                    "ok": False,
+                    "error":
+                        "DIRECT_EXECUTION_CREDENTIAL_MISSING",
                 }
 
             authorization_token_for_store = (
@@ -444,7 +459,7 @@ def execute_authorized_external_learning(
             }
 
         # Referent context is consumed before network access.
-        # No grant or reusable authority is created.
+        # Only then is an exact, runtime-only authorization minted.
         using_followup = True
 
         authorization_token_for_store = (
@@ -460,6 +475,53 @@ def execute_authorized_external_learning(
             "source_url":
                 source_url,
         }
+
+        guardian = autonomy_guardian()
+
+        followup_authorization = (
+            guardian.record_direct_authorization(
+                capability="external_learning",
+                payload=payload,
+                description=(
+                    "bounded follow-up external learning for "
+                    f"{topic[:220]}"
+                ),
+                source_text=source_text,
+            )
+        )
+
+        if (
+            not isinstance(
+                followup_authorization,
+                dict,
+            )
+            or not followup_authorization.get(
+                "ok"
+            )
+            or not followup_authorization.get(
+                "authorized",
+                False,
+            )
+        ):
+            return {
+                "ok": False,
+                "error":
+                    "FOLLOWUP_DIRECT_AUTHORIZATION_FAILED",
+            }
+
+        egress_execution_token = str(
+            followup_authorization.get(
+                "execution_token"
+            )
+            or ""
+        )
+
+        if not egress_execution_token:
+            return {
+                "ok": False,
+                "error":
+                    "FOLLOWUP_EXECUTION_CREDENTIAL_MISSING",
+            }
 
     else:
         exact_payload = dict(
@@ -575,6 +637,20 @@ def execute_authorized_external_learning(
                 ),
             }
 
+        egress_execution_token = str(
+            consumed.get(
+                "execution_token"
+            )
+            or ""
+        )
+
+        if not egress_execution_token:
+            return {
+                "ok": False,
+                "error":
+                    "APPROVED_GRANT_EXECUTION_CREDENTIAL_MISSING",
+            }
+
         payload = exact_payload
         topic = payload_topic
         query = payload_query
@@ -599,23 +675,82 @@ def execute_authorized_external_learning(
                 "RESEARCH_DISABLED",
         }
 
-    if source_url:
-        result = (
-            _RESEARCH_ENGINE.research_url(
-                source_url,
-                query=query,
-                topic=topic,
-                deep=bool(deep),
+    try:
+        web_session = (
+            _RESEARCH_ENGINE
+            .open_public_web_session(
+                purpose="learning",
+                capability="external_learning",
+                payload=payload,
+                execution_token=(
+                    egress_execution_token
+                ),
             )
         )
-    else:
-        result = (
-            _RESEARCH_ENGINE.research(
-                query,
-                topic=topic,
-                deep=bool(deep),
-                search_query=topic,
+    except Exception as exc:
+        if _EVENTS is not None:
+            _EVENTS.emit(
+                "NETWORK_EGRESS_AUTHORITY_ERROR",
+                operation=(
+                    "external_learning_web_session"
+                ),
+                error=type(exc).__name__,
             )
+
+        return {
+            "ok": False,
+            "error":
+                "NETWORK_EGRESS_AUTHORITY_ERROR",
+        }
+
+    if (
+        not isinstance(
+            web_session,
+            dict,
+        )
+        or not web_session.get(
+            "allowed"
+        )
+    ):
+        return {
+            "ok": False,
+            "error": (
+                str(
+                    web_session.get(
+                        "error"
+                    )
+                    if isinstance(
+                        web_session,
+                        dict,
+                    )
+                    else ""
+                )
+                or "NETWORK_EGRESS_BLOCKED"
+            ),
+        }
+
+    try:
+        if source_url:
+            result = (
+                _RESEARCH_ENGINE.research_url(
+                    source_url,
+                    query=query,
+                    topic=topic,
+                    deep=bool(deep),
+                )
+            )
+        else:
+            result = (
+                _RESEARCH_ENGINE.research(
+                    query,
+                    topic=topic,
+                    deep=bool(deep),
+                    search_query=topic,
+                )
+            )
+    finally:
+        _RESEARCH_ENGINE.close_public_web_session(
+            web_session
         )
 
     if not result.ok:

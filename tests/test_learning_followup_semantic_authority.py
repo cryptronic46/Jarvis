@@ -28,6 +28,33 @@ class _ResearchEngine:
     def __init__(self):
         self.url_calls = []
         self.search_calls = []
+        self.web_sessions = []
+
+    def open_public_web_session(
+        self,
+        **kwargs,
+    ):
+        self.web_sessions.append(
+            ("open", dict(kwargs))
+        )
+        return {
+            "ok": True,
+            "allowed": True,
+            "session_token":
+                "TEST-FOLLOWUP-WEB-SESSION",
+        }
+
+    def close_public_web_session(
+        self,
+        session,
+    ):
+        self.web_sessions.append(
+            ("close", session)
+        )
+        return {
+            "ok": True,
+            "closed": True,
+        }
 
     def available(self):
         return True
@@ -93,6 +120,32 @@ class _LearningStore:
             "ok": True,
             "stored": True,
         }
+
+
+
+class _Guardian:
+    def __init__(self):
+        self.calls = []
+
+    def record_direct_authorization(
+        self,
+        **kwargs,
+    ):
+        self.calls.append(
+            dict(kwargs)
+        )
+
+        return {
+            "ok": True,
+            "authorized": True,
+            "execution_token":
+                "TEST-FOLLOWUP-EGRESS-TOKEN",
+        }
+
+    def has_standing_public_web_learning(
+        self,
+    ):
+        return False
 
 
 class LearningFollowupSemanticAuthorityTests(
@@ -387,10 +440,7 @@ class LearningFollowupSemanticAuthorityTests(
                 patch.object(
                     external_module,
                     "autonomy_guardian",
-                    side_effect=AssertionError(
-                        "followup mode must not create "
-                        "or consume an autonomy grant"
-                    ),
+                    return_value=_Guardian(),
                 ),
             ):
                 first = (

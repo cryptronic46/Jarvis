@@ -91,15 +91,74 @@ class ResearchRelevanceGuardTests(unittest.TestCase):
             "O catálogo CISA KEV contém vulnerabilidades exploradas conhecidas [S1]."
         )
 
-        with patch(
-            "jarvis_core.services.local_research.build_opener",
-            return_value=opener,
-        ), patch.object(engine, "available", return_value=True):
-            result = engine.research_url(
-                official_url,
-                query="Aprende o catálogo CISA KEV através do feed JSON oficial.",
-                topic="catálogo CISA KEV",
-                deep=True,
+        class TestEgress:
+            def open_public_web_session(
+                self,
+                **kwargs,
+            ):
+                return {
+                    "ok": True,
+                    "allowed": True,
+                    "session_token":
+                        "TEST-RESEARCH-SESSION",
+                }
+
+            def close_public_web_session(
+                self,
+                session_token,
+            ):
+                return {
+                    "ok": True,
+                    "closed": True,
+                }
+
+            def allow_public_web(
+                self,
+                url,
+                **kwargs,
+            ):
+                return {
+                    "ok": True,
+                    "allowed": True,
+                }
+
+        engine.egress = TestEgress()
+
+        opened = (
+            engine.open_public_web_session(
+                purpose="research",
+                capability="web_research",
+                payload={
+                    "operation":
+                        "test_cisa_json_limit",
+                },
+            )
+        )
+
+        try:
+            with (
+                patch(
+                    "jarvis_core.services.local_research.build_opener",
+                    return_value=opener,
+                ),
+                patch.object(
+                    engine,
+                    "available",
+                    return_value=True,
+                ),
+            ):
+                result = engine.research_url(
+                    official_url,
+                    query=(
+                        "Aprende o cat?logo CISA KEV "
+                        "atrav?s do feed JSON oficial."
+                    ),
+                    topic="cat?logo CISA KEV",
+                    deep=True,
+                )
+        finally:
+            engine.close_public_web_session(
+                opened
             )
 
         self.assertTrue(result.ok)

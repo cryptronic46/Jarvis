@@ -9,11 +9,13 @@ from jarvis_core.security.policy import RiskLevel
 from jarvis_core.services.cyber_range import classify_cyber_target
 from jarvis_core.services.kali_bridge import (
     get_kali_bridge_status,
+    kali_bridge_manager,
     run_kali_nmap_service_scan,
     run_kali_whatweb_fingerprint,
     run_kali_nikto_safe_web_scan,
 )
 from jarvis_core.skills.base import Skill, SkillContext, SkillTool
+from jarvis_core.services.autonomy import autonomy_guardian
 
 
 DEFAULT_PORTS = [21, 22, 23, 25, 53, 80, 110, 139, 143, 443, 445, 3306, 3389, 5432, 8080, 8443]
@@ -77,95 +79,367 @@ class PurpleTeamOrchestrator:
                 add("nosniff", "low", "Nikto sinalizou ausência de X-Content-Type-Options.", "Adicionar X-Content-Type-Options: nosniff quando compatível.", "Repetir auditoria de headers.")
         return recs
 
-    def run(self, target: str, ports: list[int] | None = None, include_web_audit: bool = True) -> dict[str, Any]:
-        authority = classify_cyber_target(target)
-        if not authority.get("authorized") or authority.get("scope") != "LAB":
+    def run(
+        self,
+        target: str,
+        ports: list[int] | None = None,
+        include_web_audit: bool = True,
+    ) -> dict[str, Any]:
+        authority = classify_cyber_target(
+            target
+        )
+
+        if (
+            not authority.get("authorized")
+            or authority.get("scope")
+            != "LAB"
+        ):
             return {
                 "ok": False,
-                "error": "PURPLE_TEAM_TARGET_NOT_LAB",
+                "error":
+                    "PURPLE_TEAM_TARGET_NOT_LAB",
                 "target": target,
                 "authority": authority,
             }
-        bridge = get_kali_bridge_status()
-        if not bridge.get("ok") or not bridge.get("configured") or not bridge.get("ready_scope"):
-            return {"ok": False, "error": "KALI_BRIDGE_NOT_READY", "bridge": bridge}
-        selected_ports = ports if ports else list(DEFAULT_PORTS)
-        selected_ports = [int(p) for p in selected_ports][:64]
-        started = datetime.now().astimezone().isoformat(timespec="seconds")
-        self.context.events.emit("PURPLE_TEAM_STARTED", target=authority.get("ip"), ports=selected_ports)
 
-        nmap = run_kali_nmap_service_scan(authority["ip"], selected_ports)
-        if not nmap.get("ok"):
-            report = {
+        bridge = get_kali_bridge_status()
+
+        if (
+            not bridge.get("ok")
+            or not bridge.get("configured")
+            or not bridge.get(
+                "ready_scope"
+            )
+        ):
+            return {
                 "ok": False,
-                "error": "PURPLE_TEAM_DISCOVERY_FAILED",
-                "target": authority.get("ip"),
-                "started_at": started,
-                "nmap": nmap,
+                "error":
+                    "KALI_BRIDGE_NOT_READY",
+                "bridge": bridge,
             }
+
+        selected_ports = (
+            ports
+            if ports
+            else list(DEFAULT_PORTS)
+        )
+
+        selected_ports = [
+            int(p)
+            for p in selected_ports
+            if 1 <= int(p) <= 65535
+        ][:64]
+
+        profiles = [
+            "nmap_services",
+        ]
+
+        if include_web_audit:
+            profiles.extend([
+                "whatweb_fingerprint",
+                "nikto_safe_web",
+            ])
+
+        manager = kali_bridge_manager()
+
+        scoped = (
+            manager
+            .build_security_session_scope(
+                target=authority["ip"],
+                profiles=profiles,
+                ports=selected_ports,
+                scope="LAB",
+            )
+        )
+
+        if not scoped.get("ok"):
+            return scoped
+
+        payload = dict(
+            scoped.get("payload")
+            or {}
+        )
+
+        try:
+            gate = autonomy_guardian().request(
+                capability=
+                    "kali_security_session",
+                payload=payload,
+                reason=
+                    "purple_team_lab_assessment",
+                description=(
+                    "executar uma avalia??o Purple Team "
+                    "bounded no alvo LAB "
+                    f"{authority['ip']} "
+                    "com os perfis "
+                    f"{profiles}"
+                ),
+                action=
+                    "run_purple_team_assessment",
+                source=
+                    "purple_team",
+            )
+        except Exception as exc:
+            return {
+                "ok": False,
+                "error":
+                    "PURPLE_TEAM_AUTHORITY_ERROR",
+                "reason":
+                    f"{type(exc).__name__}: {exc}",
+            }
+
+        if not gate.get("allowed"):
+            return {
+                "ok": False,
+                "error":
+                    "OWNER_AUTHORIZATION_REQUIRED",
+                "pending":
+                    bool(
+                        gate.get("pending")
+                    ),
+                "token":
+                    gate.get("token"),
+                "message":
+                    gate.get("message"),
+                "target":
+                    authority.get("ip"),
+                "authorization_scope":
+                    payload,
+            }
+
+        execution_token = str(
+            gate.get(
+                "execution_token"
+            )
+            or ""
+        )
+
+        if not execution_token:
+            return {
+                "ok": False,
+                "error":
+                    "PURPLE_TEAM_EXECUTION_CREDENTIAL_MISSING",
+            }
+
+        opened = manager.open_security_session(
+            target=authority["ip"],
+            profiles=profiles,
+            ports=selected_ports,
+            scope="LAB",
+            execution_token=
+                execution_token,
+        )
+
+        if not opened.get("ok"):
+            return {
+                "ok": False,
+                "error":
+                    "PURPLE_TEAM_SESSION_OPEN_FAILED",
+                "detail": opened,
+            }
+
+        session_token = str(
+            opened.get(
+                "session_token"
+            )
+            or ""
+        )
+
+        started = (
+            datetime.now()
+            .astimezone()
+            .isoformat(
+                timespec="seconds"
+            )
+        )
+
+        self.context.events.emit(
+            "PURPLE_TEAM_STARTED",
+            target=authority.get("ip"),
+            ports=selected_ports,
+        )
+
+        try:
+            nmap = run_kali_nmap_service_scan(
+                authority["ip"],
+                selected_ports,
+                session_token=session_token,
+            )
+
+            if not nmap.get("ok"):
+                report = {
+                    "ok": False,
+                    "error":
+                        "PURPLE_TEAM_DISCOVERY_FAILED",
+                    "target":
+                        authority.get("ip"),
+                    "started_at":
+                        started,
+                    "nmap": nmap,
+                }
+
+                self._save(report)
+
+                return report
+
+            services = list(
+                nmap.get(
+                    "open_services"
+                )
+                or []
+            )
+
+            web_reports: list[
+                dict[str, Any]
+            ] = []
+
+            if include_web_audit:
+                web_ports = []
+
+                for row in services:
+                    try:
+                        port = int(
+                            row.get("port")
+                        )
+                    except Exception:
+                        continue
+
+                    service_name = str(
+                        row.get("name")
+                        or ""
+                    ).lower()
+
+                    if (
+                        port
+                        in {
+                            80,
+                            443,
+                            8080,
+                            8443,
+                        }
+                        or "http"
+                        in service_name
+                    ):
+                        web_ports.append(
+                            port
+                        )
+
+                for port in web_ports[:4]:
+                    https = port in {
+                        443,
+                        8443,
+                    }
+
+                    fingerprint = (
+                        run_kali_whatweb_fingerprint(
+                            authority["ip"],
+                            port,
+                            https,
+                            session_token=
+                                session_token,
+                        )
+                    )
+
+                    nikto = (
+                        run_kali_nikto_safe_web_scan(
+                            authority["ip"],
+                            port,
+                            https,
+                            session_token=
+                                session_token,
+                        )
+                    )
+
+                    web_reports.append({
+                        "port": port,
+                        "https": https,
+                        "whatweb":
+                            fingerprint,
+                        "nikto": nikto,
+                    })
+
+            recommendations = (
+                self._recommendations(
+                    services,
+                    web_reports,
+                )
+            )
+
+            completed = (
+                datetime.now()
+                .astimezone()
+                .isoformat(
+                    timespec="seconds"
+                )
+            )
+
+            report = {
+                "ok": True,
+                "mode":
+                    "bounded_purple_team",
+                "scope": "LAB",
+                "authority":
+                    "KALI_SECURITY_SESSION",
+                "target":
+                    authority.get("ip"),
+                "started_at":
+                    started,
+                "completed_at":
+                    completed,
+                "phases": [
+                    "authority_revalidation",
+                    "kali_security_session",
+                    "service_discovery",
+                    (
+                        "web_fingerprinting"
+                        if web_reports
+                        else
+                        "web_fingerprinting_skipped"
+                    ),
+                    "defensive_interpretation",
+                ],
+                "nmap": nmap,
+                "open_services":
+                    services,
+                "web_reports":
+                    web_reports,
+                "recommendations":
+                    recommendations,
+                "validation_instruction": (
+                    "Aplica a mitiga??o no LAB "
+                    "e usa "
+                    "validate_purple_team_mitigation "
+                    "para repetir os mesmos testes."
+                ),
+                "boundaries": [
+                    "no arbitrary Kali shell",
+                    "LAB targets only",
+                    "exact bounded session",
+                    "target cannot change inside session",
+                    "ports cannot escape session scope",
+                ],
+            }
+
             self._save(report)
+
+            self.context.events.emit(
+                "PURPLE_TEAM_FINISHED",
+                target=
+                    authority.get("ip"),
+                open_services=
+                    len(services),
+                web_services=
+                    len(web_reports),
+                recommendations=
+                    len(recommendations),
+            )
+
             return report
 
-        services = list(nmap.get("open_services") or [])
-        web_reports: list[dict[str, Any]] = []
-        if include_web_audit:
-            web_ports = []
-            for row in services:
-                try:
-                    port = int(row.get("port"))
-                except Exception:
-                    continue
-                service_name = str(row.get("name") or "").lower()
-                if port in {80, 443, 8080, 8443} or "http" in service_name:
-                    web_ports.append(port)
-            for port in web_ports[:4]:
-                https = port in {443, 8443}
-                fingerprint = run_kali_whatweb_fingerprint(authority["ip"], port, https)
-                nikto = run_kali_nikto_safe_web_scan(authority["ip"], port, https)
-                web_reports.append({
-                    "port": port,
-                    "https": https,
-                    "whatweb": fingerprint,
-                    "nikto": nikto,
-                })
-
-        recommendations = self._recommendations(services, web_reports)
-        completed = datetime.now().astimezone().isoformat(timespec="seconds")
-        report = {
-            "ok": True,
-            "mode": "bounded_purple_team",
-            "scope": "LAB",
-            "target": authority.get("ip"),
-            "started_at": started,
-            "completed_at": completed,
-            "phases": [
-                "authority_revalidation",
-                "service_discovery",
-                "web_fingerprinting" if web_reports else "web_fingerprinting_skipped",
-                "defensive_interpretation",
-            ],
-            "nmap": nmap,
-            "open_services": services,
-            "web_reports": web_reports,
-            "recommendations": recommendations,
-            "validation_instruction": "Aplica a mitigação no LAB e usa validate_purple_team_mitigation para repetir os mesmos testes.",
-            "boundaries": [
-                "no exploitation",
-                "no payload delivery",
-                "no persistence",
-                "no arbitrary Kali shell",
-                "LAB targets only",
-            ],
-        }
-        self._save(report)
-        self.context.events.emit(
-            "PURPLE_TEAM_FINISHED",
-            target=authority.get("ip"),
-            open_services=len(services),
-            web_services=len(web_reports),
-            recommendations=len(recommendations),
-        )
-        return report
+        finally:
+            manager.close_security_session(
+                session_token
+            )
 
     def validate(self, target: str = "") -> dict[str, Any]:
         previous = self.last_report()

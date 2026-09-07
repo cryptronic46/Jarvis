@@ -16,6 +16,8 @@ CAPABILITIES = {
     "web_research",
     "cloud_reasoning",
     "external_learning",
+    "active_network_probe",
+    "kali_security_session",
     "tool_override",
 }
 
@@ -652,6 +654,8 @@ class AutonomyGuardian:
             exist_ok=True,
         )
         self._lock = RLock()
+        # Runtime-only OWNER credentials. Never persisted to autonomy_state.
+        self._direct_execution_tokens: dict[str, dict[str, Any]] = {}
         self._ensure_state()
 
     def _default_state(self) -> dict[str, Any]:
@@ -1145,10 +1149,19 @@ class AutonomyGuardian:
                         reason=reason,
                     )
 
+                    execution_token = token_hex(24).upper()
+                    self._direct_execution_tokens[execution_token] = {
+                        "capability": cap,
+                        "scope_hash": wanted_hash,
+                        "created_at": _now(),
+                        "expires_at": _now() + timedelta(minutes=2),
+                    }
+
                     return {
                         "ok": True,
                         "allowed": True,
                         "authorization": row,
+                        "execution_token": execution_token,
                     }
 
             existing = self._matching_pending(
@@ -1360,6 +1373,24 @@ class AutonomyGuardian:
             state["pending"] = pending
             self._save(state)
 
+            now = _now()
+            expired_tokens = [
+                token
+                for token, row in self._direct_execution_tokens.items()
+                if row.get("expires_at") is None
+                or row["expires_at"] <= now
+            ]
+            for token in expired_tokens:
+                self._direct_execution_tokens.pop(token, None)
+
+            execution_token = token_hex(24).upper()
+            self._direct_execution_tokens[execution_token] = {
+                "capability": cap,
+                "scope_hash": wanted_hash,
+                "created_at": now,
+                "expires_at": now + timedelta(minutes=2),
+            }
+
             authorization = {
                 "capability": cap,
                 "payload": payload,
@@ -1389,7 +1420,85 @@ class AutonomyGuardian:
                 "ok": True,
                 "authorized": True,
                 "authorization": authorization,
+                "execution_token": execution_token,
                 "cleared_matching_pending": cleared,
+            }
+
+    def consume_direct_authorization(
+        self,
+        *,
+        execution_token: str,
+        capability: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Consume one runtime-only direct OWNER authorization.
+
+        The credential is never written to disk and is destroyed on the first
+        consumption attempt. Matching is exact on capability and payload hash.
+        """
+        wanted_token = str(execution_token or "").strip().upper()
+        cap = str(capability or "").strip()
+
+        if not wanted_token:
+            return {
+                "ok": False,
+                "allowed": False,
+                "error": "MISSING_DIRECT_AUTHORIZATION_TOKEN",
+            }
+
+        if cap not in CAPABILITIES:
+            return {
+                "ok": False,
+                "allowed": False,
+                "error": "UNKNOWN_AUTONOMY_CAPABILITY",
+            }
+
+        wanted_hash = scope_hash(cap, dict(payload or {}))
+
+        with self._lock:
+            row = self._direct_execution_tokens.pop(wanted_token, None)
+
+            if row is None:
+                return {
+                    "ok": False,
+                    "allowed": False,
+                    "error": "UNKNOWN_OR_CONSUMED_DIRECT_AUTHORIZATION",
+                }
+
+            expires_at = row.get("expires_at")
+            if expires_at is None or expires_at <= _now():
+                return {
+                    "ok": False,
+                    "allowed": False,
+                    "error": "DIRECT_AUTHORIZATION_EXPIRED",
+                }
+
+            if row.get("capability") != cap:
+                return {
+                    "ok": False,
+                    "allowed": False,
+                    "error": "DIRECT_AUTHORIZATION_CAPABILITY_MISMATCH",
+                }
+
+            if row.get("scope_hash") != wanted_hash:
+                return {
+                    "ok": False,
+                    "allowed": False,
+                    "error": "DIRECT_AUTHORIZATION_SCOPE_MISMATCH",
+                }
+
+            self._audit(
+                "direct_authorization_consumed",
+                capability=cap,
+                scope_hash=wanted_hash,
+                reason="exact_runtime_token_execution",
+            )
+
+            return {
+                "ok": True,
+                "allowed": True,
+                "capability": cap,
+                "scope_hash": wanted_hash,
             }
 
     def consume_authorized_grant(
@@ -1559,10 +1668,19 @@ class AutonomyGuardian:
                     ),
                 )
 
+                execution_token = token_hex(24).upper()
+                self._direct_execution_tokens[execution_token] = {
+                    "capability": cap,
+                    "scope_hash": wanted_hash,
+                    "created_at": _now(),
+                    "expires_at": _now() + timedelta(minutes=2),
+                }
+
                 return {
                     "ok": True,
                     "allowed": True,
                     "authorization": dict(row),
+                    "execution_token": execution_token,
                 }
 
             self._save(state)

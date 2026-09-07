@@ -56,7 +56,48 @@ class CyberRangeManagerTests(unittest.TestCase):
 
     def test_probe_is_bounded_and_only_reports_connectivity(self):
         manager = self.make_manager()
-        manager.add_lab_scope("192.168.56.10", "Metasploitable")
+        manager.add_lab_scope(
+            "192.168.56.10",
+            "Metasploitable",
+        )
+
+        class ExactGuardian:
+            def __init__(self):
+                self.calls = []
+
+            def consume_direct_authorization(
+                self,
+                *,
+                execution_token,
+                capability,
+                payload,
+            ):
+                self.calls.append({
+                    "execution_token":
+                        execution_token,
+                    "capability":
+                        capability,
+                    "payload":
+                        dict(payload),
+                })
+
+                return {
+                    "ok": (
+                        execution_token
+                        == "TEST-NETWORK-TOKEN"
+                        and capability
+                        == "active_network_probe"
+                    ),
+                    "allowed": (
+                        execution_token
+                        == "TEST-NETWORK-TOKEN"
+                        and capability
+                        == "active_network_probe"
+                    ),
+                }
+
+        guardian = ExactGuardian()
+        manager.authority_guardian = guardian
 
         class DummyConnection:
             def close(self):
@@ -67,12 +108,49 @@ class CyberRangeManagerTests(unittest.TestCase):
                 return DummyConnection()
             raise OSError("closed")
 
-        with patch("jarvis_core.services.cyber_range.socket.create_connection", side_effect=fake_connect):
-            result = manager.probe("192.168.56.10", [22, 80])
+        with patch(
+            "jarvis_core.services.cyber_range.socket.create_connection",
+            side_effect=fake_connect,
+        ):
+            result = manager.probe(
+                "192.168.56.10",
+                [22, 80],
+                execution_token=
+                    "TEST-NETWORK-TOKEN",
+            )
+
         self.assertTrue(result["ok"])
-        self.assertEqual(result["open_ports"], [22])
-        self.assertEqual(result["closed_or_filtered_ports"], [80])
-        self.assertEqual(result["probe"], "tcp_connect")
+        self.assertEqual(
+            result["open_ports"],
+            [22],
+        )
+        self.assertEqual(
+            result[
+                "closed_or_filtered_ports"
+            ],
+            [80],
+        )
+        self.assertEqual(
+            result["probe"],
+            "tcp_connect",
+        )
+
+        self.assertEqual(
+            len(guardian.calls),
+            1,
+        )
+        self.assertEqual(
+            guardian.calls[0][
+                "capability"
+            ],
+            "active_network_probe",
+        )
+        self.assertEqual(
+            guardian.calls[0][
+                "payload"
+            ]["ports"],
+            [22, 80],
+        )
 
 
 if __name__ == "__main__":

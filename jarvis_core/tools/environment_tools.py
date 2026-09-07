@@ -4,29 +4,186 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from urllib.parse import urlencode, urlparse
+from urllib.request import (
+    HTTPRedirectHandler,
+    ProxyHandler,
+    Request,
+    build_opener,
+)
 from jarvis_core import __version__
 import json
 import time
 
 from jarvis_core.services.user_memory import store
+from jarvis_core.services.network_egress import NetworkEgressGate
 
 CACHE_PATH = Path(".cache/environment_furadouro.json")
 CACHE_TTL_SECONDS = 600
 WEATHER_ENDPOINT = "https://api.open-meteo.com/v1/forecast"
 MARINE_ENDPOINT = "https://marine-api.open-meteo.com/v1/marine"
 
+ALLOWED_ENVIRONMENT_HOSTS = {
+    "api.open-meteo.com",
+    "marine-api.open-meteo.com",
+}
 
-def _fetch_json(url: str, timeout: float = 4.0) -> dict[str, Any]:
-    request = Request(url, headers={"User-Agent": f"JARVIS-Core/{__version__}", "Accept": "application/json"})
-    with urlopen(request, timeout=timeout) as response:
-        raw = response.read(128 * 1024)
-    data = json.loads(raw.decode("utf-8", errors="replace"))
-    if not isinstance(data, dict):
-        raise ValueError("Resposta JSON inesperada.")
+_EGRESS = NetworkEgressGate(None)
+
+
+def configure_environment_egress(
+    guardian,
+) -> None:
+    global _EGRESS
+    _EGRESS = NetworkEgressGate(
+        guardian
+    )
+
+
+def _authorize_environment_url(
+    url: str,
+    *,
+    session_token: str,
+) -> str:
+    parsed = urlparse(
+        str(url or "")
+    )
+
+    if parsed.scheme != "https":
+        raise ValueError(
+            "ENVIRONMENT_HTTPS_REQUIRED"
+        )
+
+    host = (
+        parsed.hostname
+        or ""
+    ).lower()
+
+    if host not in ALLOWED_ENVIRONMENT_HOSTS:
+        raise ValueError(
+            "ENVIRONMENT_HOST_NOT_ALLOWED"
+        )
+
+    decision = _EGRESS.allow_public_web(
+        url,
+        purpose="research",
+        session_token=session_token,
+    )
+
+    if not decision.get("allowed"):
+        raise ValueError(
+            str(
+                decision.get("error")
+                or "NETWORK_EGRESS_BLOCKED"
+            )
+        )
+
+    return url
+
+
+class _EnvironmentRedirectHandler(
+    HTTPRedirectHandler
+):
+    def __init__(
+        self,
+        validator,
+    ):
+        super().__init__()
+        self._validator = validator
+
+    def redirect_request(
+        self,
+        req,
+        fp,
+        code,
+        msg,
+        headers,
+        newurl,
+    ):
+        self._validator(
+            str(newurl or "")
+        )
+
+        return super().redirect_request(
+            req,
+            fp,
+            code,
+            msg,
+            headers,
+            newurl,
+        )
+
+
+def _fetch_json(
+    url: str,
+    timeout: float = 4.0,
+    *,
+    session_token: str,
+) -> dict[str, Any]:
+    _authorize_environment_url(
+        url,
+        session_token=session_token,
+    )
+
+    request = Request(
+        url,
+        headers={
+            "User-Agent":
+                f"JARVIS-Core/{__version__}",
+            "Accept":
+                "application/json",
+        },
+    )
+
+    def validate_redirect(
+        target: str,
+    ) -> None:
+        _authorize_environment_url(
+            target,
+            session_token=session_token,
+        )
+
+    opener = build_opener(
+        ProxyHandler({}),
+        _EnvironmentRedirectHandler(
+            validate_redirect
+        ),
+    )
+
+    with opener.open(
+        request,
+        timeout=timeout,
+    ) as response:
+        final_url = str(
+            response.geturl()
+            or url
+        )
+
+        _authorize_environment_url(
+            final_url,
+            session_token=session_token,
+        )
+
+        raw = response.read(
+            128 * 1024
+        )
+
+    data = json.loads(
+        raw.decode(
+            "utf-8",
+            errors="replace",
+        )
+    )
+
+    if not isinstance(
+        data,
+        dict,
+    ):
+        raise ValueError(
+            "Resposta JSON inesperada."
+        )
+
     return data
-
 
 def _weather_description(code: int | float | None) -> str:
     try:
@@ -118,16 +275,97 @@ def get_home_environment(force_refresh: bool = False) -> dict[str, Any]:
     if not {"latitude", "longitude"}.issubset(home):
         return {"ok": False, "error": "HOME_LOCATION_NOT_CONFIGURED"}
 
+    payload = {
+        "operation":
+            "get_home_environment",
+        "weather":
+            True,
+        "marine":
+            True,
+        "location_source":
+            "configured_home",
+    }
+
+    try:
+        opened = (
+            _EGRESS
+            .open_public_web_session(
+                purpose="research",
+                capability="web_research",
+                payload=payload,
+            )
+        )
+    except Exception as exc:
+        return {
+            "ok": False,
+            "error":
+                "NETWORK_EGRESS_AUTHORITY_ERROR",
+            "reason":
+                f"{type(exc).__name__}: {exc}",
+        }
+
+    if not opened.get("allowed"):
+        return {
+            "ok": False,
+            "error": str(
+                opened.get("error")
+                or
+                "OWNER_WEB_AUTHORIZATION_REQUIRED"
+            ),
+        }
+
+    session_token = str(
+        opened.get("session_token")
+        or ""
+    )
+
     weather_data = None
     marine_data = None
     errors = []
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        wf = pool.submit(_fetch_json, _weather_url(home), 4.0)
-        mf = pool.submit(_fetch_json, _marine_url(home), 4.0)
-        try: weather_data = wf.result(timeout=5.0)
-        except Exception as exc: errors.append(f"weather:{type(exc).__name__}:{exc}")
-        try: marine_data = mf.result(timeout=5.0)
-        except Exception as exc: errors.append(f"marine:{type(exc).__name__}:{exc}")
+
+    try:
+        with ThreadPoolExecutor(
+            max_workers=2
+        ) as pool:
+            wf = pool.submit(
+                _fetch_json,
+                _weather_url(home),
+                4.0,
+                session_token=session_token,
+            )
+
+            mf = pool.submit(
+                _fetch_json,
+                _marine_url(home),
+                4.0,
+                session_token=session_token,
+            )
+
+            try:
+                weather_data = wf.result(
+                    timeout=5.0
+                )
+            except Exception as exc:
+                errors.append(
+                    "weather:"
+                    f"{type(exc).__name__}:"
+                    f"{exc}"
+                )
+
+            try:
+                marine_data = mf.result(
+                    timeout=5.0
+                )
+            except Exception as exc:
+                errors.append(
+                    "marine:"
+                    f"{type(exc).__name__}:"
+                    f"{exc}"
+                )
+    finally:
+        _EGRESS.close_public_web_session(
+            session_token
+        )
 
     current = (weather_data or {}).get("current") or {}
     marine = (marine_data or {}).get("current") or {}

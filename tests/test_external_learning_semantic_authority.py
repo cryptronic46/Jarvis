@@ -27,6 +27,33 @@ class _Events:
 class _Research:
     def __init__(self):
         self.calls = []
+        self.web_sessions = []
+
+    def open_public_web_session(
+        self,
+        **kwargs,
+    ):
+        self.web_sessions.append(
+            ("open", dict(kwargs))
+        )
+        return {
+            "ok": True,
+            "allowed": True,
+            "session_token":
+                "TEST-DIRECT-WEB-SESSION",
+        }
+
+    def close_public_web_session(
+        self,
+        session,
+    ):
+        self.web_sessions.append(
+            ("close", session)
+        )
+        return {
+            "ok": True,
+            "closed": True,
+        }
 
     def available(self):
         return True
@@ -103,6 +130,8 @@ class _Guardian:
         return {
             "ok": True,
             "authorized": True,
+            "execution_token":
+                "TEST-DIRECT-EGRESS-TOKEN",
         }
 
     def grant_standing_public_web_learning(

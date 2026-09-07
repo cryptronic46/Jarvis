@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextvars import ContextVar
 from dataclasses import dataclass, asdict
 from html.parser import HTMLParser
 from ipaddress import ip_address
@@ -17,6 +18,7 @@ import unicodedata
 import xml.etree.ElementTree as ET
 
 from jarvis_core import __version__
+from jarvis_core.services.network_egress import NetworkEgressGate
 
 
 @dataclass(slots=True)
@@ -372,10 +374,98 @@ class LocalResearchEngine:
         (r"\bdigital[\s_-]+security\b", "ciberseguranca"),
     )
 
-    def __init__(self, settings, events, local_brain):
+    def __init__(
+        self,
+        settings,
+        events,
+        local_brain,
+        *,
+        egress_guardian=None,
+    ):
         self.settings = settings
         self.events = events
         self.local = local_brain
+        self.egress = NetworkEgressGate(egress_guardian)
+        self._egress_context = ContextVar(
+            "jarvis_local_research_egress",
+            default=None,
+        )
+
+    def open_public_web_session(
+        self,
+        *,
+        purpose: str,
+        capability: str,
+        payload: dict[str, Any],
+        execution_token: str = "",
+    ) -> dict[str, Any]:
+        opened = self.egress.open_public_web_session(
+            purpose=purpose,
+            capability=capability,
+            payload=dict(payload or {}),
+            execution_token=execution_token,
+        )
+        if not opened.get("allowed"):
+            return opened
+
+        context_token = self._egress_context.set({
+            "session_token": opened["session_token"],
+            "purpose": str(purpose or "research"),
+        })
+
+        return {
+            **opened,
+            "_context_token": context_token,
+        }
+
+    def close_public_web_session(
+        self,
+        opened: dict[str, Any] | None,
+    ) -> None:
+        row = opened if isinstance(opened, dict) else {}
+        session_token = str(row.get("session_token") or "")
+        context_token = row.get("_context_token")
+
+        try:
+            if context_token is not None:
+                self._egress_context.reset(context_token)
+            else:
+                self._egress_context.set(None)
+        finally:
+            self.egress.close_public_web_session(session_token)
+
+    def _authorize_public_url(self, url: str) -> str:
+        context = self._egress_context.get()
+
+        if not isinstance(context, dict):
+            raise LocalResearchFetchError(
+                "OWNER_WEB_AUTHORIZATION_REQUIRED",
+                "Public Web egress requires an OWNER-authorized session.",
+            )
+
+        decision = self.egress.allow_public_web(
+            url,
+            purpose=str(
+                context.get("purpose")
+                or "research"
+            ),
+            session_token=str(
+                context.get("session_token")
+                or ""
+            ),
+        )
+
+        if not decision.get("allowed"):
+            code = str(
+                decision.get("error")
+                or "NETWORK_EGRESS_BLOCKED"
+            )
+            raise LocalResearchFetchError(
+                code,
+                f"Public Web egress blocked: {code}",
+            )
+
+        return self._validate_public_url(url)
 
     def available(self) -> bool:
         return bool(
@@ -863,11 +953,11 @@ class LocalResearchEngine:
         return safe
 
     def _get(self, url: str, *, max_bytes: int, timeout: float) -> tuple[bytes, str, str]:
-            safe = self._validate_public_url(url)
+            safe = self._authorize_public_url(url)
             opener = build_opener(
                 ProxyHandler({}),
                 _SafeRedirectHandler(
-                    self._validate_public_url
+                    self._authorize_public_url
                 ),
                 _PinnedHTTPHandler(
                     self._resolve_public_target
@@ -886,7 +976,7 @@ class LocalResearchEngine:
             with opener.open(request, timeout=timeout) as response:
                 content_type = _media_type(response.headers.get("Content-Type") or "")
                 final_url = str(response.geturl() or safe)
-                self._validate_public_url(final_url)
+                self._authorize_public_url(final_url)
                 standard_limit = max(
                     64_000,
                     min(int(max_bytes), STANDARD_FETCH_HARD_LIMIT_BYTES),

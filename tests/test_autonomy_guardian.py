@@ -513,5 +513,133 @@ class AutonomyGuardianTests(unittest.TestCase):
 
 
 
+    def test_unrelated_grant_cannot_mint_execution_token(
+        self,
+    ):
+        tmp, guardian = self.make_guardian()
+
+        try:
+            unrelated_payload = {
+                "topic": "Python",
+                "query": "estudar Python",
+                "deep": False,
+            }
+
+            unrelated = guardian.request(
+                capability="external_learning",
+                payload=unrelated_payload,
+                reason="owner_request",
+                description="estudar Python",
+                action="external_learning",
+            )
+
+            approved = guardian.authorize(
+                unrelated["token"]
+            )
+
+            self.assertTrue(
+                approved["authorized"]
+            )
+
+            kali_payload = {
+                "authority":
+                    "KALI_SECURITY_SESSION",
+                "scope": "LAB",
+                "target": "192.168.56.10",
+                "profiles": [
+                    "nmap_services",
+                ],
+                "ports": [
+                    80,
+                    443,
+                ],
+                "bridge_host":
+                    "192.168.56.2",
+                "bridge_port": 22,
+                "transport": "ssh",
+            }
+
+            wrong_scope = guardian.request(
+                capability=
+                    "kali_security_session",
+                payload=kali_payload,
+                reason="purple_team_lab_assessment",
+                description=
+                    "executar Purple Team",
+                action=
+                    "run_purple_team_assessment",
+            )
+
+            self.assertFalse(
+                wrong_scope["allowed"]
+            )
+            self.assertTrue(
+                wrong_scope["pending"]
+            )
+            self.assertNotIn(
+                "execution_token",
+                wrong_scope,
+            )
+
+            exact_authorized = guardian.authorize(
+                wrong_scope["token"]
+            )
+
+            self.assertTrue(
+                exact_authorized["authorized"]
+            )
+
+            exact = guardian.request(
+                capability=
+                    "kali_security_session",
+                payload=kali_payload,
+                reason="purple_team_lab_assessment",
+                description=
+                    "executar Purple Team",
+                action=
+                    "run_purple_team_assessment",
+            )
+
+            self.assertTrue(
+                exact["allowed"]
+            )
+            self.assertTrue(
+                exact["execution_token"]
+            )
+
+            consumed = (
+                guardian.consume_direct_authorization(
+                    execution_token=
+                        exact["execution_token"],
+                    capability=
+                        "kali_security_session",
+                    payload=kali_payload,
+                )
+            )
+
+            self.assertTrue(
+                consumed["allowed"]
+            )
+
+            replay = (
+                guardian.consume_direct_authorization(
+                    execution_token=
+                        exact["execution_token"],
+                    capability=
+                        "kali_security_session",
+                    payload=kali_payload,
+                )
+            )
+
+            self.assertFalse(
+                replay["allowed"]
+            )
+
+        finally:
+            tmp.cleanup()
+
+
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -15,6 +15,33 @@ from jarvis_core.services.external_learning import (
 class _Research:
     def __init__(self):
         self.calls = []
+        self.web_sessions = []
+
+    def open_public_web_session(
+        self,
+        **kwargs,
+    ):
+        self.web_sessions.append(
+            ("open", dict(kwargs))
+        )
+        return {
+            "ok": True,
+            "allowed": True,
+            "session_token":
+                "TEST-APPROVED-WEB-SESSION",
+        }
+
+    def close_public_web_session(
+        self,
+        session,
+    ):
+        self.web_sessions.append(
+            ("close", session)
+        )
+        return {
+            "ok": True,
+            "closed": True,
+        }
 
     def available(self):
         return True
@@ -102,6 +129,8 @@ class _Guardian:
         return {
             "ok": True,
             "allowed": True,
+            "execution_token":
+                "TEST-APPROVED-EGRESS-TOKEN",
             "authorization": {
                 "token":
                     kwargs["token"],

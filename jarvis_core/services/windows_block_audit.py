@@ -11,10 +11,67 @@ import platform
 import re
 import subprocess
 from urllib import request as urlrequest
+from urllib.parse import urlparse
 
 import sys
 
 
+
+
+def _require_stdlib_loopback_url(
+    url: str,
+) -> str:
+    """Allow only explicit loopback HTTP(S) targets."""
+    value = str(url or "").strip()
+    parsed = urlparse(value)
+
+    if parsed.scheme not in {
+        "http",
+        "https",
+    }:
+        raise ValueError(
+            "LOOPBACK_HTTP_REQUIRED"
+        )
+
+    host = str(
+        parsed.hostname or ""
+    ).strip().lower().rstrip(".")
+
+    if not host:
+        raise ValueError(
+            "NETWORK_HOST_REQUIRED"
+        )
+
+    if host in {
+        "localhost",
+        "::1",
+    }:
+        return value
+
+    parts = host.split(".")
+
+    if len(parts) == 4:
+        try:
+            octets = [
+                int(part, 10)
+                for part in parts
+            ]
+        except ValueError:
+            octets = []
+
+        if (
+            len(octets) == 4
+            and octets[0] == 127
+            and all(
+                0 <= part <= 255
+                for part in octets
+            )
+        ):
+            return value
+
+    raise ValueError(
+        "NON_LOOPBACK_TARGET_BLOCKED"
+    )
 
 
 def _decode_subprocess_stream(value: Any) -> str:
@@ -570,6 +627,17 @@ def _probe_local_ollama_executor(root: Path, *, timeout_seconds: float = 3.0) ->
     backend = str(settings.get("local_llm_backend") or "jarvis_local").strip().lower()
     allowed = bool(settings.get("local_llm_allow_ollama_compat", True)) and backend in {"jarvis_local", "auto", "auto_local", "ollama_local_compat", "ollama_compat"}
     host = str(settings.get("ollama_host") or "http://127.0.0.1:11434").rstrip("/")
+    try:
+        host = _require_stdlib_loopback_url(host).rstrip("/")
+    except ValueError:
+        return {
+            "ok": False,
+            "allowed": False,
+            "online": False,
+            "model_ok": False,
+            "model": str(settings.get("model") or "qwen3:14b"),
+            "reason": "non_loopback_host_blocked",
+        }
     model = str(settings.get("model") or "qwen3:14b")
     if not allowed:
         return {"ok": False, "allowed": False, "online": False, "model_ok": False, "model": model, "reason": "disabled"}
