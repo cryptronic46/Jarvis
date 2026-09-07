@@ -8,7 +8,6 @@ import json
 
 from jarvis_core.services.secret_store import get_secret, secret_status
 from jarvis_core.services.user_memory import store as user_memory_store
-from jarvis_core.services.privacy import privacy_state
 from jarvis_core.services.context_store import context_store
 
 
@@ -134,9 +133,6 @@ class CloudBrain:
         )
         return {
             **status,
-            "privacy_mode": bool(
-                privacy_state().enabled
-            ),
             "cloud_enabled": bool(
                 self.settings.cloud_enabled
             ),
@@ -232,8 +228,6 @@ class CloudBrain:
     def available(self) -> bool:
         if not bool(getattr(self.settings, "external_ai_enabled", False)):
             return False
-        if privacy_state().enabled:
-            return False
         if not self.settings.cloud_enabled:
             return False
         if not self._api_key():
@@ -295,9 +289,6 @@ class CloudBrain:
             "credential": credential,
             "sdk_installed": sdk_installed,
             "configured_model": self.settings.cloud_model,
-            "privacy_mode": bool(
-                privacy_state().enabled
-            ),
             "connection_tested": False,
             "connection_ok": False,
             "connection_message": None,
@@ -309,7 +300,6 @@ class CloudBrain:
         if (
             not credential.get("configured")
             or not sdk_installed
-            or privacy_state().enabled
             or not self.settings.cloud_enabled
             or not bool(getattr(self.settings, "external_ai_enabled", False))
         ):

@@ -57,20 +57,6 @@ class _Autonomy:
         return False
 
 
-class _Cloud:
-    def __init__(self, available=False):
-        self._available = available
-
-    def available(self):
-        return self._available
-
-    def consult(self, text, deep=True):
-        raise AssertionError("consult must not run before authorization")
-
-    def clear_history(self):
-        return None
-
-
 class _Store:
     def __init__(self, rows=None):
         self._rows = list(rows or [])
@@ -141,7 +127,6 @@ class EpistemicLearning0278Tests(unittest.TestCase):
             self.settings(),
             _Events(),
             local_brain=_Local("Não sei responder com confiança."),
-            cloud_brain=_Cloud(available=True),
             autonomy=autonomy,
             research_engine=_Research(),
         )
@@ -154,12 +139,10 @@ class EpistemicLearning0278Tests(unittest.TestCase):
 
     def test_after_existing_study_insufficient_answer_never_offers_external_ai(self):
         autonomy = _Autonomy()
-        cloud = _Cloud(available=True)
         hybrid = HybridBrain(
             self.settings(),
             _Events(),
             local_brain=_Local("Não sei responder com confiança."),
-            cloud_brain=cloud,
             autonomy=autonomy,
             research_engine=_Research(),
         )

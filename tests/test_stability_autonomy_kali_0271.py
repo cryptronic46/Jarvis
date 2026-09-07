@@ -8,13 +8,15 @@ class StabilityAutonomyKali0271(unittest.TestCase):
     def test_fast_router_tolerates_abrem(self):
         t=Path('jarvis_core/core/fast_router.py').read_text(encoding='utf-8')
         self.assertIn('"abrem"', t)
-    def test_local_first_cloud_escalation_is_gated(self):
+    def test_local_first_external_ai_is_blocked_and_learning_is_owner_gated(self):
         t=Path('jarvis_core/core/hybrid_brain.py').read_text(encoding='utf-8')
         self.assertIn('Local-first: always attempt the local model first', t)
-        self.assertIn('capability="cloud_reasoning"', t)
+        self.assertIn('"external_ai_blocked"', t)
+        self.assertIn('"external_ai_hard_block"', t)
+        self.assertNotIn('capability="cloud_reasoning"', t)
         self.assertIn('_learning_gap_offer', t)
-        self.assertIn('studied_knowledge_still_insufficient', t)
-        self.assertIn('isolated', t)
+        self.assertIn('capability="external_learning"', t)
+        self.assertIn('action="external_learning_resume_query"', t)
     def test_standing_web_research_permission_exists(self):
         t=Path('jarvis_core/services/autonomy.py').read_text(encoding='utf-8')
         self.assertIn('public_web_read_only_research', t)

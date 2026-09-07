@@ -596,7 +596,7 @@ def execute_authorized_external_learning(
         return {
             "ok": False,
             "error":
-                "PRIVACY_OR_RESEARCH_DISABLED",
+                "RESEARCH_DISABLED",
         }
 
     if source_url:

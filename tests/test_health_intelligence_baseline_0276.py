@@ -113,24 +113,20 @@ class HealthIntelligenceBaseline0276Tests(unittest.TestCase):
     def test_complexity_alone_does_not_send_cloud(self):
         s=Settings(); s.external_ai_complex_only=True; s.external_ai_complexity_threshold=4
         local=Local('Resposta local substantiva e completa para o pedido complexo.')
-        cloud=Cloud()
-        brain=HybridBrain(s, Events(), local, cloud_brain=cloud)
+        brain=HybridBrain(s, Events(), local)
         q=('Faz uma auditoria completa desta arquitetura complexa, analisa profundamente os trade-offs, '
            'refatora tudo e apresenta um plano detalhado multi-etapa com alternativas. ')*6
         result=brain.ask(q)
         self.assertEqual('LOCAL', result.route)
-        self.assertEqual(0, cloud.calls)
 
     def test_complexity_plus_actual_local_insufficiency_stays_local(self):
         s=Settings(); s.external_ai_complex_only=True; s.external_ai_complexity_threshold=4
         local=Local('Não tenho informação suficiente para concluir.')
-        cloud=Cloud()
-        brain=HybridBrain(s, Events(), local, cloud_brain=cloud)
+        brain=HybridBrain(s, Events(), local)
         q=('Faz uma auditoria completa desta arquitetura complexa, analisa profundamente os trade-offs, '
            'refatora tudo e apresenta um plano detalhado multi-etapa com alternativas. ')*6
         result=brain.ask(q)
         self.assertEqual('LOCAL', result.route)
-        self.assertEqual(0, cloud.calls)
 
     def test_cloud_setup_is_retired_and_external_ai_is_hard_blocked(self):
         ps=Path('setup_cloud.ps1').read_text(encoding='utf-8-sig').lower()

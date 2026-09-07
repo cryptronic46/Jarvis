@@ -33,9 +33,7 @@ from jarvis_core.services.agenda import (
     add_agenda_item, list_agenda_items, complete_agenda_item,
 )
 from jarvis_core.services.integrations import get_integrations_status
-from jarvis_core.services.privacy import (
-    get_privacy_status, set_privacy_mode, lock_workstation,
-)
+from jarvis_core.services.workstation import lock_workstation
 from jarvis_core.services.routines import list_routines, run_routine
 from jarvis_core.services.file_index import (
     build_local_file_index, search_local_files, list_recent_local_files, read_local_document, file_index,
@@ -507,20 +505,6 @@ class ToolRegistry:
             get_integrations_status,
             {"type":"function","function":{"name":"get_integrations_status","description":"Read calendar/email/smart-home integration status.","parameters":{"type":"object","properties":{}}}},
             RiskLevel.READ_ONLY,
-        ))
-        self._register(ToolDef(
-            "get_privacy_status",
-            "Read JARVIS privacy/external-network state.",
-            get_privacy_status,
-            {"type":"function","function":{"name":"get_privacy_status","description":"Read privacy mode status.","parameters":{"type":"object","properties":{}}}},
-            RiskLevel.READ_ONLY,
-        ))
-        self._register(ToolDef(
-            "set_privacy_mode",
-            "Enable or disable local privacy mode. Privacy mode blocks external network research.",
-            set_privacy_mode,
-            {"type":"function","function":{"name":"set_privacy_mode","description":"Enable or disable privacy mode.","parameters":{"type":"object","properties":{"enabled":{"type":"boolean"}},"required":["enabled"]}}},
-            RiskLevel.LOW,
         ))
         self._register(ToolDef(
             "lock_workstation",
@@ -1531,14 +1515,10 @@ class ToolRegistry:
             )
 
         if has(
-            "privacidade", "privacy", "cloud", "bloqueia pc",
-            "bloquear pc", "lock workstation",
+            "bloqueia pc", "bloquear pc", "lock workstation",
         ):
             add(
-                "get_privacy_status",
-                "set_privacy_mode",
                 "lock_workstation",
-                "get_integrations_status",
             )
 
         if has(

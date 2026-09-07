@@ -94,7 +94,11 @@ class CleanPresentationTests(unittest.TestCase):
         text = format_dashboard_preview({
             "ok": True,
             "profile": {"display_name": "Tiago", "address_as": "Senhor", "role": "owner"},
-            "privacy": {"privacy_mode": False, "cloud_allowed": True},
+            "authority": {
+                "mode": "owner_strict",
+                "owner_authority": "absolute",
+                "standing_public_web_read_only_research": False,
+            },
             "environment": {
                 "location": {"label": "Furadouro, Ovar"},
                 "weather": {
@@ -123,6 +127,8 @@ class CleanPresentationTests(unittest.TestCase):
         self.assertIn("DASHBOARD — PRÉ-VISUALIZAÇÃO", text)
         self.assertIn("Furadouro", text)
         self.assertIn("Rede: 3", text)
+        self.assertIn("Autoridade: OWNER/STRICT", text)
+        self.assertIn("requer autorização OWNER", text)
         self.assertNotIn('"weather"', text)
         self.assertNotIn("{", text)
 

@@ -76,7 +76,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "26d1d912e7a322329c3b55a3a6f301bdc7eb6d672327ee3f651d8cd7744d7a52"
+      "sha256": "7355abcbd2aeeb035c755b8d821762f8ca2823c13c5d80306fd73ba04ce47db2"
     },
     {
       "path": "acceptance_real_machine.ps1",
@@ -132,7 +132,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "7bb4109af6cfcbfd4898f8151cfe5c0c2177ca8929cc741876398df54edc5351"
+      "sha256": "d891b7f439797ef0a79a008494c61b20dbae53ae251bcdc9ef75459cd1b79b09"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -140,11 +140,11 @@
     },
     {
       "path": "jarvis_core/core/brain.py",
-      "sha256": "2fac1cc0bd9b068a16f13addf1ef819aedfe32da9e7a3f0028a097b53c71ce41"
+      "sha256": "655cfbc6957e7a55f095349d5535995e3f4df50b2b8203ab1d072dba3f836362"
     },
     {
       "path": "jarvis_core/core/cloud_brain.py",
-      "sha256": "535e7c5b4cc79bb7ece71c77ee778e39b9de39ac821dfc3de78582bf5da86a1d"
+      "sha256": "4f7a6cdbbbcf69a82ecbc7bccc8a6cd8506c7da39b23a8a73a982983ba7faab6"
     },
     {
       "path": "jarvis_core/core/config.py",
@@ -160,7 +160,7 @@
     },
     {
       "path": "jarvis_core/core/fast_router.py",
-      "sha256": "5a777d4e1d1a1628dda27c57235aa75c6c1237d581747dbfbbe6e6b77aa863ca"
+      "sha256": "b2b8c627d0af99b20b51a19ceab3b824d991fda921fd62975ac853cae8a5e32a"
     },
     {
       "path": "jarvis_core/core/freshness.py",
@@ -168,7 +168,7 @@
     },
     {
       "path": "jarvis_core/core/hybrid_brain.py",
-      "sha256": "163e8348e04d37e25d254c53c5efdd6e72dca91740b5dc4a065e04f2320249ad"
+      "sha256": "82fd16233a141ec41d485312c04bda7632057c49b286deb98b1bd444c25d76ff"
     },
     {
       "path": "jarvis_core/core/local_llm.py",
@@ -184,7 +184,7 @@
     },
     {
       "path": "jarvis_core/core/tool_registry.py",
-      "sha256": "45f0d047742b0b9032f33dcf7b2fcf5e4cbf46c54c752ffb6ccf3f7eb5d7afcd"
+      "sha256": "be3efe17d0f5ed4e0341f67241b038a44048d799ca0477bc8cc75e24fefcf542"
     },
     {
       "path": "jarvis_core/security/__init__.py",
@@ -256,7 +256,7 @@
     },
     {
       "path": "jarvis_core/services/external_learning.py",
-      "sha256": "e01a68ee91499a963fec27b51948b8416cdb65ad26797779388fa08d10fd28e3"
+      "sha256": "99abe6f21f928b0778cec2316f1d2fba5c8c73ecb6c7aa5fa4e9338cd48d6832"
     },
     {
       "path": "jarvis_core/services/file_index.py",
@@ -304,7 +304,7 @@
     },
     {
       "path": "jarvis_core/services/local_research.py",
-      "sha256": "f527cbd6a63e14347c3ac776a6a36f45082e66b5b4e4eb6c1133cf205a381d65"
+      "sha256": "ba0feb3c355f9f6f43831ba3061dcddbb7d0f37c9eb26c5b5a7a7c74c917c10e"
     },
     {
       "path": "jarvis_core/services/memory_index.py",
@@ -340,11 +340,7 @@
     },
     {
       "path": "jarvis_core/services/presentation.py",
-      "sha256": "35f02093fa78859c33daf9c50e84ac5ef25473ba0dc6ad4d7518c7b3073f54a9"
-    },
-    {
-      "path": "jarvis_core/services/privacy.py",
-      "sha256": "1229614d59a9a77944aa0362036bab98acbda2fd7a3a594c711789dae325fae2"
+      "sha256": "c00005066a623bbd2fe0ebe5aca395e11ee8bc450590edbf845f36e0088ec7c7"
     },
     {
       "path": "jarvis_core/services/profiles.py",
@@ -512,7 +508,7 @@
     },
     {
       "path": "jarvis_core/tools/dashboard_tools.py",
-      "sha256": "2c4f19de24557c2b910668a98f26540b2787ebe77cd83ff1a118ec43a2f7cd14"
+      "sha256": "ae5d589e8dc29d20c518caf4a13ff4b750628a3bb0339fb2021955624ea77410"
     },
     {
       "path": "jarvis_core/tools/environment_tools.py",
@@ -744,7 +740,7 @@
     },
     {
       "path": "tests/test_clean_presentation.py",
-      "sha256": "534cefb40f8447eadf8ea016474dd6ec93d95d5a2c21e7115b4df474f6eebaca"
+      "sha256": "4c97090ef388e8fdf6dbd6990434fc86532ad30673a825825203d78f789b41c5"
     },
     {
       "path": "tests/test_cli_banner.py",
@@ -860,7 +856,7 @@
     },
     {
       "path": "tests/test_dashboard_contract.py",
-      "sha256": "20014b70406bbfc71aa7420b139cffd3e7f9802b5e60b55c3dcc0dca28609c55"
+      "sha256": "48160d9891c939c020a4c8a16cac646421b35f6857ecb6c0c0643a04736ab2a8"
     },
     {
       "path": "tests/test_deep_network_inspection.py",
@@ -900,7 +896,7 @@
     },
     {
       "path": "tests/test_epistemic_learning_0278.py",
-      "sha256": "9b15c2c2ab85b170e59ea26eebb8a1b2006b5f7843eb6783a106e470dda40954"
+      "sha256": "c61b0c5b4ff25048a469c13110af4d0df1e47a4b68771d547b5d6d3c1fc46f28"
     },
     {
       "path": "tests/test_external_expert_privacy_0278.py",
@@ -956,11 +952,11 @@
     },
     {
       "path": "tests/test_health_intelligence_baseline_0276.py",
-      "sha256": "45554ded605f938d1158acc4858e105fb66e0956b96607c2c33b47a0e15ce65a"
+      "sha256": "0cf9148ed6f8aa833773883f92b859af70d1f0e66728721754cae0373ab09a9e"
     },
     {
       "path": "tests/test_hybrid_autonomy_contract.py",
-      "sha256": "ced6f7c1c2d23cb66e7578e913ee12e2a7e441f949836f95bd5c20d5efd073d8"
+      "sha256": "7ee110cdd7bb5f9f3f09bfe3539924a4438ba602776f114eb70272ad18e74616"
     },
     {
       "path": "tests/test_hybrid_autonomy_gate.py",
@@ -968,7 +964,7 @@
     },
     {
       "path": "tests/test_hybrid_behavior_0273.py",
-      "sha256": "2e34d29e4b709051d766c91c87bb6e58968ad10ee3dc4a4f7c21186bbf2a835e"
+      "sha256": "e9981ea57cbee305af0ae7072ecb8ca439f42e1154d15d2a0d203bbf9b2d78ce"
     },
     {
       "path": "tests/test_hybrid_cloud.py",
@@ -1156,7 +1152,7 @@
     },
     {
       "path": "tests/test_performance_integration_contract.py",
-      "sha256": "f744dfb71ed2025a53e38dea440c9dbc7284163795ce5179c17d2d9e0c62ec17"
+      "sha256": "23c9ae4493ab50cbed5fb14f2907f5109799d99758ed6204e56ab76c9b2cc345"
     },
     {
       "path": "tests/test_performance_settings.py",
@@ -1180,7 +1176,7 @@
     },
     {
       "path": "tests/test_personal_ops_cli.py",
-      "sha256": "f56bd6f7009b6bf2eeefc61860585e934eac879393a9d8979c0d3d4ecc13d78d"
+      "sha256": "f6986d386864b51c3b028d2ba1a3c91a1acba43b5d4d487c8e2b734954ff1c27"
     },
     {
       "path": "tests/test_personal_ops_tool_permissions.py",
@@ -1204,7 +1200,7 @@
     },
     {
       "path": "tests/test_privacy_cloud_gate.py",
-      "sha256": "91aeae1e2ec583d24976d62d641cc7b4a95c6cd5ee898ee90125eb3a31548358"
+      "sha256": "0f6cf7e99c993a15ec486d10d7efa1d2e16fa453f7946dfeb587de591451f432"
     },
     {
       "path": "tests/test_proactive_learning_authorization.py",
@@ -1384,7 +1380,7 @@
     },
     {
       "path": "tests/test_stability_autonomy_kali_0271.py",
-      "sha256": "fff8c22325123e955e68cbd6432cb6ddb8267dfa15c3321dcb967d3acec8e604"
+      "sha256": "c6035d90a0c86c50563a604000c14b2b01c1214fb2229814bc3f25323dc6a8a0"
     },
     {
       "path": "tests/test_startup_briefing.py",
@@ -1645,6 +1641,10 @@
     {
       "path": "verify_release.ps1",
       "sha256": "5c4e9b619a133c2fcd3946e2d8e267bfba6e0fb84fb6f5136af8c380d6376268"
+    },
+    {
+      "path": "jarvis_core/services/workstation.py",
+      "sha256": "b1e3d022a0985d48ff417045b595d1c02bdb9d7e5efad49e79f04afa4f3b7195"
     }
   ]
 }

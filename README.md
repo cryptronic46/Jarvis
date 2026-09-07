@@ -565,10 +565,8 @@ JARVIS reasons with local Ollama/Qwen first. Current/public research uses direct
 
 Commands:
 - `/research status` — direct-web/local-synthesis status.
-- `/research test` — live research smoke test.
 - `/research TEXT` or `/web TEXT` — explicit direct Internet research synthesized locally.
 - `/cloud status` — confirms external AI runtime is disabled.
-- `/privacy on` — blocks external network research while preserving local reasoning.
 
 
 ## 0.27.8 — Biblioteca privada de livros PDF

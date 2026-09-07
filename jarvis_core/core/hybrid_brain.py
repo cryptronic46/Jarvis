@@ -242,14 +242,56 @@ class HybridBrain:
     ) -> HybridAnswer | None:
         if (
             self.autonomy is None
-            or not bool(getattr(self.settings, "autonomy_enabled", True))
+            or not bool(
+                getattr(
+                    self.settings,
+                    "autonomy_enabled",
+                    True,
+                )
+            )
         ):
-            return None
+            return HybridAnswer(
+                text=(
+                    "A pesquisa Web foi bloqueada porque "
+                    "a autoridade OWNER para ações autónomas "
+                    "não está disponível."
+                ),
+                route="AUTH/BLOCKED",
+                model=None,
+                elapsed_ms=0,
+                reason="owner_authority_unavailable",
+                used_web=False,
+            )
+
         try:
-            if self.autonomy.has_standing_public_web_research():
-                return None
-        except Exception:
-            pass
+            standing_allowed = (
+                self.autonomy
+                .has_standing_public_web_research()
+            )
+        except Exception as exc:
+            self.events.emit(
+                "OWNER_AUTHORITY_ERROR",
+                operation=(
+                    "standing_public_web_research"
+                ),
+                error=type(exc).__name__,
+            )
+
+            return HybridAnswer(
+                text=(
+                    "A pesquisa Web foi bloqueada porque "
+                    "não foi possível validar "
+                    "a autoridade OWNER."
+                ),
+                route="AUTH/BLOCKED",
+                model=None,
+                elapsed_ms=0,
+                reason="owner_authority_error",
+                used_web=False,
+            )
+
+        if standing_allowed:
+            return None
 
         payload = {
             "query": decision.text,
@@ -257,26 +299,91 @@ class HybridBrain:
             "deep": bool(decision.deep),
             "route_reason": reason,
         }
-        gate = self.autonomy.request(
-            capability="web_research",
-            payload=payload,
-            reason=reason,
-            description=description,
-            action="resume_query",
-            source="local_research_router",
-        )
+
+        try:
+            gate = self.autonomy.request(
+                capability="web_research",
+                payload=payload,
+                reason=reason,
+                description=description,
+                action="resume_query",
+                source="local_research_router",
+            )
+        except Exception as exc:
+            self.events.emit(
+                "OWNER_AUTHORITY_ERROR",
+                operation=(
+                    "web_research_request"
+                ),
+                error=type(exc).__name__,
+            )
+
+            return HybridAnswer(
+                text=(
+                    "A pesquisa Web foi bloqueada porque "
+                    "o controlo de autoridade falhou."
+                ),
+                route="AUTH/BLOCKED",
+                model=None,
+                elapsed_ms=0,
+                reason="owner_authority_error",
+                used_web=False,
+            )
+
+        if not isinstance(
+            gate,
+            dict,
+        ):
+            return HybridAnswer(
+                text=(
+                    "A pesquisa Web foi bloqueada porque "
+                    "a autoridade OWNER devolveu "
+                    "um estado inválido."
+                ),
+                route="AUTH/BLOCKED",
+                model=None,
+                elapsed_ms=0,
+                reason=(
+                    "owner_authority_invalid_response"
+                ),
+                used_web=False,
+            )
+
         if gate.get("allowed"):
             return None
+
+        pending = bool(
+            gate.get("pending")
+        )
 
         return HybridAnswer(
             text=str(
                 gate.get("message")
-                or "Senhor, preciso da sua autorização antes de pesquisar na Internet."
+                or (
+                    "Senhor, preciso da sua autorização "
+                    "antes de pesquisar na Internet."
+                    if pending
+                    else
+                    "A pesquisa Web não recebeu "
+                    "autorização OWNER válida."
+                )
             ),
-            route="AUTH/PENDING",
+            route=(
+                "AUTH/PENDING"
+                if pending
+                else "AUTH/BLOCKED"
+            ),
             model=None,
             elapsed_ms=0,
-            reason="owner_authorization_required",
+            reason=(
+                "owner_authorization_required"
+                if pending
+                else str(
+                    gate.get("error")
+                    or
+                    "owner_authorization_not_granted"
+                )
+            ),
             used_web=False,
         )
 
@@ -431,20 +538,127 @@ class HybridBrain:
                 "explicit_web",
                 "explicit_url",
             }
-            if not direct_authority:
+
+            if direct_authority:
+                if self.autonomy is None:
+                    return HybridAnswer(
+                        text=(
+                            "A pesquisa Web foi bloqueada porque "
+                            "a autoridade OWNER não está disponível "
+                            "para registar esta instrução."
+                        ),
+                        route="AUTH/BLOCKED",
+                        model=None,
+                        elapsed_ms=round(
+                            (monotonic() - started) * 1000
+                        ),
+                        reason="owner_authority_unavailable",
+                        used_web=False,
+                    )
+
+                direct_payload = {
+                    "query": decision.text,
+                    "use_web": True,
+                    "deep": bool(decision.deep),
+                    "route_reason": decision.reason,
+                }
+
+                try:
+                    direct_record = (
+                        self.autonomy
+                        .record_direct_authorization(
+                            capability="web_research",
+                            payload=direct_payload,
+                            description=(
+                                "pesquisar diretamente na Internet "
+                                f"sobre: {decision.text[:220]}"
+                            ),
+                            source_text=user_text,
+                        )
+                    )
+                except Exception as exc:
+                    self.events.emit(
+                        "OWNER_AUTHORITY_ERROR",
+                        operation=(
+                            "direct_web_authorization"
+                        ),
+                        error=type(exc).__name__,
+                    )
+
+                    return HybridAnswer(
+                        text=(
+                            "A pesquisa Web foi bloqueada porque "
+                            "não foi possível registar "
+                            "a autoridade OWNER."
+                        ),
+                        route="AUTH/BLOCKED",
+                        model=None,
+                        elapsed_ms=round(
+                            (monotonic() - started) * 1000
+                        ),
+                        reason="owner_authority_error",
+                        used_web=False,
+                    )
+
+                if (
+                    not isinstance(
+                        direct_record,
+                        dict,
+                    )
+                    or not direct_record.get("ok")
+                    or not direct_record.get(
+                        "authorized",
+                        False,
+                    )
+                ):
+                    return HybridAnswer(
+                        text=(
+                            "A pesquisa Web foi bloqueada porque "
+                            "a autorização OWNER "
+                            "não foi registada."
+                        ),
+                        route="AUTH/BLOCKED",
+                        model=None,
+                        elapsed_ms=round(
+                            (monotonic() - started) * 1000
+                        ),
+                        reason=(
+                            str(
+                                direct_record.get(
+                                    "error"
+                                )
+                                if isinstance(
+                                    direct_record,
+                                    dict,
+                                )
+                                else ""
+                            )
+                            or
+                            "direct_owner_authorization_failed"
+                        ),
+                        used_web=False,
+                    )
+
+            else:
                 gated = self._autonomy_gate(
                     decision=decision,
                     reason=decision.reason,
-                    description=f"pesquisar diretamente na Internet sobre: {decision.text[:220]}",
+                    description=(
+                        "pesquisar diretamente na Internet "
+                        f"sobre: {decision.text[:220]}"
+                    ),
                 )
+
                 if gated is not None:
-                    gated.elapsed_ms = round((monotonic() - started) * 1000)
+                    gated.elapsed_ms = round(
+                        (monotonic() - started) * 1000
+                    )
                     return gated
 
             if self.research is None or not self.research.available():
                 return HybridAnswer(
                     text=(
-                        "A pesquisa direta na Internet está indisponível ou bloqueada pelo modo de privacidade. "
+                        "A pesquisa direta na Internet está indisponível porque a capacidade de pesquisa Web está desativada. "
                         "O cérebro local continua disponível."
                     ),
                     route="RESEARCH/UNAVAILABLE",

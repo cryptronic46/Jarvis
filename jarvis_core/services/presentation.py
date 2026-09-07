@@ -227,7 +227,7 @@ def format_dashboard_preview(data: dict[str, Any]) -> str:
         return "Não consegui criar a pré-visualização do dashboard."
 
     profile = data.get("profile") or {}
-    privacy = data.get("privacy") or {}
+    authority = data.get("authority") or {}
     env = data.get("environment") or {}
     weather = env.get("weather") or {}
     marine = env.get("marine") or {}
@@ -285,8 +285,8 @@ def format_dashboard_preview(data: dict[str, Any]) -> str:
             f"{agenda.get('pending_count',0)} pendente(s)"
         ),
         (
-            f"Privacidade: {'modo privado' if privacy.get('privacy_mode') else 'normal'} · "
-            f"Pesquisa externa {'permitida' if privacy.get('external_network_research_allowed', privacy.get('cloud_allowed')) else 'bloqueada'}"
+            "Autoridade: OWNER/STRICT · "
+            f"Web autónoma {'autorizada' if authority.get('standing_public_web_read_only_research') else 'requer autorização OWNER'}"
         ),
         f"Integrações: {ready}/{len(integration_rows)} prontas",
         "Dados técnicos para a futura UI: /dashboard raw",

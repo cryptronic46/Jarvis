@@ -17,7 +17,6 @@ import unicodedata
 import xml.etree.ElementTree as ET
 
 from jarvis_core import __version__
-from jarvis_core.services.privacy import privacy_state
 
 
 @dataclass(slots=True)
@@ -381,7 +380,6 @@ class LocalResearchEngine:
     def available(self) -> bool:
         return bool(
             getattr(self.settings, "local_research_enabled", True)
-            and not privacy_state().enabled
         )
 
     def status(self) -> dict[str, Any]:
@@ -389,7 +387,6 @@ class LocalResearchEngine:
             "ok": True,
             "enabled": bool(getattr(self.settings, "local_research_enabled", True)),
             "available": self.available(),
-            "privacy_mode": privacy_state().enabled,
             "external_ai": False,
             "synthesis_model": getattr(self.settings, "model", None),
             "search_providers": list(self.SEARCH_PROVIDERS),
@@ -1018,7 +1015,7 @@ class LocalResearchEngine:
 
     def search(self, query: str, limit: int | None = None) -> dict[str, Any]:
         if not self.available():
-            return {"ok": False, "error": "PRIVACY_OR_RESEARCH_DISABLED", "results": []}
+            return {"ok": False, "error": "RESEARCH_DISABLED", "results": []}
         limit = max(1, min(int(limit or getattr(self.settings, "local_research_max_results", 5)), 10))
         collected: list[ResearchSource] = []
         errors: list[str] = []
@@ -1204,7 +1201,7 @@ class LocalResearchEngine:
         if not self.available():
             return ResearchAnswer(
                 ok=False,
-                text="A pesquisa externa está desativada pelo modo de privacidade ou configuração local.",
+                text="A pesquisa externa está desativada pela configuração local.",
                 elapsed_ms=0,
                 query=query,
                 error="RESEARCH_UNAVAILABLE",
@@ -1420,7 +1417,7 @@ class LocalResearchEngine:
         if not self.available():
             return ResearchAnswer(
                 ok=False,
-                text="A pesquisa externa está desativada pelo modo de privacidade ou configuração local.",
+                text="A pesquisa externa está desativada pela configuração local.",
                 elapsed_ms=0,
                 query=query,
                 error="RESEARCH_UNAVAILABLE",

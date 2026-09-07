@@ -1682,25 +1682,6 @@ class FastCommandRouter:
                 return self._hit(response, "routine", "run_routine")
 
         if any(phrase in normalized for phrase in (
-            "ativa modo privado", "activa modo privado", "modo privado on",
-        )):
-            data = self._tool("set_privacy_mode", {"enabled": True})
-            return self._hit(
-                "Modo privado ativado. A pesquisa externa na Internet fica bloqueada; o cérebro local continua disponível."
-                if data.get("ok") else data.get("message") or "Não consegui ativar o modo privado.",
-                "privacy_on", "set_privacy_mode",
-            )
-
-        if any(phrase in normalized for phrase in (
-            "desativa modo privado", "desactiva modo privado", "modo privado off",
-        )):
-            data = self._tool("set_privacy_mode", {"enabled": False})
-            return self._hit(
-                "Modo privado desativado." if data.get("ok") else data.get("message") or "Não consegui desativar o modo privado.",
-                "privacy_off", "set_privacy_mode",
-            )
-
-        if any(phrase in normalized for phrase in (
             "bloqueia o computador", "bloqueia o pc", "tranca o computador", "tranca o pc",
         )):
             data = self._tool("lock_workstation")

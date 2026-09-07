@@ -67,15 +67,17 @@ class PerformanceIntegrationContractTests(unittest.TestCase):
             cyber,
         )
 
-    def test_hybrid_offloads_only_as_local_first_escalation(self):
+    def test_hybrid_is_local_first_and_external_ai_is_structurally_blocked(self):
         hybrid = Path(
             "jarvis_core/core/hybrid_brain.py"
         ).read_text(encoding="utf-8")
         self.assertIn("complexity_score", hybrid)
         self.assertIn("Local-first: always attempt the local model first", hybrid)
         self.assertIn("_learning_gap_offer", hybrid)
-        self.assertIn("studied_knowledge_still_insufficient", hybrid)
-        self.assertIn('capability="cloud_reasoning"', hybrid)
+        self.assertIn("external_ai_hard_block", hybrid)
+        self.assertIn('capability="external_learning"', hybrid)
+        self.assertIn('action="external_learning_resume_query"', hybrid)
+        self.assertNotIn('capability="cloud_reasoning"', hybrid)
         self.assertNotIn("should_offload_to_cloud(decision.text)", hybrid)
 
 

@@ -5,7 +5,7 @@ from typing import Any
 from jarvis_core.services.profiles import manager as profile_manager
 from jarvis_core.services.agenda import agenda_store
 from jarvis_core.services.integrations import integration_registry
-from jarvis_core.services.privacy import privacy_state
+from jarvis_core.services.autonomy import get_autonomy_status
 from jarvis_core.services.security_watch import security_watch_store
 from jarvis_core.services.network_inventory import network_inventory
 from jarvis_core.tools.pc_health import get_pc_health
@@ -19,7 +19,7 @@ def get_dashboard_snapshot() -> dict[str, Any]:
     return {
         "ok": True,
         "profile": profile_manager().active(),
-        "privacy": privacy_state().status(),
+        "authority": get_autonomy_status(),
         "environment": get_home_environment(),
         "pc_health": get_pc_health(),
         "agenda": agenda_store().briefing(),
@@ -33,5 +33,5 @@ def get_dashboard_snapshot() -> dict[str, Any]:
             "active_count": len(inventory.get("devices", [])),
         },
         "integrations": integration_registry().status(),
-        "ui_contract_version": 1,
+        "ui_contract_version": 2,
     }

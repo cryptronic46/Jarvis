@@ -41,7 +41,6 @@ from jarvis_core.services.routines import routine_manager
 from jarvis_core.services.network_inventory import network_inventory
 from jarvis_core.services.file_index import configure_file_index
 from jarvis_core.services.integrations import integration_registry
-from jarvis_core.services.privacy import privacy_state
 from jarvis_core.tools.pc_health import format_pc_health
 from jarvis_core.services.presentation import (
     format_profile_status,
@@ -502,8 +501,6 @@ Comandos:
   /agenda add DATA HORA TITULO
   /task add TITULO  criar tarefa local
   /task done ID     concluir tarefa
-  /privacy status   estado do modo privado
-  /privacy on|off   bloquear/permitir pesquisa externa
   /lock             bloquear sessão Windows
   /integrations     resumo das integrações
   /integrations raw detalhe técnico das integrações
@@ -785,7 +782,6 @@ def main() -> None:
     inventory = network_inventory()
     local_files = configure_file_index(extra_roots=[settings.book_library_root])
     integrations = integration_registry()
-    privacy = privacy_state()
     cyber_knowledge = cyber_vault()
     book_library = configure_book_library(
         settings.book_library_root,
@@ -1903,7 +1899,7 @@ def main() -> None:
     print(f"Activity  : {'ON' if settings.activity_trace_enabled else 'OFF'} | live={'ON' if settings.activity_trace_live else 'OFF'} | /activity on")
     print(f"Brain     : LOCAL PRIMARY | {settings.model}")
     print("External AI: HARD BLOCKED | Web research -> local Qwen synthesis")
-    print(f"Research  : DIRECT WEB -> LOCAL SYNTHESIS | {'READY' if research_engine.available() else 'PRIVACY/OFF'}")
+    print(f"Research  : DIRECT WEB -> LOCAL SYNTHESIS | {'READY' if research_engine.available() else 'OFF'}")
     print("Authority : OWNER/STRICT | autonomous external actions require permission")
     kali_state = kali_bridge.status()
     print(f"Kali LAB  : {'READY' if kali_state.get('configured') and kali_state.get('ready_scope') else 'NOT CONFIGURED/NOT READY'} | fixed profiles only")
@@ -3386,17 +3382,6 @@ def main() -> None:
                 print("JARVIS >", json.dumps(agenda.complete(item_id), ensure_ascii=False, indent=2))
                 continue
 
-            if lower == "/privacy status":
-                print("JARVIS >", json.dumps(privacy.status(), ensure_ascii=False, indent=2))
-                continue
-            if lower == "/privacy on":
-                result = read_tool("set_privacy_mode", {"enabled": True})
-                print("JARVIS > Modo privado ativado. Cloud bloqueada." if result.get("ok") else f"JARVIS > {result}")
-                continue
-            if lower == "/privacy off":
-                result = read_tool("set_privacy_mode", {"enabled": False})
-                print("JARVIS > Modo privado desativado." if result.get("ok") else f"JARVIS > {result}")
-                continue
             if lower == "/lock":
                 result = read_tool("lock_workstation")
                 if not result.get("ok"):
@@ -3879,15 +3864,6 @@ def main() -> None:
                         indent=2,
                     ),
                 )
-                continue
-            if lower == "/research test":
-                result = research_engine.test()
-                print(f"JARVIS > {result.text}")
-                if debug_terminal["enabled"]:
-                    print(
-                        f"  [RESEARCH] model={result.model} "
-                        f"{result.elapsed_ms}ms sources={len(result.sources or [])}"
-                    )
                 continue
             if lower in {"/cloud", "/cloud status", "/cloud test", "/cloud diagnose", "/cloud clear"}:
                 print("JARVIS > External AI: HARD BLOCKED. O Core permite apenas Qwen local + pesquisa Web direta com síntese local.")
