@@ -32,7 +32,7 @@ class NativeBrain0277Tests(unittest.TestCase):
         self.assertIn('setup_native_brain.ps1', setup)
         self.assertNotIn('ollama pull', setup.lower())
         self.assertIn('llama-server.exe', native)
-        self.assertIn('qwen3-8b.gguf', native)
+        self.assertIn('Qwen3-14B-Q4_K_M.gguf', native)
         self.assertIn('Find-OllamaQwenBlob', native)  # migration source
         self.assertIn('bin-win-vulkan-x64.zip', native)
         self.assertIn('Test-OllamaCompatExecutor', native)
@@ -105,7 +105,7 @@ class NativeBrain0277Tests(unittest.TestCase):
         local_llm = Path('jarvis_core/core/local_llm.py').read_text(encoding='utf-8')
         self.assertIn('$LlamaCppTag = "b10516"', native)
         self.assertIn('96d64faeb5b8e655341f32b26ad3e51fbea8bff0bc8120ad3dbffdc0b05b8ad3', native)
-        self.assertIn('d98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785', native)
+        self.assertIn('500a8806e85ee9c83f3ae08420295592451379b4f8cf2d0f41c15dffeb6b81f0', native)
         self.assertIn('Assert-Sha256', native)
         self.assertNotIn('from ollama import', local_llm)
         self.assertNotIn('ollama.Client', local_llm)

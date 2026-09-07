@@ -67,7 +67,7 @@ class NativeLlamaRuntime:
 
     @property
     def model_path(self) -> Path:
-        return Path(str(getattr(self.settings, "native_llama_model_path", "models/llm/qwen3-8b.gguf")))
+        return Path(str(getattr(self.settings, "native_llama_model_path", "models/llm/Qwen3-14B-Q4_K_M.gguf")))
 
     @property
     def state_path(self) -> Path:
@@ -283,6 +283,30 @@ class NativeLlamaRuntime:
                 )
             ):
                 args += ["--flash-attn", "on"]
+
+            cache_type_k = str(
+                getattr(
+                    self.settings,
+                    "native_llama_cache_type_k",
+                    "q8_0",
+                )
+                or ""
+            ).strip()
+
+            cache_type_v = str(
+                getattr(
+                    self.settings,
+                    "native_llama_cache_type_v",
+                    "q8_0",
+                )
+                or ""
+            ).strip()
+
+            if cache_type_k:
+                args += ["--cache-type-k", cache_type_k]
+
+            if cache_type_v:
+                args += ["--cache-type-v", cache_type_v]
 
             creationflags = 0
             if os.name == "nt":
@@ -685,11 +709,11 @@ class NativeLlamaClient:
 
     def list(self) -> Any:
         model = self.runtime.model_path
-        rows = [SimpleNamespace(model=str(getattr(self.settings, "model", "qwen3:8b")))] if model.is_file() else []
+        rows = [SimpleNamespace(model=str(getattr(self.settings, "model", "qwen3:14b")))] if model.is_file() else []
         return SimpleNamespace(models=rows)
 
     def show(self, model: str) -> Any:
-        configured = str(getattr(self.settings, "model", "qwen3:8b"))
+        configured = str(getattr(self.settings, "model", "qwen3:14b"))
         if str(model or "") != configured:
             raise LocalLLMError(f"Model not configured in native text runtime: {model}")
         if not self.runtime.model_path.is_file():
@@ -701,7 +725,7 @@ class NativeLlamaClient:
         rows = []
         if status.running:
             rows.append(SimpleNamespace(
-                model=str(getattr(self.settings, "model", "qwen3:8b")),
+                model=str(getattr(self.settings, "model", "qwen3:14b")),
                 size=None,
                 size_vram=None,
                 expires_at="managed-by-jarvis",
@@ -775,7 +799,7 @@ class OllamaLocalCompatClient:
                 for row in (data.get("models") or [])
                 if isinstance(row, dict)
             }
-            configured = str(getattr(self.settings, "model", "qwen3:8b"))
+            configured = str(getattr(self.settings, "model", "qwen3:14b"))
             model_ok = configured in names
             return {"ok": bool(model_ok or not require_model), "online": True, "model_ok": model_ok, "model": configured}
         except Exception as exc:
@@ -786,7 +810,7 @@ class OllamaLocalCompatClient:
              format: dict[str, Any] | None = None, stream: bool = False, **_: Any) -> Any:
         del stream
         payload: dict[str, Any] = {
-            "model": str(model or getattr(self.settings, "model", "qwen3:8b")),
+            "model": str(model or getattr(self.settings, "model", "qwen3:14b")),
             "messages": NativeLlamaClient._messages(messages),
             "stream": False,
             "think": bool(think),
@@ -811,7 +835,7 @@ class OllamaLocalCompatClient:
             message=message,
             done_reason=str(data.get("done_reason") or ("stop" if data.get("done") else "")),
             eval_count=int(data.get("eval_count") or 0),
-            model=str(data.get("model") or model or getattr(self.settings, "model", "qwen3:8b")),
+            model=str(data.get("model") or model or getattr(self.settings, "model", "qwen3:14b")),
         )
 
     def list(self) -> Any:
@@ -852,7 +876,7 @@ class OllamaLocalCompatClient:
         return self._request("/api/generate", payload, timeout=30.0)
 
     def shutdown(self, reason: str = "shutdown") -> dict[str, Any]:
-        model = str(getattr(self.settings, "model", "qwen3:8b"))
+        model = str(getattr(self.settings, "model", "qwen3:14b"))
         try:
             self.generate(model=model, prompt="", keep_alive=0)
             self._emit("OLLAMA_COMPAT_MODEL_RELEASED", model=model, reason=reason)
@@ -902,7 +926,7 @@ class JarvisLocalClient:
             self.state_path.parent.mkdir(parents=True, exist_ok=True)
             self.state_path.write_text(json.dumps({
                 "selected": str(selected),
-                "model": str(getattr(self.settings, "model", "qwen3:8b")),
+                "model": str(getattr(self.settings, "model", "qwen3:14b")),
                 "reason": str(reason or ""),
                 "external_ai": False,
             }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -914,7 +938,7 @@ class JarvisLocalClient:
         if not status.get("ok"):
             raise LocalLLMError(
                 "Native JARVIS executor is unavailable and the local Ollama compatibility executor "
-                f"is not ready for {getattr(self.settings, 'model', 'qwen3:8b')}: {status.get('error') or status}"
+                f"is not ready for {getattr(self.settings, 'model', 'qwen3:14b')}: {status.get('error') or status}"
             )
         self._selected = "ollama_local_compat"
         self._fallback_reason = str(reason or "native_unavailable")[:800]

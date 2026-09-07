@@ -66,7 +66,7 @@ function Stop-JarvisOllamaCompatModel {
     } catch { return $true }
     try {
         $settingsPath = Join-Path $PSScriptRoot "settings.json"
-        $model = "qwen3:8b"
+        $model = "qwen3:14b"
         $host = "http://127.0.0.1:11434"
         if (Test-Path -LiteralPath $settingsPath) {
             try {

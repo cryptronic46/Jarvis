@@ -44,7 +44,7 @@ Get-Process -Name "llama-server" -ErrorAction SilentlyContinue | ForEach-Object 
 try {
     $cfg = Get-Content -LiteralPath (Join-Path $PSScriptRoot "settings.json") -Raw | ConvertFrom-Json
     $OllamaHost = if ($cfg.ollama_host) { ([string]$cfg.ollama_host).TrimEnd('/') } else { "http://127.0.0.1:11434" }
-    $ConfiguredModel = if ($cfg.model) { [string]$cfg.model } else { "qwen3:8b" }
+    $ConfiguredModel = if ($cfg.model) { [string]$cfg.model } else { "qwen3:14b" }
     $ps = Invoke-RestMethod -UseBasicParsing -Uri ($OllamaHost + "/api/ps") -Method Get -TimeoutSec 3
     foreach ($row in @($ps.models)) {
         $name = if ($row.model) { [string]$row.model } elseif ($row.name) { [string]$row.name } else { "" }

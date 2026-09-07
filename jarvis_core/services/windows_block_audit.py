@@ -570,7 +570,7 @@ def _probe_local_ollama_executor(root: Path, *, timeout_seconds: float = 3.0) ->
     backend = str(settings.get("local_llm_backend") or "jarvis_local").strip().lower()
     allowed = bool(settings.get("local_llm_allow_ollama_compat", True)) and backend in {"jarvis_local", "auto", "auto_local", "ollama_local_compat", "ollama_compat"}
     host = str(settings.get("ollama_host") or "http://127.0.0.1:11434").rstrip("/")
-    model = str(settings.get("model") or "qwen3:8b")
+    model = str(settings.get("model") or "qwen3:14b")
     if not allowed:
         return {"ok": False, "allowed": False, "online": False, "model_ok": False, "model": model, "reason": "disabled"}
     try:

@@ -177,7 +177,7 @@ if ($Audit.llama_probe.installed -and -not $Audit.llama_probe.ok -and -not $Audi
     Fail "O probe atual do llama-server falhou e nao existe executor local alternativo saudavel: $($Audit.llama_probe.returncode_hex) $($Audit.llama_probe.error)"
 }
 if ($Audit.llama_probe.installed -and -not $Audit.llama_probe.ok -and $Audit.local_executor.ok) {
-    Write-Host "JARVIS_LLM_RUNTIME_CURRENT: COMPAT_OK (native bloqueado; Ollama local/qwen3:8b como executor apenas)" -ForegroundColor Yellow
+    Write-Host "JARVIS_LLM_RUNTIME_CURRENT: COMPAT_OK (native bloqueado; Ollama local/qwen3:14b como executor apenas)" -ForegroundColor Yellow
 }
 elseif ($Audit.llama_probe.ok) {
     Write-Host "JARVIS_LLM_RUNTIME_CURRENT: NATIVE_OK" -ForegroundColor Green

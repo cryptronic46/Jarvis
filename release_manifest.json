@@ -80,7 +80,7 @@
     },
     {
       "path": "acceptance_real_machine.ps1",
-      "sha256": "59d023c4a6d984da5e7fefff3bb15513b41400f9842bb791c390b9a98823a2f5"
+      "sha256": "1f3938b4be93969da5e3a4dabc597fed70ca0a1ea65cf6e105af56dfe20f835e"
     },
     {
       "path": "collect_voice_learning.ps1",
@@ -148,7 +148,7 @@
     },
     {
       "path": "jarvis_core/core/config.py",
-      "sha256": "f4932eb39a203e8001621be68c37a9b5e4462a348adef3c61a20fbe9e50f1215"
+      "sha256": "59101d733eb721539196e2adc57b3363a51134fca3d7b1dc434b8b1be59c68c2"
     },
     {
       "path": "jarvis_core/core/conversation_policy.py",
@@ -172,7 +172,7 @@
     },
     {
       "path": "jarvis_core/core/local_llm.py",
-      "sha256": "411b13c98403967b08cbdeaa22223447604b55ef09beaef2a69f59b150b36de1"
+      "sha256": "1f6d96b3a1356bebecb41da5938a99080becf617db54d21a6677d0c825a47db0"
     },
     {
       "path": "jarvis_core/core/local_vision.py",
@@ -452,7 +452,7 @@
     },
     {
       "path": "jarvis_core/services/windows_block_audit.py",
-      "sha256": "463039a36c55479c7ee3c16c760b13b2ef8c3ffc84d5eced544673594e7f9b2c"
+      "sha256": "5b377702cebb899aba6e1cd30c901296b4c526840618f71d9e97b22666ecbb43"
     },
     {
       "path": "jarvis_core/setup_secret.py",
@@ -552,7 +552,7 @@
     },
     {
       "path": "repair_security_baseline.ps1",
-      "sha256": "ec49ef57ac57a1c7ba2b28b587a5bca17b6e6d9448cadc2eba1d2e9432e6719b"
+      "sha256": "70fec022c259a6960096d8ed8d5050de49fd3172ec7b6522c30ecb0f4c425358"
     },
     {
       "path": "repair_startup_shortcut.ps1",
@@ -584,7 +584,7 @@
     },
     {
       "path": "run.ps1",
-      "sha256": "f71c6ae75409bdaee913b35efda440476438290d4494d891cebdce1ead508f51"
+      "sha256": "0dbae51cebc3e8c1667226ca90056a75acae04a214aaf2fb15fd56e53d01f826"
     },
     {
       "path": "setup.ps1",
@@ -600,7 +600,7 @@
     },
     {
       "path": "setup_native_brain.ps1",
-      "sha256": "f5a11354866c7c38bb156a6a257853aefb8d59ecf38b61399a1fae760d2f4f53"
+      "sha256": "653e7e922d80ae76cbc4b5f3d053f6e1a64aa6986f3adbe1dc7c6f4bd1a48eb3"
     },
     {
       "path": "setup_vision.ps1",
@@ -1120,7 +1120,7 @@
     },
     {
       "path": "tests/test_native_brain_0277.py",
-      "sha256": "01e6f3761afcd04cea8a77087a50f6d03c62c90ff39c0e8cf228b8ce3121a1cb"
+      "sha256": "9ac589da4ff9e37a19fcf0e46d7e205f628cf612dab6c3675481c3ef90596642"
     },
     {
       "path": "tests/test_native_runtime_security_0277.py",

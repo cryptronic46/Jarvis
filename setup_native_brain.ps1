@@ -16,8 +16,8 @@ $LlamaCppTag = "b10516"
 $LlamaMainSha256 = "96d64faeb5b8e655341f32b26ad3e51fbea8bff0bc8120ad3dbffdc0b05b8ad3"
 $LlamaCudaSha256 = "8c79a9b226de4b3cacfd1f83d24f962d0773be79f1e7b75c6af4ded7e32ae1d6"
 $LlamaVulkanSha256 = "530f57d2a874ce017827c1e5a926812b9d5de4667248575d1372b1c0acf94d83"
-$QwenQ4Sha256 = "d98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785"
-$ModelPath = Join-Path $ModelDir "qwen3-8b.gguf"
+$QwenQ4Sha256 = "500a8806e85ee9c83f3ae08420295592451379b4f8cf2d0f41c15dffeb6b81f0"
+$ModelPath = Join-Path $ModelDir "Qwen3-14B-Q4_K_M.gguf"
 New-Item -ItemType Directory -Force -Path $RuntimeDir, $ModelDir | Out-Null
 
 function Test-Gguf([string]$Path) {
@@ -173,7 +173,7 @@ function Install-PinnedNativeRuntime([string]$Variant = "cuda12") {
 
 function Test-OllamaCompatExecutor {
     $base = 'http://127.0.0.1:11434'
-    $model = 'qwen3:8b'
+    $model = 'qwen3:14b'
     function Probe-Tags {
         try {
             $r = Invoke-RestMethod -UseBasicParsing -Uri ($base + '/api/tags') -Method Get -TimeoutSec 3
@@ -200,7 +200,7 @@ function Test-OllamaCompatExecutor {
 
 function Find-OllamaQwenBlob {
     $Root = Join-Path $env:USERPROFILE ".ollama\models"
-    $Manifest = Join-Path $Root "manifests\registry.ollama.ai\library\qwen3\8b"
+    $Manifest = Join-Path $Root "manifests\registry.ollama.ai\library\qwen3\14b"
     if (-not (Test-Path -LiteralPath $Manifest)) { return $null }
     try { $data = Get-Content -LiteralPath $Manifest -Raw | ConvertFrom-Json } catch { return $null }
     foreach ($layer in @($data.layers)) {
@@ -252,12 +252,12 @@ if (-not $probe.ok) {
     if ($compat.ok) {
         $UsingOllamaCompat = $true
         Write-Warning ("Both verified standalone llama.cpp variants were rejected/unavailable (" + $probe.exit_hex + ").")
-        Write-Host "[JARVIS/LOCAL] Existing Ollama + qwen3:8b detected. Enabling LOCAL compatibility executor only." -ForegroundColor Yellow
+        Write-Host "[JARVIS/LOCAL] Existing Ollama + qwen3:14b detected. Enabling LOCAL compatibility executor only." -ForegroundColor Yellow
         Write-Host "[JARVIS/LOCAL] JARVIS remains the orchestration brain; external AI is HARD BLOCKED. Ollama only executes local Qwen tokens." -ForegroundColor DarkGray
     }
     else {
         if ($probe.exit_hex -eq '0xC0E90002') {
-            throw "Verified CUDA and Vulkan llama.cpp builds are both blocked by Windows Code Integrity.$extra No healthy local Ollama qwen3:8b compatibility executor was found. Run .\diagnose_app_control.ps1 for evidence; JARVIS will not disable Windows security."
+            throw "Verified CUDA and Vulkan llama.cpp builds are both blocked by Windows Code Integrity.$extra No healthy local Ollama qwen3:14b compatibility executor was found. Run .\diagnose_app_control.ps1 for evidence; JARVIS will not disable Windows security."
         }
         throw "llama-server.exe failed its startup probe ($($probe.exit_hex)).$extra No healthy local compatibility executor was found. Probe: $($probe.output)"
     }
@@ -270,12 +270,12 @@ $DownloadedOfficialModel = $false
 if (-not (Test-Gguf $ModelPath) -and -not $UsingOllamaCompat) {
     $legacyBlob = Find-OllamaQwenBlob
     if ($null -ne $legacyBlob) {
-        Write-Host "[JARVIS/NATIVE] Migrating existing Qwen3 8B GGUF from Ollama cache..." -ForegroundColor Cyan
+        Write-Host "[JARVIS/NATIVE] Migrating existing Qwen3 14B GGUF from Ollama cache..." -ForegroundColor Cyan
         Copy-Item -LiteralPath $legacyBlob -Destination $ModelPath -Force
     }
     elseif (-not $SkipModelDownload) {
-        Write-Host "[JARVIS/NATIVE] Downloading official Qwen3-8B Q4_K_M GGUF..." -ForegroundColor Cyan
-        $url = "https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q4_K_M.gguf?download=true"
+        Write-Host "[JARVIS/NATIVE] Downloading official Qwen3-14B Q4_K_M GGUF..." -ForegroundColor Cyan
+        $url = "https://huggingface.co/Qwen/Qwen3-14B-GGUF/resolve/main/Qwen3-14B-Q4_K_M.gguf?download=true"
         $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
         if ($null -ne $curl) {
             & $curl.Source -L --fail --retry 3 -o $ModelPath $url
@@ -302,10 +302,10 @@ if (Test-Path -LiteralPath $TrustStatePath -PathType Leaf) {
     } catch { }
 }
 $AllowCompatPython = if ($AllowCompat) { 'True' } else { 'False' }
-& ".\.venv\Scripts\python.exe" -c "from jarvis_core.core.config import Settings; print(Settings.update_file_values({'local_llm_backend':'jarvis_local','local_llm_allow_ollama_compat':$AllowCompatPython,'native_llama_server_path':'runtime/llama.cpp/llama-server.exe','native_llama_model_path':'models/llm/qwen3-8b.gguf','external_ai_enabled':False,'cloud_enabled':False,'expert_escalation_enabled':False,'external_ai_auto_escalate_complex':False}))"
+& ".\.venv\Scripts\python.exe" -c "from jarvis_core.core.config import Settings; print(Settings.update_file_values({'local_llm_backend':'jarvis_local','local_llm_allow_ollama_compat':$AllowCompatPython,'native_llama_server_path':'runtime/llama.cpp/llama-server.exe','native_llama_model_path':'models/llm/Qwen3-14B-Q4_K_M.gguf','model':'qwen3:14b','native_llama_flash_attention':True,'native_llama_cache_type_k':'q8_0','native_llama_cache_type_v':'q8_0','external_ai_enabled':False,'cloud_enabled':False,'expert_escalation_enabled':False,'external_ai_auto_escalate_complex':False}))"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 if ($UsingOllamaCompat) {
-    Write-Host "[JARVIS/LOCAL] Brain ready with local compatibility executor (Ollama/qwen3:8b). External AI is HARD BLOCKED." -ForegroundColor Green
+    Write-Host "[JARVIS/LOCAL] Brain ready with local compatibility executor (Ollama/qwen3:14b). External AI is HARD BLOCKED." -ForegroundColor Green
 }
 elseif (Test-Gguf $ModelPath) {
     Write-Host "[JARVIS/NATIVE] Native brain ready. Standalone llama.cpp is the active local executor." -ForegroundColor Green
