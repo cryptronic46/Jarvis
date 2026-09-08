@@ -16,7 +16,20 @@ def _norm(value: Any) -> str:
 
 def _query_type(text: str) -> str:
     value = _norm(text)
-    if re.search(r"\b(vontade|vontades|desejo|desejos|o que queres|o que desejas|gostavas de fazer|apetece|iniciativa tua|por tua propria iniciativa|objetivo ativo|pensamento ou objetivo ativo)\b", value):
+    if re.search(
+        r"\b("
+        r"vontade|vontades|desejo|desejos|"
+        r"o que queres|o que desejas|"
+        r"desejas(?: algo| alguma coisa)?|"
+        r"queres(?: algo| alguma coisa)?|"
+        r"gost(?:avas|asses) de fazer|"
+        r"apetece|iniciativa tua|"
+        r"por tua propria iniciativa|"
+        r"objetivo ativo|"
+        r"pensamento ou objetivo ativo"
+        r")\b",
+        value,
+    ):
         return "current_desire"
     if re.search(r"\b(preferes|preferencia|preferencias)\b", value):
         return "preference"

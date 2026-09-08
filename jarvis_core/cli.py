@@ -138,6 +138,17 @@ from jarvis_core.tools.security_audit import (
 from jarvis_core.tools.windows_actions import AppRegistry
 
 
+
+_MODEL_OWNED_SEMANTIC_INTENTS = frozenset({
+    "GENERAL_CONVERSATION",
+    "SOCIAL_INTERACTION",
+    "SELF_STATE",
+    "IDENTITY_DIALOGUE",
+    "CONVERSATION_RECALL",
+    "KNOWLEDGE_CAPABILITY",
+})
+
+
 BANNER_TEMPLATE = """
 ========================================
               J A R V I S
@@ -654,7 +665,8 @@ def route_runtime_request(
     Execute the semantic routing core used by the real CLI.
 
     This function deliberately owns only routing:
-    semantic context -> StructuredRequest -> FastRouter -> HybridBrain.
+    semantic context -> StructuredRequest -> deterministic FastRouter
+    or model-owned HybridBrain.
 
     Persistence, cognition, performance accounting, voice lifecycle,
     and other runtime side effects remain owned by main().
@@ -721,13 +733,29 @@ def route_runtime_request(
         }
     )
 
-    fast = fast_router.dispatch(
-        user_text,
-        voice_origin=voice_origin,
-        request=structured_request,
+    model_owned = (
+        structured_request.intent
+        in _MODEL_OWNED_SEMANTIC_INTENTS
     )
 
-    if fast.handled:
+    fast = None
+
+    if model_owned:
+        events.emit(
+            "FAST_ROUTER_BYPASSED",
+            intent=structured_request.intent,
+            domain=structured_request.domain,
+            subject=structured_request.subject,
+            reason="model_owned_semantic_intent",
+        )
+    else:
+        fast = fast_router.dispatch(
+            user_text,
+            voice_origin=voice_origin,
+            request=structured_request,
+        )
+
+    if fast is not None and fast.handled:
         fast.response = sanitize_assistant_text(
             fast.response,
             user_text=user_text,

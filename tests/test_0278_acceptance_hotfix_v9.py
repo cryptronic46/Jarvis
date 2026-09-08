@@ -9,6 +9,9 @@ from jarvis_core.core.fast_router import FastCommandRouter
 from jarvis_core.services.action_truth import guard_unverified_local_action_claim
 from jarvis_core.services.autonomy import AuthorizedLearningStore
 from jarvis_core.services.request_intent import classify_request_intent
+from jarvis_core.services.semantic_intent import resolve_semantic_request
+from jarvis_core.services.memory_retrieval import MemoryRetrievalCoordinator
+from jarvis_core.services.self_grounding import build_self_grounding
 
 
 class _Events:
@@ -19,6 +22,58 @@ class _Events:
 class _Apps:
     def list_apps(self):
         return []
+
+
+class _MemoryIndex:
+    def __init__(self, rows):
+        self.rows = list(rows)
+        self.calls = []
+
+    def search(
+        self,
+        query,
+        *,
+        limit=10,
+        sources=None,
+    ):
+        self.calls.append({
+            "query": query,
+            "limit": limit,
+            "sources": tuple(
+                sources or ()
+            ),
+        })
+
+        return {
+            "ok": True,
+            "results": self.rows[:limit],
+        }
+
+
+def _memory_context(text, rows):
+    request = resolve_semantic_request(
+        text
+    )
+
+    index = _MemoryIndex(
+        rows
+    )
+
+    result = (
+        MemoryRetrievalCoordinator(
+            index
+        ).context_for_request(
+            request,
+            text,
+            limit=4,
+        )
+    )
+
+    return (
+        request,
+        result,
+        index,
+    )
 
 
 class _Tools:
@@ -168,27 +223,254 @@ class AcceptanceHotfixV9Tests(unittest.TestCase):
                 self.assertEqual(classify_request_intent(text).kind, "SELF_STATE_CONVERSATION")
 
     def test_self_state_metrics_come_from_runtime_tool(self):
-        router, tools = self._router()
-        result = router.dispatch("Jarvis, qual é o teu nível de confiança neste momento?")
-        self.assertEqual(result.tool, "get_synthetic_self_state")
-        self.assertIn("62.0%", result.response)
-        result = router.dispatch("Jarvis, qual é a tua carga cognitiva neste momento?")
-        self.assertEqual(result.tool, "get_synthetic_self_state")
-        self.assertIn("20.0%", result.response)
+        state = {
+            "ok": True,
+            "affect": {
+                "focus": 0.66,
+                "curiosity": 0.68,
+                "confidence": 0.62,
+                "cognitive_load": 0.20,
+            },
+            "active_intentions": [],
+            "current_focus": "idle",
+        }
+
+        cases = (
+            (
+                "Jarvis, qual \u00e9 o teu n\u00edvel de confian\u00e7a neste momento?",
+                "confidence",
+                0.62,
+            ),
+            (
+                "Jarvis, qual \u00e9 a tua carga cognitiva neste momento?",
+                "cognitive_load",
+                0.20,
+            ),
+        )
+
+        for text, metric, expected in cases:
+            with self.subTest(text=text):
+                request = resolve_semantic_request(
+                    text
+                )
+
+                self.assertEqual(
+                    request.intent,
+                    "SELF_STATE",
+                )
+
+                self.assertEqual(
+                    request.domain,
+                    "jarvis_self",
+                )
+
+                self.assertEqual(
+                    request.subject,
+                    "JARVIS",
+                )
+
+                self.assertEqual(
+                    request.preferred_tool,
+                    "get_synthetic_self_state",
+                )
+
+                grounding = build_self_grounding(
+                    text,
+                    state=state,
+                )
+
+                claims = [
+                    row
+                    for row
+                    in grounding.get(
+                        "claims",
+                        [],
+                    )
+                    if (
+                        isinstance(
+                            row,
+                            dict,
+                        )
+                        and row.get(
+                            "claim_type"
+                        )
+                        == "synthetic_affect"
+                        and row.get(
+                            "name"
+                        )
+                        == metric
+                    )
+                ]
+
+                self.assertEqual(
+                    len(claims),
+                    1,
+                )
+
+                self.assertEqual(
+                    claims[0].get(
+                        "strength"
+                    ),
+                    expected,
+                )
 
     def test_partner_reverse_lookup_uses_relational_memory(self):
-        router, tools = self._router()
-        result = router.dispatch("Jarvis, qual é o nome da minha mulher?")
-        self.assertEqual(result.tool, "recall_memory_graph")
-        self.assertIn("ISA", result.response)
+        text = (
+            "Jarvis, qual \u00e9 o nome da minha mulher?"
+        )
+
+        rows = [{
+            "id": "graph-edge-partner",
+            "source": "memory_graph",
+            "kind": "edge",
+            "title": "PARTNER",
+            "text": (
+                "source=OWNER\n"
+                "relation=PARTNER\n"
+                "target=ISA\n"
+                "source_fact=O nome da minha mulher "
+                "\u00e9 ISA."
+            ),
+            "created_at": "",
+        }]
+
+        request, result, index = (
+            _memory_context(
+                text,
+                rows,
+            )
+        )
+
+        self.assertEqual(
+            request.intent,
+            "GENERAL_CONVERSATION",
+        )
+
+        self.assertFalse(
+            request.requires_tool
+        )
+
+        self.assertIsNone(
+            request.preferred_tool
+        )
+
+        self.assertTrue(
+            result.get("retrieved")
+        )
+
+        context = str(
+            result.get("context")
+            or ""
+        )
+
+        self.assertIn(
+            "source=memory_graph",
+            context,
+        )
+
+        self.assertIn(
+            "relation=PARTNER",
+            context,
+        )
+
+        self.assertIn(
+            "ISA",
+            context,
+        )
+
+        self.assertEqual(
+            index.calls[0]["query"],
+            request.effective_text,
+        )
 
     def test_owner_profile_read_lists_only_confirmed_local_data(self):
-        router, tools = self._router()
-        result = router.dispatch("Jarvis, o que sabes realmente sobre mim?")
-        self.assertEqual(result.tool, "recall_user_memory")
-        self.assertIn("nome: Tiago", result.response)
-        self.assertIn("AZUL-4729", result.response)
-        self.assertNotIn("paix", result.response.lower())
+        text = (
+            "Jarvis, o que sabes realmente sobre mim?"
+        )
+
+        rows = [
+            {
+                "id": "profile-owner",
+                "source": "user_profile",
+                "kind": "profile",
+                "title": "OWNER profile",
+                "text": (
+                    "name=Tiago\n"
+                    "address_as=Senhor\n"
+                    "home.label=Furadouro, Ovar"
+                ),
+                "created_at": "",
+            },
+            {
+                "id": "fact-session-code",
+                "source": "explicit_fact",
+                "kind": "user_explicit",
+                "title": "Explicit OWNER fact",
+                "text": (
+                    "o c\u00f3digo de teste desta "
+                    "sess\u00e3o \u00e9 AZUL-4729"
+                ),
+                "created_at": "",
+            },
+        ]
+
+        request, result, index = (
+            _memory_context(
+                text,
+                rows,
+            )
+        )
+
+        self.assertIn(
+            request.intent,
+            {
+                "GENERAL_CONVERSATION",
+                "KNOWLEDGE_CAPABILITY",
+            },
+        )
+
+        self.assertFalse(
+            request.requires_tool
+        )
+
+        self.assertTrue(
+            result.get("retrieved")
+        )
+
+        context = str(
+            result.get("context")
+            or ""
+        )
+
+        self.assertIn(
+            "source=user_profile",
+            context,
+        )
+
+        self.assertIn(
+            "source=explicit_fact",
+            context,
+        )
+
+        self.assertIn(
+            "Tiago",
+            context,
+        )
+
+        self.assertIn(
+            "AZUL-4729",
+            context,
+        )
+
+        self.assertNotIn(
+            "paix",
+            context.lower(),
+        )
+
+        self.assertIn(
+            "report only retrieved evidence",
+            context,
+        )
 
     def test_autonomy_pending_is_actually_read(self):
         router, tools = self._router()
@@ -307,49 +589,372 @@ class AcceptanceHotfixV9Tests(unittest.TestCase):
 
 
     def test_self_state_conversation_reads_runtime_state_instead_of_model_improvisation(self):
-        cases = (
-            ("Jarvis, como te sentes neste momento?", "get_synthetic_self_state", "focada"),
-            ("Jarvis, estás curiosa com alguma coisa neste momento?", "get_synthetic_self_state", "curiosidade funcional"),
-            ("Jarvis, desejas algo?", "get_synthetic_self_state", "não tenho uma intenção concreta ativa"),
-            ("Jarvis, mostra-me o teu estado interno neste momento.", "get_synthetic_self_state", "Estado interno real"),
-            ("Jarvis, como está o teu estado funcional neste momento?", "get_functional_self_model", "Modelo funcional local"),
+        state = {
+            "ok": True,
+            "affect": {
+                "focus": 0.66,
+                "curiosity": 0.68,
+                "confidence": 0.62,
+                "cognitive_load": 0.20,
+            },
+            "active_intentions": [],
+            "current_focus": "idle",
+        }
+
+        affect_cases = (
+            "Jarvis, como te sentes neste momento?",
+            (
+                "Jarvis, est?s curiosa com alguma "
+                "coisa neste momento?"
+            ),
+            (
+                "Jarvis, mostra-me o teu estado "
+                "interno neste momento."
+            ),
+            (
+                "Jarvis, como est? o teu estado "
+                "funcional neste momento?"
+            ),
         )
-        for text, tool, marker in cases:
+
+        for text in affect_cases:
             with self.subTest(text=text):
-                router, tools = self._router()
-                result = router.dispatch(text)
-                self.assertTrue(result.handled)
-                self.assertEqual(result.tool, tool)
-                self.assertEqual(tools.calls[0][0], tool)
-                self.assertIn(marker.lower(), result.response.lower())
+                request = resolve_semantic_request(
+                    text
+                )
+
+                self.assertEqual(
+                    request.intent,
+                    "SELF_STATE",
+                )
+
+                self.assertEqual(
+                    request.domain,
+                    "jarvis_self",
+                )
+
+                self.assertEqual(
+                    request.subject,
+                    "JARVIS",
+                )
+
+                self.assertEqual(
+                    request.preferred_tool,
+                    "get_synthetic_self_state",
+                )
+
+                grounding = build_self_grounding(
+                    text,
+                    state=state,
+                )
+
+                self.assertEqual(
+                    grounding.get(
+                        "query_type"
+                    ),
+                    "affect",
+                )
+
+                claims = grounding.get(
+                    "claims",
+                    [],
+                )
+
+                self.assertTrue(
+                    any(
+                        isinstance(
+                            row,
+                            dict,
+                        )
+                        and row.get(
+                            "claim_type"
+                        )
+                        == "synthetic_affect"
+                        for row in claims
+                    )
+                )
+
+        desire_text = (
+            "Jarvis, desejas algo?"
+        )
+
+        desire_request = (
+            resolve_semantic_request(
+                desire_text
+            )
+        )
+
+        self.assertEqual(
+            desire_request.intent,
+            "SELF_STATE",
+        )
+
+        self.assertEqual(
+            desire_request.preferred_tool,
+            "get_synthetic_self_state",
+        )
+
+        desire_grounding = (
+            build_self_grounding(
+                desire_text,
+                state=state,
+            )
+        )
+
+        self.assertEqual(
+            desire_grounding.get(
+                "query_type"
+            ),
+            "current_desire",
+        )
+
+        claims = desire_grounding.get(
+            "claims",
+            [],
+        )
+
+        self.assertTrue(
+            any(
+                isinstance(
+                    row,
+                    dict,
+                )
+                and row.get(
+                    "claim_type"
+                )
+                == (
+                    "no_specific_active_intention"
+                )
+                for row in claims
+            )
+        )
+
+        self.assertTrue(
+            desire_grounding.get(
+                "rules",
+                {},
+            ).get(
+                "do_not_invent_missing_intention"
+            )
+        )
 
     def test_full_name_is_not_fabricated_from_first_name(self):
-        router, tools = self._router()
-        result = router.dispatch("Jarvis, qual é o meu nome completo?")
-        self.assertTrue(result.handled)
-        self.assertEqual(result.tool, "recall_user_memory")
-        self.assertIn("não tenho o teu nome completo confirmado", result.response.lower())
-        self.assertNotIn("nome completo guardado é Tiago", result.response)
+        text = (
+            "Jarvis, qual \u00e9 o meu nome completo?"
+        )
+
+        rows = [{
+            "id": "profile-owner",
+            "source": "user_profile",
+            "kind": "profile",
+            "title": "OWNER profile",
+            "text": (
+                "name=Tiago\n"
+                "address_as=Senhor"
+            ),
+            "created_at": "",
+        }]
+
+        request, result, index = (
+            _memory_context(
+                text,
+                rows,
+            )
+        )
+
+        self.assertEqual(
+            request.intent,
+            "GENERAL_CONVERSATION",
+        )
+
+        self.assertFalse(
+            request.requires_tool
+        )
+
+        self.assertTrue(
+            result.get("retrieved")
+        )
+
+        context = str(
+            result.get("context")
+            or ""
+        )
+
+        self.assertIn(
+            "name=Tiago",
+            context,
+        )
+
+        self.assertIn(
+            "Never infer or expand a full name",
+            context,
+        )
+
+        self.assertIn(
+            "full name is confirmed only when",
+            context,
+        )
+
+        self.assertNotIn(
+            "Tiago Resende",
+            context,
+        )
 
     def test_natural_partner_recall_variants_use_graph(self):
+        rows = [{
+            "id": "graph-edge-partner",
+            "source": "memory_graph",
+            "kind": "edge",
+            "title": "PARTNER",
+            "text": (
+                "source=OWNER\n"
+                "relation=PARTNER\n"
+                "target=ISA\n"
+                "source_fact=O nome da minha mulher "
+                "\u00e9 ISA."
+            ),
+            "created_at": "",
+        }]
+
         for text in (
-            "Jarvis, quem é a minha mulher?",
-            "Jarvis, recorda-te do nome da minha mulher.",
-            "Jarvis, recorda-te de quem é a minha mulher?",
+            "Jarvis, quem \u00e9 a minha mulher?",
+            (
+                "Jarvis, recorda-te do nome "
+                "da minha mulher."
+            ),
+            (
+                "Jarvis, recorda-te de quem "
+                "\u00e9 a minha mulher?"
+            ),
         ):
-            with self.subTest(text=text):
-                router, tools = self._router()
-                result = router.dispatch(text)
-                self.assertEqual(result.tool, "recall_memory_graph")
-                self.assertIn("ISA", result.response)
+            with self.subTest(
+                text=text
+            ):
+                request, result, index = (
+                    _memory_context(
+                        text,
+                        rows,
+                    )
+                )
+
+                self.assertEqual(
+                    request.intent,
+                    "GENERAL_CONVERSATION",
+                )
+
+                self.assertFalse(
+                    request.requires_tool
+                )
+
+                self.assertTrue(
+                    result.get("retrieved")
+                )
+
+                context = str(
+                    result.get("context")
+                    or ""
+                )
+
+                self.assertIn(
+                    "source=memory_graph",
+                    context,
+                )
+
+                self.assertIn(
+                    "relation=PARTNER",
+                    context,
+                )
+
+                self.assertIn(
+                    "ISA",
+                    context,
+                )
+
+                self.assertEqual(
+                    index.calls[0]["query"],
+                    request.effective_text,
+                )
 
     def test_personal_model_separates_owner_buckets_from_jarvis_learning_goals(self):
-        router, tools = self._router()
-        result = router.dispatch("Jarvis, mostra-me o modelo pessoal que tens sobre mim.")
-        self.assertEqual(result.tool, "get_personal_model")
-        self.assertIn("Objetivos de aprendizagem da JARVIS", result.response)
-        self.assertIn("programação", result.response)
-        self.assertIn("não são interesses do OWNER", result.response)
+        text = (
+            "Jarvis, mostra-me o modelo pessoal "
+            "que tens sobre mim."
+        )
+
+        rows = [
+            {
+                "id": "owner-goal",
+                "source": "personal_model",
+                "kind": "goals",
+                "title": "Personal model goals",
+                "text": (
+                    "OWNER quer melhorar a sua "
+                    "estabilidade profissional."
+                ),
+                "created_at": "",
+            },
+            {
+                "id": "jarvis-learning",
+                "source": "personal_model",
+                "kind": "jarvis_learning_goals",
+                "title": (
+                    "Personal model "
+                    "jarvis_learning_goals"
+                ),
+                "text": "programa\u00e7\u00e3o",
+                "created_at": "",
+            },
+        ]
+
+        request, result, index = (
+            _memory_context(
+                text,
+                rows,
+            )
+        )
+
+        self.assertEqual(
+            request.intent,
+            "GENERAL_CONVERSATION",
+        )
+
+        self.assertFalse(
+            request.requires_tool
+        )
+
+        self.assertTrue(
+            result.get("retrieved")
+        )
+
+        context = str(
+            result.get("context")
+            or ""
+        )
+
+        self.assertIn(
+            "source=personal_model",
+            context,
+        )
+
+        self.assertIn(
+            "kind=jarvis_learning_goals",
+            context,
+        )
+
+        self.assertIn(
+            "programa",
+            context.lower(),
+        )
+
+        self.assertIn(
+            "JARVIS learning goals are never OWNER traits",
+            context,
+        )
+
+        self.assertIn(
+            "owner_learning_goals",
+            context,
+        )
 
     def test_explicit_internal_tools_are_executed_not_promised(self):
         for name in ("get_synthetic_self_state", "get_functional_self_model", "get_user_profile", "get_personal_model"):

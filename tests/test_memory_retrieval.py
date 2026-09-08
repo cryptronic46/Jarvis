@@ -24,6 +24,26 @@ class FakeIndex:
         )
 
         self.calls = []
+        self.recent_calls = []
+
+    def recent_records(
+        self,
+        *,
+        limit=10,
+        sources=None,
+        kinds=None,
+    ):
+        self.recent_calls.append({
+            "limit": limit,
+            "sources": tuple(
+                sources or ()
+            ),
+            "kinds": tuple(
+                kinds or ()
+            ),
+        })
+
+        return self.result
 
     def search(
         self,
@@ -49,6 +69,7 @@ def request(
     effective_text="monitor oled",
     requires_tool=False,
     preferred_tool=None,
+    action=None,
     confidence=0.95,
 ):
     semantic_defaults = {
@@ -104,6 +125,7 @@ def request(
         intent=intent,
         domain=domain,
         subject=subject,
+        action=action,
         requires_tool=requires_tool,
         preferred_tool=preferred_tool,
         confidence=confidence,
@@ -251,6 +273,120 @@ class MemoryRetrievalCoordinatorTests(
         self.assertEqual(
             fake.calls,
             [],
+        )
+
+
+    def test_recent_explicit_owner_memory_uses_recency_lane(
+        self,
+    ):
+        index = FakeIndex({
+            "ok": True,
+            "results": [
+                {
+                    "id": "fact-latest",
+                    "source": "explicit_fact",
+                    "source_id": "latest",
+                    "kind": "user_explicit",
+                    "title": "Explicit OWNER fact",
+                    "text":
+                        "o c?digo de teste desta sess?o ? AZUL-4729",
+                    "created_at":
+                        "2026-09-08T21:00:00+01:00",
+                    "metadata": {
+                        "category":
+                            "user_explicit",
+                    },
+                },
+            ],
+        })
+
+        coordinator = (
+            MemoryRetrievalCoordinator(
+                index
+            )
+        )
+
+        req = request(
+            intent="GENERAL_CONVERSATION",
+            effective_text=(
+                "Recorda o que te pedi para "
+                "guardar na mem?ria local h? pouco."
+            ),
+            action=(
+                "recall_recent_explicit_memory"
+            ),
+        )
+
+        result = (
+            coordinator.context_for_request(
+                req,
+                req.effective_text,
+                limit=4,
+            )
+        )
+
+        self.assertTrue(
+            result.get("retrieved")
+        )
+
+        self.assertEqual(
+            index.calls,
+            [],
+        )
+
+        self.assertEqual(
+            len(index.recent_calls),
+            1,
+        )
+
+        self.assertEqual(
+            index.recent_calls[0][
+                "limit"
+            ],
+            1,
+        )
+
+        self.assertEqual(
+            index.recent_calls[0][
+                "sources"
+            ],
+            (
+                "explicit_fact",
+            ),
+        )
+
+        self.assertEqual(
+            index.recent_calls[0][
+                "kinds"
+            ],
+            (
+                "user_explicit",
+            ),
+        )
+
+        self.assertEqual(
+            result.get(
+                "retrieval_mode"
+            ),
+            "recent_explicit_owner_memory",
+        )
+
+        context = str(
+            result.get("context")
+            or ""
+        )
+
+        self.assertIn(
+            "AZUL-4729",
+            context,
+        )
+
+        self.assertIn(
+            (
+                "retrieval_mode="
+                "recent_explicit_owner_memory"
+            ),
+            context,
         )
 
     def test_conversation_recall_remains_on_dedicated_path(self):

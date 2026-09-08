@@ -55,19 +55,6 @@ def _strip_jarvis_vocative(value: str) -> str:
     ).strip()
 
 
-def _clean_memory_fact(value: str) -> str:
-    text = str(value or "").strip()
-    # A forceful instruction such as "Isto e uma ordem" is authority metadata,
-    # not part of the fact that belongs in memory.
-    text = re.sub(
-        r"(?:[.!?]\s*)+(?:isto\s+e|isto\s+é|e)\s+uma\s+ordem[.!?]*\s*$",
-        "",
-        text,
-        flags=re.IGNORECASE,
-    ).strip()
-    return text.rstrip(" .!?").strip()
-
-
 _DEFAULT_TIME_BOUNDARIES = {
     "morning": "06:00",
     "afternoon": "12:00",
@@ -116,46 +103,6 @@ def _resolved_time_boundaries(data: dict[str, Any]) -> dict[str, str]:
             if re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", value):
                 resolved[key] = value
     return resolved
-
-
-def _extract_explicit_memory_fact(value: str) -> str | None:
-    """Return the exact fact from a high-confidence explicit local-memory order.
-
-    This parser deliberately handles memory intent before the LLM so a model
-    cannot invent a blanket privacy refusal for ordinary personal facts. It
-    only handles clear commands that explicitly mention memory/remembering.
-    """
-    raw = _strip_jarvis_vocative(value)
-    if not raw:
-        return None
-
-    patterns = (
-        # Fact first, then a reference to "this information".
-        r"^(?P<fact>.+?)(?:\s+e\s+|[.!?]\s*)(?:eu\s+)?(?:quero|pretendo)\s+que\s+(?:guardes|memorizes|recordes)\s+(?:esta|essa|a)\s+informa[cç][aã]o(?:\s+(?:na|em)\s+(?:tua\s+)?mem[oó]ria)?(?:[.!?].*)?$",
-        # Command first: "quero que guardes na memoria que X".
-        r"^(?:eu\s+)?(?:quero|pretendo)\s+que\s+(?:guardes|memorizes|recordes)\s+(?:(?:esta|essa|a)\s+informa[cç][aã]o\s*)?(?:(?:na|em)\s+(?:tua\s+)?mem[oó]ria\s*)?(?::|de\s+que|que)\s*(?P<fact>.+)$",
-        # "guarda na memoria: X" / "memoriza que X".
-        r"^(?:guarda|memoriza|recorda|lembra[ -]?te)\s+(?:(?:esta|essa|a)\s+informa[cç][aã]o\s*)?(?:(?:na|em)\s+(?:tua\s+)?mem[oó]ria\s*)?(?::|que)\s*(?P<fact>.+)$",
-        # Natural direct write orders: "memoriza o nome da minha mulher..."
-        # or "quero que memorizes o nome...". These are already explicit
-        # memory instructions and do not need a second confirmation turn.
-        r"^(?:eu\s+)?(?:quero|pretendo)\s+que\s+memorizes\s+(?P<fact>.+)$",
-        r"^memoriza\s+(?P<fact>.+)$",
-        # "guarda X na tua memoria". Require the explicit memory suffix.
-        r"^(?:guarda|memoriza|recorda)\s+(?P<fact>.+?)\s+(?:na|em)\s+(?:tua\s+)?mem[oó]ria(?:[.!?].*)?$",
-    )
-    for pattern in patterns:
-        match = re.match(pattern, raw, flags=re.IGNORECASE | re.DOTALL)
-        if match:
-            fact = _clean_memory_fact(match.group("fact"))
-            deictic = _normalize(fact)
-            if deictic in {
-                "isso", "isto", "essa informacao", "esta informacao",
-                "a informacao", "essa", "esta",
-            }:
-                return None
-            return fact or None
-    return None
 
 
 class FastCommandRouter:
@@ -587,6 +534,415 @@ class FastCommandRouter:
             )
         return self._hit("\n".join(lines), "learning_exact_search", "search_authorized_learning")
 
+    def _dispatch_structured_request(
+        self,
+        request: Any | None,
+    ) -> FastRouteResult | None:
+        """Execute already-resolved deterministic semantics.
+
+        This method does not parse OWNER language. The StructuredRequest
+        owns tool choice and arguments. Legacy text routing remains only
+        as a compatibility bridge for semantics not migrated yet.
+        """
+
+        if request is None:
+            return None
+
+        intent = str(
+            getattr(
+                request,
+                "intent",
+                "",
+            )
+            or ""
+        )
+
+        if intent != "OPERATIONAL_ACTION":
+            return None
+
+        preferred_tool = str(
+            getattr(
+                request,
+                "preferred_tool",
+                "",
+            )
+            or ""
+        )
+
+        if not preferred_tool:
+            return None
+
+        supported = {
+            "get_current_time",
+            "get_pre_request_telemetry",
+            "open_application",
+            "close_application",
+            "set_master_volume",
+            "set_mute",
+            "lock_workstation",
+            "remember_user_fact",
+        }
+
+        if preferred_tool not in supported:
+            return None
+
+        action = str(
+            getattr(
+                request,
+                "action",
+                "",
+            )
+            or ""
+        )
+
+        telemetry_actions = {
+            "read_gpu_telemetry",
+            "read_cpu_telemetry",
+            "read_ram_telemetry",
+            "read_combined_telemetry",
+            "read_system_telemetry",
+        }
+
+        if (
+            preferred_tool
+            == "get_pre_request_telemetry"
+            and action
+            not in telemetry_actions
+        ):
+            return None
+
+        try:
+            request_data = request.as_dict()
+        except Exception:
+            request_data = {}
+
+        semantic_args = dict(
+            request_data.get(
+                "tool_arguments"
+            )
+            or {}
+        )
+
+        target = str(
+            getattr(
+                request,
+                "target",
+                "",
+            )
+            or ""
+        ).strip()
+
+        data = self._tool(
+            preferred_tool,
+            semantic_args,
+        )
+
+        if preferred_tool == "remember_user_fact":
+            response = (
+                "Guardado na mem\u00f3ria local, Senhor."
+                if data.get("ok")
+                else (
+                    data.get("message")
+                    or data.get("error")
+                    or (
+                        "N\u00e3o consegui guardar "
+                        "essa informa\u00e7\u00e3o."
+                    )
+                )
+            )
+
+            return self._hit(
+                response,
+                "memory_write",
+                preferred_tool,
+            )
+
+        if preferred_tool == "get_current_time":
+            value = (
+                data.get("formatted")
+                or data.get("time")
+                or data.get("datetime")
+            )
+
+            response = (
+                f"S?o {value}."
+                if value
+                else (
+                    data.get("message")
+                    or "N?o consegui ler a hora."
+                )
+            )
+
+            return self._hit(
+                response,
+                "time",
+                preferred_tool,
+            )
+
+        if (
+            preferred_tool
+            == "get_pre_request_telemetry"
+        ):
+            if action == "read_gpu_telemetry":
+                return self._hit(
+                    self._format_gpu(
+                        data
+                    ),
+                    "gpu_status",
+                    preferred_tool,
+                )
+
+            if action == "read_cpu_telemetry":
+                value = data.get(
+                    "cpu_percent"
+                )
+
+                response = (
+                    (
+                        "A utiliza\u00e7\u00e3o atual "
+                        f"do CPU \u00e9 de {value}%."
+                    )
+                    if value is not None
+                    else (
+                        "N\u00e3o tenho uma amostra "
+                        "atual do CPU."
+                    )
+                )
+
+                return self._hit(
+                    response,
+                    "cpu_status",
+                    preferred_tool,
+                )
+
+            if action == "read_ram_telemetry":
+                used = data.get(
+                    "memory_used_gib"
+                )
+
+                pct = data.get(
+                    "memory_percent"
+                )
+
+                total = None
+
+                if (
+                    isinstance(
+                        used,
+                        (int, float),
+                    )
+                    and isinstance(
+                        pct,
+                        (int, float),
+                    )
+                    and pct
+                ):
+                    total = round(
+                        float(used)
+                        / (
+                            float(pct)
+                            / 100.0
+                        ),
+                        2,
+                    )
+
+                response = (
+                    (
+                        "Est\u00e1 a utilizar "
+                        f"{used} GB de RAM "
+                        f"({pct}%)."
+                    )
+                    if used is not None
+                    else (
+                        "N\u00e3o tenho uma amostra "
+                        "atual da RAM."
+                    )
+                )
+
+                if total is not None:
+                    response += (
+                        " Total aproximado: "
+                        f"{total} GB."
+                    )
+
+                return self._hit(
+                    response,
+                    "ram_status",
+                    preferred_tool,
+                )
+
+            if action in {
+                "read_combined_telemetry",
+                "read_system_telemetry",
+            }:
+                route = (
+                    "combined_telemetry"
+                    if action
+                    == "read_combined_telemetry"
+                    else "system_status"
+                )
+
+                return self._hit(
+                    self._format_system(
+                        data
+                    ),
+                    route,
+                    preferred_tool,
+                )
+
+            return None
+
+        if preferred_tool == "set_master_volume":
+            requested = semantic_args.get(
+                "percent"
+            )
+
+            if data.get("ok"):
+                actual = data.get(
+                    "volume_percent",
+                    requested,
+                )
+
+                try:
+                    actual = round(
+                        float(actual)
+                    )
+                except Exception:
+                    actual = requested
+
+                response = (
+                    "Volume definido para "
+                    f"{actual} por cento."
+                )
+
+            else:
+                response = (
+                    data.get("message")
+                    or (
+                        "N?o consegui alterar "
+                        "o volume."
+                    )
+                )
+
+            return self._hit(
+                response,
+                "volume_set",
+                preferred_tool,
+            )
+
+        if preferred_tool == "set_mute":
+            muted = bool(
+                semantic_args.get(
+                    "muted"
+                )
+            )
+
+            if data.get("ok"):
+                response = (
+                    "?udio silenciado."
+                    if muted
+                    else "Som ativado."
+                )
+            else:
+                response = (
+                    data.get("message")
+                    or (
+                        "N?o consegui alterar "
+                        "o estado do ?udio."
+                    )
+                )
+
+            return self._hit(
+                response,
+                (
+                    "mute"
+                    if muted
+                    else "unmute"
+                ),
+                preferred_tool,
+            )
+
+        if preferred_tool == "lock_workstation":
+            response = (
+                "Computador bloqueado."
+                if data.get("ok")
+                else (
+                    data.get("message")
+                    or (
+                        "N?o consegui bloquear "
+                        "o computador."
+                    )
+                )
+            )
+
+            return self._hit(
+                response,
+                "lock_pc",
+                preferred_tool,
+            )
+
+        if preferred_tool == "open_application":
+            app_name = str(
+                semantic_args.get(
+                    "app_name"
+                )
+                or target
+                or "aplica??o"
+            ).strip()
+
+            response = (
+                self._format_app_open_result(
+                    app_name,
+                    data,
+                )
+            )
+
+            return self._hit(
+                response,
+                "app_open",
+                preferred_tool,
+            )
+
+        if preferred_tool == "close_application":
+            app_name = str(
+                target
+                or semantic_args.get(
+                    "app_name"
+                )
+                or "aplica??o"
+            ).strip()
+
+            if data.get(
+                "confirmation_required"
+            ):
+                response = (
+                    "Preciso de confirma??o. "
+                    "Executa /confirm "
+                    f"{data.get('token')}."
+                )
+
+            elif data.get("ok"):
+                response = (
+                    f"{app_name} fechado."
+                )
+
+            else:
+                response = (
+                    data.get("message")
+                    or (
+                        "N?o consegui fechar "
+                        f"{app_name}."
+                    )
+                )
+
+            return self._hit(
+                response,
+                "app_close",
+                preferred_tool,
+            )
+
+        return None
+
     def dispatch(
         self,
         text: str,
@@ -598,12 +954,23 @@ class FastCommandRouter:
         self._active_semantic_request = request
 
         try:
+            structured = (
+                self._dispatch_structured_request(
+                    request
+                )
+            )
+
+            if structured is not None:
+                return structured
+
             return self._dispatch_legacy(
                 text,
                 voice_origin=voice_origin,
             )
+
         except _FastSemanticVeto:
             return FastRouteResult(False)
+
         finally:
             self._active_semantic_request = previous_request
 
@@ -977,140 +1344,12 @@ class FastCommandRouter:
 
         # Grounded synthetic SELF_STATE fast paths.  They execute the actual
         # state tool so the debug trace proves where the answer came from.
-        if any(phrase in normalized for phrase in (
-            "nivel de confianca neste momento", "nivel de confiança neste momento",
-            "qual e o teu nivel de confianca", "qual é o teu nível de confiança",
-        )):
-            data = self._tool("get_synthetic_self_state")
-            affect = data.get("affect") or {}
-            value = affect.get("confidence")
-            response = (
-                f"A minha confiança funcional está em {round(float(value) * 100, 1)}%."
-                if isinstance(value, (int, float))
-                else "Não consegui ler a minha confiança funcional atual."
-            )
-            return self._hit(response, "self_state_confidence", "get_synthetic_self_state")
 
-        if any(phrase in normalized for phrase in (
-            "carga cognitiva neste momento", "qual e a tua carga cognitiva", "qual é a tua carga cognitiva",
-        )):
-            data = self._tool("get_synthetic_self_state")
-            affect = data.get("affect") or {}
-            value = affect.get("cognitive_load")
-            response = (
-                f"A minha carga cognitiva funcional está em {round(float(value) * 100, 1)}%."
-                if isinstance(value, (int, float))
-                else "Não consegui ler a minha carga cognitiva atual."
-            )
-            return self._hit(response, "self_state_cognitive_load", "get_synthetic_self_state")
-
-        if any(phrase in normalized for phrase in (
-            "mostra me o teu estado interno", "mostra o teu estado interno", "estado interno neste momento",
-        )):
-            data = self._tool("get_synthetic_self_state")
-            if not data.get("ok"):
-                response = data.get("message") or "Não consegui ler o meu estado interno."
-            else:
-                affect = data.get("affect") or {}
-                intentions = list(data.get("active_intentions") or [])
-                response = (
-                    f"Estado interno real: foco={data.get('current_focus') or 'idle'}; "
-                    f"curiosidade={self._level_word(affect.get('curiosity'))}; "
-                    f"confiança={self._level_word(affect.get('confidence'))}; "
-                    f"carga cognitiva={self._level_word(affect.get('cognitive_load'))}; "
-                    f"intenções ativas={len(intentions)}."
-                )
-            return self._hit(response, "self_state_snapshot", "get_synthetic_self_state")
-
-        if any(phrase in normalized for phrase in (
-            "estado funcional neste momento", "como esta o teu estado funcional", "como está o teu estado funcional",
-        )):
-            data = self._tool("get_functional_self_model")
-            return self._hit(self._format_direct_tool("get_functional_self_model", data), "functional_self_state", "get_functional_self_model")
-
-        if any(phrase in normalized for phrase in (
-            "como te sentes neste momento", "o que sentes neste momento", "como te sentes",
-        )):
-            data = self._tool("get_synthetic_self_state")
-            affect = data.get("affect") or {}
-            response = (
-                f"Neste momento estou focada ({self._level_word(affect.get('focus'))}), "
-                f"curiosa ({self._level_word(affect.get('curiosity'))}) e "
-                f"confiante ({self._level_word(affect.get('confidence'))})."
-            )
-            return self._hit(response, "self_state_affect", "get_synthetic_self_state")
-
-        if any(phrase in normalized for phrase in (
-            "estas curiosa", "estás curiosa", "curiosa com alguma coisa", "tens curiosidade",
-        )):
-            data = self._tool("get_synthetic_self_state")
-            affect = data.get("affect") or {}
-            intentions = list(data.get("active_intentions") or [])
-            target = self._humanize_self_target(next((str(row.get('target') or row.get('kind') or '').strip() for row in intentions if isinstance(row, dict) and str(row.get('target') or row.get('kind') or '').strip()), ""))
-            response = f"A minha curiosidade funcional está {self._level_word(affect.get('curiosity'))}."
-            response += f" O alvo ativo mais forte é {target}." if target else " Não tenho um alvo específico de curiosidade registado agora."
-            return self._hit(response, "self_state_curiosity", "get_synthetic_self_state")
-
-        if any(phrase in normalized for phrase in (
-            "desejas algo", "desejas alguma coisa", "queres algo", "queres alguma coisa",
-            "o que te apetece fazer", "o que desejas",
-            "por tua propria iniciativa", "iniciativa tua", "objetivo ativo", "pensamento ou objetivo ativo",
-        )):
-            data = self._tool("get_synthetic_self_state")
-            intentions = [row for row in list(data.get("active_intentions") or []) if isinstance(row, dict)]
-            if intentions:
-                top = intentions[0]
-                target = self._humanize_self_target(top.get("target") or top.get("kind") or "uma intenção ativa")
-                response = f"Neste momento, a minha intenção ativa está focada em {target}."
-            else:
-                response = "Neste momento não tenho uma intenção concreta ativa por iniciativa própria."
-            return self._hit(response, "self_state_intention", "get_synthetic_self_state")
 
         # OWNER/profile retrieval must be factual.  Do not let the model turn
         # JARVIS learning objectives into OWNER interests or invent privacy
         # restrictions around JARVIS's own local memory.
-        if any(phrase in normalized for phrase in (
-            "o que sabes realmente sobre mim", "o que sabes de facto sobre mim",
-            "mostra me o meu perfil de utilizador", "mostra o meu perfil de utilizador",
-        )):
-            data = self._tool("recall_user_memory", {"limit": 20})
-            profile = data.get("profile") or {}
-            facts = [str(row.get("fact") or "").strip() for row in list(data.get("facts") or []) if isinstance(row, dict) and str(row.get("fact") or "").strip()]
-            home = profile.get("home") or {}
-            parts = []
-            if profile.get("name"):
-                parts.append(f"nome: {profile.get('name')}")
-            if home.get("label"):
-                parts.append(f"localização configurada: {home.get('label')}")
-            if facts:
-                parts.append("factos explícitos: " + "; ".join(facts[-10:]))
-            response = "O que tenho realmente guardado é: " + ("; ".join(parts) if parts else "nenhum facto pessoal confirmado") + "."
-            return self._hit(response, "owner_profile_facts", "recall_user_memory")
 
-        if any(phrase in normalized for phrase in (
-            "de que forma tu me ves", "de que forma me ves", "como tu me ves", "como me ves",
-        )):
-            memory = self._tool("recall_user_memory", {"limit": 20})
-            profile = memory.get("profile") or {}
-            facts = [str(row.get("fact") or "").strip() for row in list(memory.get("facts") or []) if isinstance(row, dict) and str(row.get("fact") or "").strip()]
-            name = str(profile.get("name") or "Senhor").strip()
-            response = f"Vejo-te a partir do que tenho confirmado localmente: nome {name}"
-            if facts:
-                response += "; factos explícitos: " + "; ".join(facts[-6:])
-            response += ". Qualquer traço de personalidade para além disto seria uma interpretação, não um facto guardado."
-            return self._hit(response, "owner_view_grounded", "recall_user_memory")
-
-        if any(phrase in normalized for phrase in (
-            "quais sao os meus objetivos de aprendizagem", "meus objetivos de aprendizagem",
-        )):
-            data = self._tool("get_personal_model")
-            model = data.get("model") if isinstance(data.get("model"), dict) else data
-            rows = [str(row.get("statement") or "").strip() for row in list(model.get("owner_learning_goals") or []) if isinstance(row, dict) and str(row.get("statement") or "").strip()]
-            response = (
-                "Os seus objetivos de aprendizagem confirmados são: " + "; ".join(rows) + "."
-                if rows else "Não tenho objetivos de aprendizagem do Senhor confirmados numa categoria própria neste momento."
-            )
-            return self._hit(response, "owner_learning_goals", "get_personal_model")
 
         if any(phrase in normalized for phrase in (
             "quais sao os teus objetivos de aprendizagem", "teus objetivos de aprendizagem",
@@ -1124,86 +1363,6 @@ class FastCommandRouter:
             )
             return self._hit(response, "jarvis_learning_goals", "get_personal_model")
 
-        if any(phrase in normalized for phrase in (
-            "quais sao os meus objetivos", "quais os meus objetivos", "meus objetivos atuais",
-        )):
-            data = self._tool("get_personal_model")
-            model = data.get("model") if isinstance(data.get("model"), dict) else data
-            rows = [str(row.get("statement") or "").strip() for row in list(model.get("goals") or []) if isinstance(row, dict) and str(row.get("statement") or "").strip()]
-            response = (
-                "Os seus objetivos OWNER confirmados são: " + "; ".join(rows) + "."
-                if rows else "Não tenho objetivos pessoais do Senhor suficientemente confirmados neste momento."
-            )
-            return self._hit(response, "owner_goals", "get_personal_model")
-
-        if any(phrase in normalized for phrase in (
-            "modelo pessoal que tens sobre mim", "meu modelo pessoal", "modelo pessoal sobre mim",
-        )):
-            data = self._tool("get_personal_model")
-            model = data.get("model") if isinstance(data.get("model"), dict) else data
-            def statements(bucket):
-                return [str(row.get('statement') or '').strip() for row in list(model.get(bucket) or []) if isinstance(row, dict) and str(row.get('statement') or '').strip()]
-            prefs, goals, constraints, projects = (statements("preferences"), statements("goals"), statements("constraints"), statements("projects"))
-            learning_goals = [str(row.get('topic') or '').strip() for row in list(model.get("jarvis_learning_goals") or []) if isinstance(row, dict) and str(row.get('topic') or '').strip()]
-            response = (
-                "Modelo pessoal local confirmado. "
-                f"Preferências OWNER: {prefs or 'nenhuma confirmada'}. "
-                f"Objetivos OWNER: {goals or 'nenhum confirmado'}. "
-                f"Restrições OWNER: {constraints or 'nenhuma confirmada'}. "
-                f"Projetos OWNER: {projects or 'nenhum confirmado'}. "
-                f"Objetivos de aprendizagem da JARVIS (não são interesses do OWNER): {learning_goals or 'nenhum'}."
-            )
-            return self._hit(response, "personal_model", "get_personal_model")
-
-        if any(phrase in normalized for phrase in (
-            "recorda te de onde eu moro", "recordas te de onde eu moro", "onde eu moro",
-        )):
-            data = self._tool("get_user_profile")
-            profile = data.get("profile") or {}
-            home = profile.get("home") or {}
-            label = str(home.get("label") or "").strip()
-            response = f"Tens a casa configurada em {label}." if label else "Não tenho uma localização de casa confirmada no perfil local."
-            return self._hit(response, "owner_home_profile", "get_user_profile")
-
-        if any(phrase in normalized for phrase in (
-            "qual e o meu nome completo", "qual é o meu nome completo", "meu nome completo",
-        )):
-            profile_data = self._tool("get_user_profile")
-            profile = profile_data.get("profile") or {}
-            stored_name = str(profile.get("name") or "").strip()
-            memory_data = self._tool("recall_user_memory", {"query": "nome completo", "limit": 10})
-            facts = [str(row.get("fact") or "") for row in list(memory_data.get("facts") or []) if isinstance(row, dict)]
-            full = ""
-            for fact in facts:
-                match = re.search(r"(?i)(?:meu nome completo|o meu nome completo|chamo-me|me chamo)\s+(?:e|é|:)?\s*([^.;]+)", fact)
-                if match:
-                    full = match.group(1).strip()
-                    break
-            if not full and len(stored_name.split()) >= 2:
-                full = stored_name
-            response = f"O teu nome completo guardado é {full}." if full else f"Tenho guardado apenas o nome '{stored_name or 'não definido'}'; não tenho o teu nome completo confirmado na memória."
-            return self._hit(response, "owner_full_name", "recall_user_memory")
-
-        partner_question = any(phrase in normalized for phrase in (
-            "qual e o nome da minha mulher", "qual é o nome da minha mulher",
-            "quem e a minha mulher", "quem é a minha mulher",
-            "recorda te do nome da minha mulher", "recordas te do nome da minha mulher",
-            "recorda te de quem e a minha mulher", "recordas te de quem é a minha mulher",
-        ))
-        if partner_question:
-            data = self._tool("recall_memory_graph", {"query": "", "limit": 50})
-            partner, _ = self._relation_from_graph(data, "PARTNER")
-            response = f"A tua mulher é {partner}." if partner else "Não encontrei uma relação PARTNER confirmada na minha memória."
-            return self._hit(response, "memory_partner_reverse", "recall_memory_graph")
-
-        isa_relation = re.search(r"(?i)\bquem\s+e\s+(?:a\s+)?([^?!.]{2,80})\s+para\s+mim", normalized)
-        if isa_relation:
-            person = isa_relation.group(1).strip()
-            data = self._tool("recall_memory_graph", {"query": "", "limit": 50})
-            partner, relation = self._relation_from_graph(data, "PARTNER")
-            if partner and _normalize(partner) == _normalize(person):
-                response = f"{partner} é a tua mulher; a relação guardada é {relation}."
-                return self._hit(response, "memory_partner_forward", "recall_memory_graph")
 
         if any(phrase in normalized for phrase in (
             "de onde aprendeste isso", "qual e a fonte disso", "qual e a fonte",
@@ -1409,59 +1568,6 @@ class FastCommandRouter:
                 response = "Posso usar as ferramentas locais e capacidades atualmente instaladas no JARVIS."
             return self._hit(response, "capability_query", "get_functional_self_model")
 
-        explicit_fact = _extract_explicit_memory_fact(text)
-        if explicit_fact:
-            data = self._tool(
-                "remember_user_fact",
-                {"fact": explicit_fact, "category": "user_explicit"},
-            )
-            response = (
-                "Guardado na memória local, Senhor."
-                if data.get("ok")
-                else data.get("message") or "Não consegui guardar essa informação."
-            )
-            return self._hit(response, "memory_write", "remember_user_fact")
-
-        remember_prefixes = (
-            "lembra te que ", "lembra que ", "memoriza que ", "guarda que ",
-            "guarda na memoria que ", "recorda que ",
-        )
-        for prefix in remember_prefixes:
-            if normalized.startswith(prefix):
-                raw_parts = re.split(r"\bque\b", text, maxsplit=1, flags=re.IGNORECASE)
-                fact = raw_parts[1].strip() if len(raw_parts) == 2 else normalized[len(prefix):].strip()
-                data = self._tool("remember_user_fact", {"fact": fact, "category": "user_explicit"})
-                response = "Guardado na memória local, Senhor." if data.get("ok") else data.get("message") or "Não consegui guardar essa informação."
-                return self._hit(response, "memory_write", "remember_user_fact")
-
-        if any(p in normalized for p in ("o que sabes sobre mim", "o que te lembras de mim", "mostra a minha memoria", "mostra a memoria")):
-            data = self._tool("recall_user_memory", {"limit": 20})
-            facts = data.get("facts") or []
-            profile = data.get("profile") or {}
-            if not facts:
-                response = f"Sei que te chamas {profile.get('name','Tiago')} e devo tratar-te por {profile.get('address_as','Senhor')}. Ainda não tenho outros factos guardados."
-            else:
-                response = "Tenho estes factos guardados: " + "; ".join(str(x.get("fact")) for x in facts[-8:]) + "."
-            return self._hit(response, "memory_read", "recall_user_memory")
-
-        generic_recent_memory = any(phrase in normalized for phrase in (
-            "que te pedi para guardar", "que te pedi para memorizar", "que te pedi para lembrares",
-        ))
-        specific_test_memory = any(phrase in normalized for phrase in (
-            "qual era o codigo de teste", "qual foi o codigo de teste", "codigo de teste desta sessao",
-        ))
-        if generic_recent_memory or specific_test_memory:
-            query = (
-                "user_explicit"
-                if generic_recent_memory
-                else re.sub(r"(?i)^(?:qual|o que|recorda|lembra[- ]?te)\s+", "", _strip_jarvis_vocative(text)).strip()
-            )
-            data = self._tool("recall_user_memory", {"query": query, "limit": 1 if generic_recent_memory else 5})
-            facts = list(data.get("facts") or [])
-            if facts:
-                response = str(facts[0].get("fact") or "").strip()
-                if response:
-                    return self._hit(response, "memory_recall_natural", "recall_user_memory")
 
         if any(phrase in normalized for phrase in (
             "estado do cyber range", "estado do cyber range guard", "cyber range status",

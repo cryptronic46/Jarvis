@@ -155,6 +155,183 @@ class PerformanceGovernorTests(unittest.TestCase):
             12000,
         )
 
+
+    def test_brain_compaction_preserves_request_scoped_grounding_under_soft_budget(
+        self,
+    ):
+        class CapturingEvents:
+            def __init__(self):
+                self.rows = []
+
+            def emit(
+                self,
+                name,
+                **payload,
+            ):
+                self.rows.append(
+                    (
+                        name,
+                        dict(payload),
+                    )
+                )
+
+        brain = JarvisBrain.__new__(
+            JarvisBrain
+        )
+
+        brain.settings = SimpleNamespace(
+            llm_num_ctx=8192,
+        )
+
+        brain.events = CapturingEvents()
+
+        memory_context = (
+            "JARVIS_OWNER_MEMORY_EVIDENCE\n"
+            + ("g" * 1820)
+            + (
+                "\n[MEMORY 1]\n"
+                "source=explicit_fact\n"
+                "kind=user_explicit\n"
+                "content=o c?digo de valida??o "
+                "D415 ? VERDE-8417"
+            )
+        )
+
+        request_contract = (
+            "JARVIS_SEMANTIC_REQUEST\n"
+            "Intent: GENERAL_CONVERSATION.\n"
+            "Domain: owner_memory."
+        )
+
+        old_history = (
+            "OLD_HISTORY_MARKER_"
+            + ("x" * 9000)
+        )
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "BASE_SYSTEM_CONTRACT_"
+                    + ("b" * 13000)
+                ),
+            },
+            {
+                "role": "system",
+                "content": memory_context,
+            },
+            {
+                "role": "system",
+                "content": request_contract,
+            },
+            {
+                "role": "user",
+                "content": old_history,
+            },
+            {
+                "role": "assistant",
+                "content": (
+                    "old assistant reply"
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    "CURRENT_OWNER_TURN"
+                ),
+            },
+        ]
+
+        brain._request_messages = (
+            lambda *args, **kwargs:
+                list(messages)
+        )
+
+        plan = SimpleNamespace(
+            prompt_budget_ctx=2048,
+            num_ctx=8192,
+        )
+
+        bounded = (
+            JarvisBrain
+            ._bounded_request_messages(
+                brain,
+                plan,
+                self_context=memory_context,
+                request_contract=(
+                    request_contract
+                ),
+            )
+        )
+
+        rendered = str(
+            bounded
+        )
+
+        system_contents = [
+            str(
+                row.get("content")
+                or ""
+            )
+            for row in bounded
+            if (
+                isinstance(
+                    row,
+                    dict,
+                )
+                and row.get("role")
+                == "system"
+            )
+        ]
+
+        self.assertNotIn(
+            "OLD_HISTORY_MARKER_",
+            rendered,
+        )
+
+        self.assertIn(
+            "CURRENT_OWNER_TURN",
+            rendered,
+        )
+
+        self.assertIn(
+            "VERDE-8417",
+            rendered,
+        )
+
+        self.assertIn(
+            memory_context,
+            system_contents,
+        )
+
+        self.assertIn(
+            request_contract,
+            system_contents,
+        )
+
+        compacted = [
+            payload
+            for name, payload
+            in brain.events.rows
+            if name
+            == "PROMPT_BUDGET_COMPACTED"
+        ]
+
+        self.assertEqual(
+            len(compacted),
+            1,
+        )
+
+        # The fixed runtime context is the hard capacity. A soft
+        # performance target must not delete grounding merely to
+        # make this character estimate smaller.
+        self.assertGreater(
+            compacted[0]["after_chars"],
+            compacted[0][
+                "target_chars"
+            ],
+        )
+
     def test_plan_separates_runtime_context_from_prompt_budget(self):
         tmp, governor = self.make_governor()
         try:

@@ -266,8 +266,8 @@ class RuntimeRequestPipelineTests(
         )
 
         self.assertEqual(
-            len(fast.calls),
-            1,
+            fast.calls,
+            [],
         )
 
         self.assertEqual(
@@ -275,26 +275,38 @@ class RuntimeRequestPipelineTests(
             1,
         )
 
-        fast_request = (
-            fast.calls[0]["request"]
-        )
-
         hybrid_request = (
             hybrid.calls[0]["request"]
         )
 
-        self.assertIs(
-            fast_request,
-            hybrid_request,
-        )
-
         self.assertEqual(
-            fast_request.intent,
+            hybrid_request.intent,
             "SOCIAL_INTERACTION",
         )
 
+        self.assertTrue(
+            hybrid_request.conversational
+        )
+
         self.assertFalse(
-            fast_request.requires_tool
+            hybrid_request.requires_tool
+        )
+
+        bypass_events = [
+            payload
+            for name, payload
+            in events.rows
+            if name == "FAST_ROUTER_BYPASSED"
+        ]
+
+        self.assertEqual(
+            len(bypass_events),
+            1,
+        )
+
+        self.assertEqual(
+            bypass_events[0]["intent"],
+            "SOCIAL_INTERACTION",
         )
 
         self.assertEqual(
@@ -372,12 +384,17 @@ class RuntimeRequestPipelineTests(
             )
 
         route_runtime_request(
-            "O que sabes sobre mim?",
+            "Abre o Brave",
             source="wake",
             semantic_context_inputs=context_inputs,
             events=events,
             fast_router=fast,
             hybrid_brain=hybrid,
+        )
+
+        self.assertEqual(
+            len(fast.calls),
+            1,
         )
 
         self.assertTrue(
@@ -386,11 +403,32 @@ class RuntimeRequestPipelineTests(
             ]
         )
 
+        request = fast.calls[0][
+            "request"
+        ]
+
         self.assertEqual(
-            fast.calls[0][
-                "request"
-            ].subject,
-            "OWNER",
+            request.intent,
+            "OPERATIONAL_ACTION",
+        )
+
+        self.assertEqual(
+            request.subject,
+            "SYSTEM",
+        )
+
+        self.assertEqual(
+            request.preferred_tool,
+            "open_application",
+        )
+
+        self.assertEqual(
+            request.as_dict()[
+                "tool_arguments"
+            ],
+            {
+                "app_name": "brave",
+            },
         )
 
     def test_semantic_event_reports_authoritative_contract(

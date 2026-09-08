@@ -227,16 +227,181 @@ class AcceptanceHotfix0278Tests(unittest.TestCase):
         self.assertIn("Brave", listing.response)
 
 
-    def test_fast_generic_recent_memory_recall_uses_explicit_memory_index(self):
-        tools = _Tools({"recall_user_memory": {
-            "ok": True, "facts": [{"category":"user_explicit", "fact":"o código de teste desta sessão é AZUL-4729"}],
-        }})
-        router = FastCommandRouter(_Events(), tools, _Apps())
-        result = router.dispatch("Recorda o que te pedi para guardar na memória local há pouco.")
-        self.assertTrue(result.handled)
-        self.assertIn("AZUL-4729", result.response)
-        self.assertEqual(tools.calls[0][0], "recall_user_memory")
-        self.assertEqual(tools.calls[0][1]["query"], "user_explicit")
+
+    def test_generic_recent_memory_recall_uses_semantic_explicit_recency_lane(
+        self,
+    ):
+        from jarvis_core.services.memory_retrieval import (
+            MemoryRetrievalCoordinator,
+        )
+        from jarvis_core.services.semantic_intent import (
+            resolve_semantic_request,
+        )
+
+        class _Index:
+            def __init__(self):
+                self.search_calls = []
+                self.recent_calls = []
+
+            def search(
+                self,
+                query,
+                *,
+                limit=10,
+                sources=None,
+            ):
+                self.search_calls.append({
+                    "query": query,
+                    "limit": limit,
+                    "sources":
+                        tuple(sources or ()),
+                })
+
+                return {
+                    "ok": True,
+                    "results": [],
+                }
+
+            def recent_records(
+                self,
+                *,
+                limit=10,
+                sources=None,
+                kinds=None,
+            ):
+                self.recent_calls.append({
+                    "limit": limit,
+                    "sources":
+                        tuple(sources or ()),
+                    "kinds":
+                        tuple(kinds or ()),
+                })
+
+                return {
+                    "ok": True,
+                    "results": [
+                        {
+                            "id":
+                                "latest-explicit",
+                            "source":
+                                "explicit_fact",
+                            "source_id":
+                                "latest",
+                            "kind":
+                                "user_explicit",
+                            "title":
+                                "Explicit OWNER fact",
+                            "text": (
+                                "o c?digo de teste "
+                                "desta sess?o ? "
+                                "AZUL-4729"
+                            ),
+                            "created_at": (
+                                "2026-09-08T"
+                                "21:00:00+01:00"
+                            ),
+                            "metadata": {
+                                "category":
+                                    "user_explicit",
+                            },
+                        },
+                    ],
+                }
+
+        text = (
+            "Recorda o que te pedi para guardar "
+            "na mem?ria local h? pouco."
+        )
+
+        request = (
+            resolve_semantic_request(
+                text
+            )
+        )
+
+        self.assertEqual(
+            request.intent,
+            "GENERAL_CONVERSATION",
+        )
+
+        self.assertEqual(
+            request.action,
+            "recall_recent_explicit_memory",
+        )
+
+        self.assertFalse(
+            request.requires_tool
+        )
+
+        self.assertIsNone(
+            request.preferred_tool
+        )
+
+        index = _Index()
+
+        result = (
+            MemoryRetrievalCoordinator(
+                index
+            ).context_for_request(
+                request,
+                text,
+                limit=4,
+            )
+        )
+
+        self.assertEqual(
+            index.search_calls,
+            [],
+        )
+
+        self.assertEqual(
+            len(index.recent_calls),
+            1,
+        )
+
+        self.assertEqual(
+            index.recent_calls[0][
+                "limit"
+            ],
+            1,
+        )
+
+        self.assertEqual(
+            index.recent_calls[0][
+                "sources"
+            ],
+            (
+                "explicit_fact",
+            ),
+        )
+
+        self.assertEqual(
+            index.recent_calls[0][
+                "kinds"
+            ],
+            (
+                "user_explicit",
+            ),
+        )
+
+        self.assertTrue(
+            result.get("retrieved")
+        )
+
+        self.assertEqual(
+            result.get(
+                "retrieval_mode"
+            ),
+            "recent_explicit_owner_memory",
+        )
+
+        self.assertIn(
+            "AZUL-4729",
+            str(
+                result.get("context")
+                or ""
+            ),
+        )
 
     def test_fast_broad_system_status_uses_one_system_tool_and_reports_core_metrics(self):
         tools = _Tools({"get_system_status": {

@@ -74,6 +74,64 @@ class RelationalPresenceBrainTests(
             block,
         )
 
+    def test_system_prompts_have_no_global_flirt_mode(
+        self,
+    ):
+        lowered = (
+            self.source.casefold()
+        )
+
+        self.assertNotIn(
+            "free-form flirt",
+            lowered,
+        )
+
+        self.assertNotIn(
+            (
+                "choose its wording, "
+                "intensity and timing"
+            ),
+            lowered,
+        )
+
+        self.assertNotIn(
+            (
+                "do not append decorative "
+                "emoji"
+            ),
+            lowered,
+        )
+
+        self.assertEqual(
+            self.source.count(
+                (
+                    "Relational expression "
+                    "is contextual"
+                )
+            ),
+            2,
+        )
+
+        self.assertIn(
+            (
+                "Emoji are contextual, "
+                "not decorative defaults."
+            ),
+            self.source,
+        )
+
+    def test_personal_dialogue_is_not_forced_into_task_offer(
+        self,
+    ):
+        self.assertIn(
+            (
+                "Do not force every "
+                "ordinary dialogue turn "
+                "back into a service/task offer."
+            ),
+            self.source,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

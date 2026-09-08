@@ -132,7 +132,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "9c3b17186ebb1cdba3dd332e004b4ccb3534f30ff8a865bfd30cfffde273f36e"
+      "sha256": "73f24e9df6c294f0d28fd13369534d7d2c24996973cfcf0c3234f7d20fe0aee3"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -140,7 +140,7 @@
     },
     {
       "path": "jarvis_core/core/brain.py",
-      "sha256": "0921bc9ae6f72bd245686d2868d7511dce6b4f5fdf8e3c7914510ba99e65842f"
+      "sha256": "1af38cfc2e73df30dd40c0d3a2a8f730a758acd8b85ae506d61297c8a90508fc"
     },
     {
       "path": "jarvis_core/core/cloud_brain.py",
@@ -160,7 +160,7 @@
     },
     {
       "path": "jarvis_core/core/fast_router.py",
-      "sha256": "b2b8c627d0af99b20b51a19ceab3b824d991fda921fd62975ac853cae8a5e32a"
+      "sha256": "4563689320931f1cb6311fc037cbc7ea68ee7723dcd16badd0fe4ff46536b402"
     },
     {
       "path": "jarvis_core/core/freshness.py",
@@ -308,7 +308,7 @@
     },
     {
       "path": "jarvis_core/services/memory_index.py",
-      "sha256": "8077064c2cf7abe3b7ee953d97eae7492c60c44d0c2c15d70036fb4f57d293a6"
+      "sha256": "ca1411b835556bb5e10d72bd1e82d4c4b77f4d390701b54b4d9f02edeb26711c"
     },
     {
       "path": "jarvis_core/services/memory_maintenance.py",
@@ -316,7 +316,7 @@
     },
     {
       "path": "jarvis_core/services/memory_retrieval.py",
-      "sha256": "f90b6393ef3e417c0a8777059b50cce9ae6daebf28d88b10790f80b876acc50f"
+      "sha256": "3497db12dee2da56a303d5e0f326161ff259505e147c365e28ff846fcf2fac17"
     },
     {
       "path": "jarvis_core/services/network_egress.py",
@@ -380,11 +380,11 @@
     },
     {
       "path": "jarvis_core/services/self_grounding.py",
-      "sha256": "6be464d82056704f0a65b1fde4bd09fb501946ad013fc6d92a0cff9b3b17b6c1"
+      "sha256": "b1a558f56fcf3235220a6c02f79e11ce787173955bc8f5d1824b21c72065b495"
     },
     {
       "path": "jarvis_core/services/semantic_intent.py",
-      "sha256": "3e08f5accb0e755d56ee62ae1b58c10fc761c97e8b5ee794df6cf9dac5ae6c17"
+      "sha256": "e0eb5ea1e2166e1bd9a50c02d161a59ae7824db40cd13cdc0cd9efa716a6f93c"
     },
     {
       "path": "jarvis_core/services/semantic_request.py",
@@ -640,7 +640,7 @@
     },
     {
       "path": "tests/test_0278_acceptance_hotfix.py",
-      "sha256": "6460e36279ae2a43c08c16aeb19953c584e3f994520e6b9ff83813455967a73f"
+      "sha256": "32db36cd5e0feb46690b3f3573a915bbc17019c04e2268c1dc532790bf25b190"
     },
     {
       "path": "tests/test_0278_acceptance_hotfix_v10.py",
@@ -668,7 +668,7 @@
     },
     {
       "path": "tests/test_0278_acceptance_hotfix_v9.py",
-      "sha256": "ea8de8658a5f9887b75f0ca7177132b7f6c674726700d01c96734721b6593a0c"
+      "sha256": "21f1deb5e6aa363c721a61e63964a8abc44694c24bd508458b94c9e158b4eb2d"
     },
     {
       "path": "tests/test_0278_consolidated_hotfix.py",
@@ -948,7 +948,7 @@
     },
     {
       "path": "tests/test_fast_router.py",
-      "sha256": "dc3b14a9595b4cfc97f050b234c660f227aae2e87e590b973adb354ad6646408"
+      "sha256": "249e10249acc146047ef63361ce0105b014d355029146d9ad339751cd0bff6cf"
     },
     {
       "path": "tests/test_file_index_security.py",
@@ -1100,7 +1100,7 @@
     },
     {
       "path": "tests/test_memory_direct_order.py",
-      "sha256": "d6000de85cd7b903df9e00eeb65b64869d2326e36e4e7c15ecef58b01bcae3a7"
+      "sha256": "651001f96057c4c90959078f6d88acb3f8e390edec0c37c49a389774ff47b8a1"
     },
     {
       "path": "tests/test_memory_graph_isolation.py",
@@ -1108,7 +1108,7 @@
     },
     {
       "path": "tests/test_memory_index.py",
-      "sha256": "97574650ee0e97110cef2cf68feb190229ee74a2ce5f7d80ef1f25eb5a740e25"
+      "sha256": "d154edb7d7bddcc4db5706d4cfd7a97b0dd2e3ec6a76add8a732bfa679b5b829"
     },
     {
       "path": "tests/test_memory_maintenance.py",
@@ -1116,7 +1116,7 @@
     },
     {
       "path": "tests/test_memory_retrieval.py",
-      "sha256": "57c168bde6c1b06011fa55babfb7f97964d13afc8366819467a826650127dc21"
+      "sha256": "852ce9f763f89e410bd40c47f9f3332eccd08e8dc3becca15f73562d146761b2"
     },
     {
       "path": "tests/test_memory_runtime_e2e.py",
@@ -1192,7 +1192,7 @@
     },
     {
       "path": "tests/test_performance_governor.py",
-      "sha256": "f0df6da2c4389ad1dec2a21db8cea2cd5e74fa65bc4c1aeaeb24f73cfafe614e"
+      "sha256": "cd631a09d293f19e496c5e735ca8e13b5a45b10bd289979fb7c9677cac67181a"
     },
     {
       "path": "tests/test_performance_integration_contract.py",
@@ -1216,7 +1216,7 @@
     },
     {
       "path": "tests/test_personal_memory_semantics.py",
-      "sha256": "432e632c4d1db277c87d636124364d42ce3f3d5594a4731d7e83870528de5ccb"
+      "sha256": "725f263845afd43ac4ae24da76a9c9f47c902fe11c53414645678e94fd0630ba"
     },
     {
       "path": "tests/test_personal_ops_cli.py",
@@ -1264,7 +1264,7 @@
     },
     {
       "path": "tests/test_relational_presence_brain.py",
-      "sha256": "167dc9f991306630986d60cbc4a6e31d26de926d5a6ef41acbec9971290f6d75"
+      "sha256": "7f1c35f8cb35b876155d81260d4dc3f9b6d1b499ce369898bd24dc07c784d258"
     },
     {
       "path": "tests/test_relational_presence_cli.py",
@@ -1308,7 +1308,7 @@
     },
     {
       "path": "tests/test_runtime_request_pipeline.py",
-      "sha256": "0737641aa55556953041e648b331ffdc8c5ae5fd0c5467d1d20a899329c0ba30"
+      "sha256": "66508e6691877e0f27b5a4c23d18901721d36d28613700fd30b750ffe64c850e"
     },
     {
       "path": "tests/test_security.py",
@@ -1376,7 +1376,7 @@
     },
     {
       "path": "tests/test_semantic_fast_authority.py",
-      "sha256": "9bb2836f456f2dddf79c3d3acc1cbce019ee9cded112963ee9f84bba19fe093f"
+      "sha256": "77aef978dfc4136a5890db7a1412d27b45eeaff96566e2ee9695cea9f2f2d693"
     },
     {
       "path": "tests/test_semantic_intent.py",
@@ -1385,6 +1385,10 @@
     {
       "path": "tests/test_semantic_learning_gate.py",
       "sha256": "49bbf0e93b3147ccb59ccec270512cfce1ad6c3c96cac247dec14be576e3927d"
+    },
+    {
+      "path": "tests/test_semantic_model_ownership.py",
+      "sha256": "380ffe6008f8c2c1612db11202cfa59be582a5b7cf187e510146a5565498cf21"
     },
     {
       "path": "tests/test_semantic_request.py",

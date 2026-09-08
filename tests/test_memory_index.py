@@ -1665,3 +1665,173 @@ class IncrementalMemoryIndexRefreshTests(
                 before,
                 after,
             )
+
+
+class RecentExplicitMemoryIndexTests(unittest.TestCase):
+
+    def test_recent_records_returns_newest_filtered_explicit_fact(
+        self,
+    ):
+        import sqlite3
+        import tempfile
+        from pathlib import Path
+
+        from jarvis_core.services.memory_index import (
+            UnifiedMemoryIndex,
+        )
+
+        with tempfile.TemporaryDirectory() as td:
+            db_path = (
+                Path(td)
+                / "memory.sqlite3"
+            )
+
+            conn = sqlite3.connect(
+                db_path
+            )
+
+            try:
+                conn.execute(
+                    """
+                    CREATE TABLE records(
+                        id TEXT PRIMARY KEY,
+                        source TEXT NOT NULL,
+                        source_id TEXT NOT NULL,
+                        kind TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        text TEXT NOT NULL,
+                        created_at TEXT NOT NULL DEFAULT '',
+                        content_hash TEXT NOT NULL,
+                        metadata_json TEXT NOT NULL DEFAULT '{}'
+                    )
+                    """
+                )
+
+                rows = (
+                    (
+                        "older-explicit",
+                        "explicit_fact",
+                        "older",
+                        "user_explicit",
+                        "Explicit OWNER fact",
+                        "facto expl?cito antigo",
+                        "2026-09-08T20:00:00+01:00",
+                        "hash-old",
+                        '{"category":"user_explicit"}',
+                    ),
+                    (
+                        "latest-explicit",
+                        "explicit_fact",
+                        "latest",
+                        "user_explicit",
+                        "Explicit OWNER fact",
+                        (
+                            "o c?digo de teste desta "
+                            "sess?o ? AZUL-4729"
+                        ),
+                        "2026-09-08T21:00:00+01:00",
+                        "hash-new",
+                        '{"category":"user_explicit"}',
+                    ),
+                    (
+                        "latest-general",
+                        "explicit_fact",
+                        "latest-general",
+                        "general",
+                        "Explicit OWNER fact",
+                        "facto geral ainda mais recente",
+                        "2026-09-08T21:30:00+01:00",
+                        "hash-general",
+                        '{"category":"general"}',
+                    ),
+                )
+
+                conn.executemany(
+                    """
+                    INSERT INTO records(
+                        id,
+                        source,
+                        source_id,
+                        kind,
+                        title,
+                        text,
+                        created_at,
+                        content_hash,
+                        metadata_json
+                    )
+                    VALUES(
+                        ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    )
+                    """,
+                    rows,
+                )
+
+                conn.commit()
+
+            finally:
+                conn.close()
+
+            before = db_path.read_bytes()
+
+            try:
+                index = UnifiedMemoryIndex(
+                    db_path
+                )
+
+            except TypeError:
+                index = UnifiedMemoryIndex()
+                index.path = db_path
+
+            result = index.recent_records(
+                limit=1,
+                sources=(
+                    "explicit_fact",
+                ),
+                kinds=(
+                    "user_explicit",
+                ),
+            )
+
+            after = db_path.read_bytes()
+
+            self.assertTrue(
+                result.get("ok")
+            )
+
+            self.assertEqual(
+                before,
+                after,
+            )
+
+            returned = list(
+                result.get("results")
+                or []
+            )
+
+            self.assertEqual(
+                len(returned),
+                1,
+            )
+
+            self.assertEqual(
+                returned[0].get("id"),
+                "latest-explicit",
+            )
+
+            self.assertEqual(
+                returned[0].get("source"),
+                "explicit_fact",
+            )
+
+            self.assertEqual(
+                returned[0].get("kind"),
+                "user_explicit",
+            )
+
+            self.assertIn(
+                "AZUL-4729",
+                str(
+                    returned[0].get("text")
+                    or ""
+                ),
+            )

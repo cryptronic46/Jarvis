@@ -161,28 +161,86 @@ class FastRouterTests(unittest.TestCase):
         result = self.router.dispatch("Explica-me como funciona uma VPN")
         self.assertFalse(result.handled)
 
-    def test_explicit_personal_memory_order_is_deterministic(self):
+    def test_plain_self_state_affect_question_no_longer_uses_fast_path(self):
         result = self.router.dispatch(
-            "Jarvis, o nome da minha mulher é ISA e quero que guardes essa informação na tua memória. Isto é uma ordem!"
+            "Como te sentes hoje?"
         )
-        self.assertTrue(result.handled)
-        self.assertEqual(result.route, "memory_write")
-        self.assertEqual(self.tools.calls[-1][0], "remember_user_fact")
-        self.assertEqual(
-            self.tools.calls[-1][1]["fact"],
-            "o nome da minha mulher é ISA",
-        )
-        self.assertIn("Guardado na memória local", result.response)
 
-    def test_command_first_personal_memory_order(self):
-        result = self.router.dispatch(
-            "Quero que guardes na tua memória que a minha mulher se chama ISA."
+        self.assertFalse(
+            result.handled
         )
-        self.assertTrue(result.handled)
-        self.assertEqual(self.tools.calls[-1][0], "remember_user_fact")
-        self.assertEqual(
-            self.tools.calls[-1][1]["fact"],
-            "a minha mulher se chama ISA",
+
+        self.assertIsNone(
+            result.tool
+        )
+
+    def test_modified_self_state_question_falls_through_to_conversation(
+        self,
+    ):
+        questions = (
+            "Como te sentes hoje? atrevida?",
+            "Como te sentes hoje comigo?",
+            "Como te sentes, carinhosa?",
+            "Como te sentes hoje e o que achas de mim?",
+        )
+
+        for question in questions:
+            with self.subTest(
+                question=question
+            ):
+                before = len(
+                    self.tools.calls
+                )
+
+                result = (
+                    self.router.dispatch(
+                        question
+                    )
+                )
+
+                self.assertFalse(
+                    result.handled
+                )
+
+                self.assertEqual(
+                    len(
+                        self.tools.calls
+                    ),
+                    before,
+                )
+
+    def test_explicit_personal_memory_order_is_not_reparsed_by_legacy_router(self):
+        result = self.router.dispatch(
+            "Jarvis, o nome da minha mulher ? ISA e quero que guardes essa informa??o na tua mem?ria. Isto ? uma ordem!"
+        )
+
+        self.assertFalse(
+            result.handled
+        )
+
+        self.assertFalse(
+            any(
+                name == "remember_user_fact"
+                for name, _args
+                in self.tools.calls
+            )
+        )
+
+    def test_command_first_personal_memory_order_is_not_reparsed_by_legacy_router(self):
+        result = self.router.dispatch(
+            "Quero que guardes na tua mem?ria que a minha mulher se chama ISA."
+        )
+
+        self.assertFalse(
+            result.handled
+        )
+
+        self.assertFalse(
+            any(
+                name == "remember_user_fact"
+                for name, _args
+                in self.tools.calls
+            )
         )
 
     def test_python_indentation_probe_is_valid_deterministic_code(self):

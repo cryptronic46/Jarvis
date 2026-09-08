@@ -2153,6 +2153,251 @@ class UnifiedMemoryIndex:
 
         return selected[:cap]
 
+
+    def recent_records(
+        self,
+        *,
+        limit: int = 10,
+        sources: (
+            list[str]
+            | tuple[str, ...]
+            | set[str]
+            | None
+        ) = None,
+        kinds: (
+            list[str]
+            | tuple[str, ...]
+            | set[str]
+            | None
+        ) = None,
+    ) -> dict[str, Any]:
+        """
+        Read derived memory records newest-first without lexical search.
+
+        This is a read-only retrieval primitive. It does not infer intent,
+        grant authority, modify canonical memory, or replace semantic
+        relevance search. It exists for requests whose meaning is explicitly
+        temporal, such as recalling the most recently stored explicit OWNER
+        fact.
+        """
+        path = self.path
+
+        if not path.is_absolute():
+            path = Path.cwd() / path
+
+        if not path.is_file():
+            return {
+                "ok": False,
+                "error":
+                    "MEMORY_INDEX_NOT_AVAILABLE",
+                "results": [],
+            }
+
+        cap = max(
+            1,
+            min(
+                int(limit),
+                50,
+            ),
+        )
+
+        active_sources = {
+            "user_profile",
+            "explicit_fact",
+            "conversation",
+            "memory_graph",
+            "personal_model",
+            "authorized_learning",
+        }
+
+        source_filter = None
+
+        if sources is not None:
+            requested_sources = {
+                str(value or "").strip()
+                for value in sources
+                if str(value or "").strip()
+            }
+
+            invalid_sources = sorted(
+                requested_sources
+                - active_sources
+            )
+
+            if invalid_sources:
+                return {
+                    "ok": False,
+                    "error":
+                        "INVALID_MEMORY_SOURCE_FILTER",
+                    "invalid_sources":
+                        invalid_sources,
+                    "results": [],
+                }
+
+            if not requested_sources:
+                return {
+                    "ok": True,
+                    "sources": [],
+                    "kinds": [],
+                    "results": [],
+                }
+
+            source_filter = sorted(
+                requested_sources
+            )
+
+        kind_filter = None
+
+        if kinds is not None:
+            requested_kinds = {
+                str(value or "").strip()
+                for value in kinds
+                if str(value or "").strip()
+            }
+
+            if not requested_kinds:
+                return {
+                    "ok": True,
+                    "sources":
+                        source_filter,
+                    "kinds": [],
+                    "results": [],
+                }
+
+            kind_filter = sorted(
+                requested_kinds
+            )
+
+        sql = """
+            SELECT
+                r.id,
+                r.source,
+                r.source_id,
+                r.kind,
+                r.title,
+                r.text,
+                r.created_at,
+                r.content_hash,
+                r.metadata_json
+            FROM records AS r
+            WHERE 1 = 1
+        """
+
+        parameters: list[Any] = []
+
+        if source_filter is not None:
+            placeholders = ",".join(
+                "?"
+                for _ in source_filter
+            )
+
+            sql += (
+                " AND r.source IN ("
+                + placeholders
+                + ")"
+            )
+
+            parameters.extend(
+                source_filter
+            )
+
+        if kind_filter is not None:
+            placeholders = ",".join(
+                "?"
+                for _ in kind_filter
+            )
+
+            sql += (
+                " AND r.kind IN ("
+                + placeholders
+                + ")"
+            )
+
+            parameters.extend(
+                kind_filter
+            )
+
+        sql += """
+            ORDER BY
+                CASE
+                    WHEN r.created_at = ''
+                    THEN 1
+                    ELSE 0
+                END ASC,
+                r.created_at DESC,
+                r.id DESC
+            LIMIT ?
+        """
+
+        parameters.append(
+            cap
+        )
+
+        conn = self._connect(
+            path,
+            readonly=True,
+        )
+
+        try:
+            raw_rows = conn.execute(
+                sql,
+                tuple(parameters),
+            ).fetchall()
+
+        finally:
+            conn.close()
+
+        results = []
+
+        for row in raw_rows:
+            try:
+                metadata = json.loads(
+                    row["metadata_json"]
+                    or "{}"
+                )
+
+            except Exception:
+                metadata = {}
+
+            results.append({
+                "id":
+                    row["id"],
+                "source":
+                    row["source"],
+                "source_id":
+                    row["source_id"],
+                "kind":
+                    row["kind"],
+                "title":
+                    row["title"],
+                "text":
+                    row["text"],
+                "created_at":
+                    row["created_at"],
+                "content_hash":
+                    row["content_hash"],
+                "rank":
+                    None,
+                "source_boost":
+                    self._source_boost(
+                        row["source"]
+                    ),
+                "retrieval_score":
+                    None,
+                "metadata":
+                    metadata,
+            })
+
+        return {
+            "ok": True,
+            "sources":
+                source_filter,
+            "kinds":
+                kind_filter,
+            "results":
+                results,
+        }
+
     def search(
         self,
         query: str,
