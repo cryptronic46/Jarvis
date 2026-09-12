@@ -847,7 +847,7 @@ class SemanticFastAuthorityTests(unittest.TestCase):
             route_block.count(
                 "hybrid_brain.ask("
             ),
-            1,
+            2,
         )
 
         semantic_index = route_block.index(
@@ -876,7 +876,7 @@ class SemanticFastAuthorityTests(unittest.TestCase):
             route_block.count(
                 "request=structured_request"
             ),
-            2,
+            3,
         )
 
         self.assertEqual(

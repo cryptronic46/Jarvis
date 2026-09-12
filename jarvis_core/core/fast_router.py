@@ -949,7 +949,14 @@ class FastCommandRouter:
         *,
         voice_origin: bool = False,
         request: Any | None = None,
+        requires_memory_aware_response: bool = False,
     ) -> FastRouteResult:
+        # A memory-aware response must never terminate in the
+        # deterministic fast path unless that path explicitly
+        # implements the Memory1 response contract.
+        if requires_memory_aware_response:
+            return FastRouteResult(False)
+
         previous_request = self._active_semantic_request
         self._active_semantic_request = request
 

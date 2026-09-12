@@ -332,6 +332,233 @@ class PerformanceGovernorTests(unittest.TestCase):
             ],
         )
 
+    def test_scoped_memory_prompt_is_hard_isolated(
+        self,
+    ):
+        brain = JarvisBrain.__new__(
+            JarvisBrain
+        )
+
+        brain._base_system_content = (
+            "CLEAN_BASE_SYSTEM"
+        )
+
+        brain.messages = [
+            {
+                "role":
+                    "system",
+                "content":
+                    (
+                        "CLEAN_BASE_SYSTEM\n"
+                        "AMBIENT_OWNER_MODEL\n"
+                        "AMBIENT_JARVIS_GOALS"
+                    ),
+            },
+            {
+                "role":
+                    "user",
+                "content":
+                    "PREVIOUS_OWNER_QUESTION",
+            },
+            {
+                "role":
+                    "assistant",
+                "content":
+                    "PREVIOUS_ASSISTANT_ANSWER",
+            },
+            {
+                "role":
+                    "user",
+                "content":
+                    "CURRENT_OWNER_TURN",
+            },
+        ]
+
+        plan = SimpleNamespace(
+            history_messages=8,
+        )
+
+        scoped_context = (
+            "JARVIS_MEMORY_GROUNDING_EVIDENCE\n"
+            "memory_scope=OWNER_FULL_NAME\n"
+            "evidence_status=missing\n"
+            "[NO ADMISSIBLE MEMORY EVIDENCE]"
+        )
+
+        rows = (
+            JarvisBrain
+            ._request_messages(
+                brain,
+                plan,
+                cyber_context=
+                    "CYBER_CONTEXT_LEAK",
+                learning_context=
+                    "LEARNING_CONTEXT_LEAK",
+                request_contract=
+                    "SEMANTIC_REQUEST_CONTRACT",
+                self_context=
+                    scoped_context,
+            )
+        )
+
+        rendered = str(
+            rows
+        )
+
+        self.assertIn(
+            "CLEAN_BASE_SYSTEM",
+            rendered,
+        )
+
+        self.assertIn(
+            "CURRENT_OWNER_TURN",
+            rendered,
+        )
+
+        self.assertIn(
+            "OWNER_FULL_NAME",
+            rendered,
+        )
+
+        self.assertIn(
+            "SEMANTIC_REQUEST_CONTRACT",
+            rendered,
+        )
+
+        self.assertNotIn(
+            "AMBIENT_OWNER_MODEL",
+            rendered,
+        )
+
+        self.assertNotIn(
+            "AMBIENT_JARVIS_GOALS",
+            rendered,
+        )
+
+        self.assertNotIn(
+            "PREVIOUS_OWNER_QUESTION",
+            rendered,
+        )
+
+        self.assertNotIn(
+            "PREVIOUS_ASSISTANT_ANSWER",
+            rendered,
+        )
+
+        self.assertNotIn(
+            "CYBER_CONTEXT_LEAK",
+            rendered,
+        )
+
+        self.assertNotIn(
+            "LEARNING_CONTEXT_LEAK",
+            rendered,
+        )
+
+        user_rows = [
+            row
+            for row in rows
+            if (
+                isinstance(
+                    row,
+                    dict,
+                )
+                and row.get(
+                    "role"
+                )
+                == "user"
+            )
+        ]
+
+        self.assertEqual(
+            len(user_rows),
+            1,
+        )
+
+        self.assertEqual(
+            user_rows[0].get(
+                "content"
+            ),
+            "CURRENT_OWNER_TURN",
+        )
+
+    def test_unscoped_prompt_retains_normal_history_and_ambient_system(
+        self,
+    ):
+        brain = JarvisBrain.__new__(
+            JarvisBrain
+        )
+
+        brain._base_system_content = (
+            "CLEAN_BASE_SYSTEM"
+        )
+
+        brain.messages = [
+            {
+                "role":
+                    "system",
+                "content":
+                    (
+                        "CLEAN_BASE_SYSTEM\n"
+                        "AMBIENT_OWNER_MODEL"
+                    ),
+            },
+            {
+                "role":
+                    "user",
+                "content":
+                    "OLDER_OWNER_TURN",
+            },
+            {
+                "role":
+                    "assistant",
+                "content":
+                    "OLDER_REPLY",
+            },
+            {
+                "role":
+                    "user",
+                "content":
+                    "CURRENT_OWNER_TURN",
+            },
+        ]
+
+        plan = SimpleNamespace(
+            history_messages=8,
+        )
+
+        rows = (
+            JarvisBrain
+            ._request_messages(
+                brain,
+                plan,
+            )
+        )
+
+        rendered = str(
+            rows
+        )
+
+        self.assertIn(
+            "AMBIENT_OWNER_MODEL",
+            rendered,
+        )
+
+        self.assertIn(
+            "OLDER_OWNER_TURN",
+            rendered,
+        )
+
+        self.assertIn(
+            "OLDER_REPLY",
+            rendered,
+        )
+
+        self.assertIn(
+            "CURRENT_OWNER_TURN",
+            rendered,
+        )
+
     def test_plan_separates_runtime_context_from_prompt_budget(self):
         tmp, governor = self.make_governor()
         try:

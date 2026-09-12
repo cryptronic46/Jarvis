@@ -4,6 +4,10 @@ from types import MappingProxyType
 
 from dataclasses import dataclass
 
+from jarvis_core.services.memory_grounding import (
+    MEMORY_SCOPE_NAMES,
+)
+
 
 INTENTS = frozenset({
     "GENERAL_CONVERSATION",
@@ -121,6 +125,7 @@ class StructuredRequest:
 
     epistemic_learning_eligible: bool = False
     confidence: float = 0.0
+    memory_scope: str | None = None
 
     def __post_init__(self) -> None:
         raw_text = str(self.raw_text or "").strip()
@@ -164,6 +169,24 @@ class StructuredRequest:
                 "tool_arguments require preferred_tool"
             )
 
+        memory_scope = (
+            None
+            if self.memory_scope is None
+            else str(
+                self.memory_scope
+                or ""
+            ).strip().upper()
+        )
+
+        if (
+            memory_scope is not None
+            and memory_scope
+            not in MEMORY_SCOPE_NAMES
+        ):
+            raise ValueError(
+                f"invalid memory_scope: {memory_scope}"
+            )
+
         tool_arguments = (
             None
             if self.tool_arguments is None
@@ -178,6 +201,11 @@ class StructuredRequest:
             self,
             "tool_arguments",
             tool_arguments,
+        )
+        object.__setattr__(
+            self,
+            "memory_scope",
+            memory_scope,
         )
         object.__setattr__(self, "confidence", confidence)
 
@@ -219,6 +247,7 @@ class StructuredRequest:
             ),
             "epistemic_learning_eligible": self.epistemic_learning_eligible,
             "confidence": self.confidence,
+            "memory_scope": self.memory_scope,
         }
 
 

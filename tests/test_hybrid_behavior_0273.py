@@ -1,6 +1,8 @@
 import unittest
 from jarvis_core.core.config import Settings
 from jarvis_core.core.hybrid_brain import HybridBrain
+from jarvis_core.core.generation_result import GenerationStatus
+from jarvis_core.core.local_llm import LocalLLMError
 
 class Events:
     def __init__(self): self.rows=[]
@@ -10,7 +12,7 @@ class Local:
     def __init__(self, answer='LOCAL_OK', fail=False): self.calls=[]; self.answer=answer; self.fail=fail
     def ask(self,text):
         self.calls.append(text)
-        if self.fail: raise RuntimeError('local fail')
+        if self.fail: raise LocalLLMError('local fail')
         return self.answer
     def clear_history(self): pass
 
@@ -38,6 +40,15 @@ class HybridBehavior0273Tests(unittest.TestCase):
         brain=HybridBrain(self.settings(),Events(),local)
         result=brain.ask('Diz olá')
         self.assertEqual(result.route,'LOCAL')
+        self.assertIs(result.generation_status, GenerationStatus.MODEL_FAILURE)
+
+    def test_programming_bug_propagates(self):
+        class BuggyLocal(Local):
+            def ask(self, text):
+                raise RuntimeError('bug')
+        brain=HybridBrain(self.settings(),Events(),BuggyLocal())
+        with self.assertRaises(RuntimeError):
+            brain.ask('Diz olá')
 
     def test_complex_request_stays_local_when_local_answer_is_sufficient(self):
         order=[]
@@ -66,5 +77,6 @@ class HybridBehavior0273Tests(unittest.TestCase):
         self.assertEqual(order,['local'])
         self.assertEqual(result.route,'LOCAL')
         self.assertEqual(result.reason,'local_first')
+        self.assertIs(result.generation_status, GenerationStatus.MODEL_FAILURE)
 
 if __name__=='__main__': unittest.main()

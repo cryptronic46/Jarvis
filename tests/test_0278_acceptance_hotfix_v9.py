@@ -28,6 +28,7 @@ class _MemoryIndex:
     def __init__(self, rows):
         self.rows = list(rows)
         self.calls = []
+        self.recent_calls = []
 
     def search(
         self,
@@ -35,12 +36,38 @@ class _MemoryIndex:
         *,
         limit=10,
         sources=None,
+        kinds=None,
     ):
         self.calls.append({
             "query": query,
             "limit": limit,
             "sources": tuple(
                 sources or ()
+            ),
+            "kinds": tuple(
+                kinds or ()
+            ),
+        })
+
+        return {
+            "ok": True,
+            "results": self.rows[:limit],
+        }
+
+    def recent_records(
+        self,
+        *,
+        limit=10,
+        sources=None,
+        kinds=None,
+    ):
+        self.recent_calls.append({
+            "limit": limit,
+            "sources": tuple(
+                sources or ()
+            ),
+            "kinds": tuple(
+                kinds or ()
             ),
         })
 
@@ -378,9 +405,12 @@ class AcceptanceHotfixV9Tests(unittest.TestCase):
             context,
         )
 
-        self.assertEqual(
-            index.calls[0]["query"],
-            request.effective_text,
+        self.assertFalse(
+            index.calls[0][
+                "query"
+            ].lower().startswith(
+                "jarvis"
+            )
         )
 
     def test_owner_profile_read_lists_only_confirmed_local_data(self):
@@ -468,7 +498,10 @@ class AcceptanceHotfixV9Tests(unittest.TestCase):
         )
 
         self.assertIn(
-            "report only retrieved evidence",
+            (
+                "Report only scoped OWNER profile "
+                "and explicit OWNER facts."
+            ),
             context,
         )
 
@@ -771,27 +804,45 @@ class AcceptanceHotfixV9Tests(unittest.TestCase):
             request.requires_tool
         )
 
-        self.assertTrue(
-            result.get("retrieved")
+        self.assertFalse(
+            result.get(
+                "retrieved"
+            )
+        )
+
+        self.assertEqual(
+            result.get(
+                "reason"
+            ),
+            "owner_full_name_not_stored",
+        )
+
+        self.assertEqual(
+            result.get(
+                "evidence_status"
+            ),
+            "missing",
         )
 
         context = str(
-            result.get("context")
+            result.get(
+                "context"
+            )
             or ""
         )
 
         self.assertIn(
+            "memory_scope=OWNER_FULL_NAME",
+            context,
+        )
+
+        self.assertIn(
+            "evidence_status=missing",
+            context,
+        )
+
+        self.assertNotIn(
             "name=Tiago",
-            context,
-        )
-
-        self.assertIn(
-            "Never infer or expand a full name",
-            context,
-        )
-
-        self.assertIn(
-            "full name is confirmed only when",
             context,
         )
 
@@ -870,9 +921,12 @@ class AcceptanceHotfixV9Tests(unittest.TestCase):
                     context,
                 )
 
-                self.assertEqual(
-                    index.calls[0]["query"],
-                    request.effective_text,
+                self.assertFalse(
+                    index.calls[0][
+                        "query"
+                    ].lower().startswith(
+                        "jarvis"
+                    )
                 )
 
     def test_personal_model_separates_owner_buckets_from_jarvis_learning_goals(self):
@@ -937,22 +991,27 @@ class AcceptanceHotfixV9Tests(unittest.TestCase):
         )
 
         self.assertIn(
-            "kind=jarvis_learning_goals",
+            "kind=goals",
             context,
         )
 
         self.assertIn(
+            "estabilidade profissional",
+            context.lower(),
+        )
+
+        self.assertNotIn(
+            "kind=jarvis_learning_goals",
+            context,
+        )
+
+        self.assertNotIn(
             "programa",
             context.lower(),
         )
 
         self.assertIn(
-            "JARVIS learning goals are never OWNER traits",
-            context,
-        )
-
-        self.assertIn(
-            "owner_learning_goals",
+            "memory_scope=OWNER_PERSONAL_MODEL",
             context,
         )
 
@@ -990,6 +1049,211 @@ class AcceptanceHotfixV9Tests(unittest.TestCase):
             )
             result = store.search("3.14", limit=5)
             self.assertEqual(result["count"], 0)
+
+
+    def test_natural_fact_then_store_information_routes_to_real_memory_write(
+        self,
+    ):
+        text = (
+            "Jarvis, o meu nome completo "
+            "\u00e9 Tiago Resende Silva, "
+            "guarda esta informa\u00e7\u00e3o."
+        )
+
+        request = (
+            resolve_semantic_request(
+                text
+            )
+        )
+
+        self.assertEqual(
+            request.intent,
+            "OPERATIONAL_ACTION",
+        )
+
+        self.assertEqual(
+            request.domain,
+            "owner_memory",
+        )
+
+        self.assertEqual(
+            request.subject,
+            "OWNER",
+        )
+
+        self.assertEqual(
+            request.action,
+            "remember_owner_fact",
+        )
+
+        self.assertEqual(
+            request.preferred_tool,
+            "remember_user_fact",
+        )
+
+        self.assertEqual(
+            dict(
+                request.tool_arguments
+                or {}
+            ),
+            {
+                "fact":
+                    (
+                        "o meu nome completo "
+                        "\u00e9 Tiago Resende Silva"
+                    ),
+                "category":
+                    "user_explicit",
+            },
+        )
+
+    def test_fact_first_memory_write_variants_keep_exact_clean_fact(
+        self,
+    ):
+        cases = (
+            (
+                (
+                    "Jarvis, o meu nome completo "
+                    "\u00e9 Tiago Resende Silva; "
+                    "memoriza esta informa\u00e7\u00e3o."
+                )
+            ),
+            (
+                (
+                    "Jarvis, o meu nome completo "
+                    "\u00e9 Tiago Resende Silva: "
+                    "recorda esta informa\u00e7\u00e3o."
+                )
+            ),
+            (
+                (
+                    "Jarvis, o meu nome completo "
+                    "\u00e9 Tiago Resende Silva. "
+                    "guarda esta informa\u00e7\u00e3o."
+                )
+            ),
+        )
+
+        for text in cases:
+            with self.subTest(
+                text=text
+            ):
+                request = (
+                    resolve_semantic_request(
+                        text
+                    )
+                )
+
+                self.assertEqual(
+                    request.intent,
+                    "OPERATIONAL_ACTION",
+                )
+
+                self.assertEqual(
+                    request.preferred_tool,
+                    "remember_user_fact",
+                )
+
+                arguments = dict(
+                    request.tool_arguments
+                    or {}
+                )
+
+                self.assertEqual(
+                    arguments.get(
+                        "fact"
+                    ),
+                    (
+                        "o meu nome completo "
+                        "\u00e9 Tiago Resende Silva"
+                    ),
+                )
+
+    def test_existing_fact_first_verbose_memory_form_drops_separator_punctuation(
+        self,
+    ):
+        text = (
+            "Jarvis, o meu nome completo "
+            "\u00e9 Tiago Resende Silva, "
+            "e quero que guardes esta "
+            "informa\u00e7\u00e3o."
+        )
+
+        request = (
+            resolve_semantic_request(
+                text
+            )
+        )
+
+        self.assertEqual(
+            request.intent,
+            "OPERATIONAL_ACTION",
+        )
+
+        self.assertEqual(
+            request.preferred_tool,
+            "remember_user_fact",
+        )
+
+        arguments = dict(
+            request.tool_arguments
+            or {}
+        )
+
+        self.assertEqual(
+            arguments.get(
+                "fact"
+            ),
+            (
+                "o meu nome completo "
+                "\u00e9 Tiago Resende Silva"
+            ),
+        )
+
+    def test_vague_or_file_store_requests_do_not_become_owner_memory_writes(
+        self,
+    ):
+        cases = (
+            (
+                "Jarvis, guarda esta "
+                "informa\u00e7\u00e3o."
+            ),
+            (
+                "Jarvis, memoriza isto."
+            ),
+            (
+                (
+                    "Jarvis, guarda o ficheiro "
+                    "relatorio.pdf"
+                )
+            ),
+            (
+                (
+                    "Jarvis, que informa\u00e7\u00e3o "
+                    "eu pedi para tu guardares?"
+                )
+            ),
+        )
+
+        for text in cases:
+            with self.subTest(
+                text=text
+            ):
+                request = (
+                    resolve_semantic_request(
+                        text
+                    )
+                )
+
+                self.assertNotEqual(
+                    request.action,
+                    "remember_owner_fact",
+                )
+
+                self.assertNotEqual(
+                    request.preferred_tool,
+                    "remember_user_fact",
+                )
 
 
 

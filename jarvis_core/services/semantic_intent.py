@@ -142,7 +142,7 @@ def _clean_owner_memory_fact(
     ).strip()
 
     return text.rstrip(
-        " .!?"
+        " ,;:.!?"
     ).strip()
 
 
@@ -211,6 +211,21 @@ def _extract_explicit_owner_memory_fact(
             r"(?:\s+(?:na|em)\s+"
             r"(?:tua\s+)?mem[o\u00f3]ria)?"
             r"(?:[.!?].*)?"
+        ),
+
+
+        # Fact first, followed by a direct order to store
+        # the immediately preceding information:
+        # "X, guarda esta informacao".
+        (
+            r"(?P<fact>.+?)"
+            r"(?:\s*[,;:]\s*|[.!?]\s+)"
+            r"(?:guarda|memoriza|recorda)\s+"
+            r"(?:esta|essa|a)\s+"
+            r"informa[c\u00e7][a\u00e3]o"
+            r"(?:\s+(?:na|em)\s+"
+            r"(?:tua\s+)?mem[o\u00f3]ria)?"
+            r"\s*[.!?]?\s*"
         ),
 
         # Command first:
@@ -480,6 +495,190 @@ def _subject_hint(
         )
     ):
         return "JARVIS"
+
+    return None
+
+
+def _owner_memory_scope(
+    value: str,
+) -> str | None:
+    """Resolve an OWNER concept into its admissible memory scope."""
+
+    normalized = _semantic_text(
+        value
+    )
+
+    patterns = (
+        (
+            "OWNER_FULL_NAME",
+            (
+                r"(?:qual e )?"
+                r"o meu nome completo"
+                r"|meu nome completo"
+            ),
+        ),
+        (
+            "OWNER_PROFILE",
+            (
+                r"como me chamo"
+                r"|quem sou eu"
+                r"|ainda sabes o meu nome"
+                r"|sabes o meu nome"
+                r"|mostra (?:o )?meu perfil"
+                r"|mostra(?: |-)me "
+                r"o meu perfil de utilizador"
+                r"|mostra o meu "
+                r"perfil de utilizador"
+            ),
+        ),
+        (
+            "OWNER_FACTUAL_SUMMARY",
+            (
+                r"o que sabes(?: realmente)? "
+                r"sobre mim"
+                r"|o que te lembras de mim"
+            ),
+        ),
+        (
+            "OWNER_MEMORY_OVERVIEW",
+            (
+                r"mostra "
+                r"(?:a minha |a )?"
+                r"memoria"
+            ),
+        ),
+        (
+            "OWNER_GOALS",
+            (
+                r"que objetivos tenho"
+                r"|quais(?: sao)? "
+                r"(?:os )?meus objetivos"
+                r"|meus objetivos atuais"
+                r"|o que quero alcancar"
+            ),
+        ),
+        (
+            "OWNER_LEARNING_GOALS",
+            (
+                r"o que quero aprender"
+                r"|o que ando a estudar"
+                r"|que temas quero aprender"
+                r"|quais sao os meus "
+                r"objetivos de aprendizagem"
+                r"|meus objetivos de aprendizagem"
+            ),
+        ),
+        (
+            "OWNER_HOME",
+            (
+                r"onde moro"
+                r"|(?:(?:recorda|recordas) "
+                r"te de )?"
+                r"onde eu moro"
+                r"|em que cidade vivo"
+            ),
+        ),
+        (
+            "OWNER_PERSONAL_MODEL",
+            (
+                r"mostra o teu modelo "
+                r"sobre mim"
+                r"|como me modelas"
+                r"|(?:mostra(?: |-)me )?"
+                r"(?:o )?"
+                r"modelo pessoal "
+                r"que tens sobre mim"
+                r"|que modelo pessoal "
+                r"tens de mim"
+                r"|meu modelo pessoal"
+                r"|modelo pessoal sobre mim"
+            ),
+        ),
+        (
+            "OWNER_VIEW",
+            (
+                r"fala(?: |-)me sobre mim"
+                r"|o que (?:pensas|achas) "
+                r"de mim"
+                r"|(?:de que forma|como) "
+                r"(?:tu )?me ves"
+                r"|qual e a tua opiniao "
+                r"sobre mim"
+            ),
+        ),
+        (
+            "OWNER_RELATIONSHIP",
+            (
+                r"(?:qual e )?"
+                r"o nome da minha mulher"
+                r"|quem e "
+                r"(?:a )?minha mulher"
+                r"|(?:recorda|recordas)"
+                r"(?: |-)te "
+                r"(?:do nome da minha mulher"
+                r"|de quem e a minha mulher)"
+                r"|quem e (?:a )?"
+                r"[^?!.]{2,80} para mim"
+            ),
+        ),
+        (
+            "OWNER_EXPLICIT_FACT",
+            (
+                r"qual (?:era|foi) "
+                r"o codigo de teste"
+                r"(?: .*)?"
+                r"|codigo de teste "
+                r"desta sessao"
+            ),
+        ),
+    )
+
+    for scope, pattern in patterns:
+        if re.fullmatch(
+            pattern,
+            normalized,
+        ):
+            return scope
+
+    return None
+
+
+def _jarvis_memory_scope(
+    value: str,
+) -> str | None:
+    """Resolve a JARVIS-self concept into its memory scope."""
+
+    normalized = _semantic_text(
+        value
+    )
+
+    if re.fullmatch(
+        (
+            r"quais sao "
+            r"(?:os )?"
+            r"teus objetivos "
+            r"de aprendizagem"
+            r"|teus objetivos "
+            r"de aprendizagem"
+        ),
+        normalized,
+    ):
+        return (
+            "JARVIS_LEARNING_GOALS"
+        )
+
+    if re.fullmatch(
+        (
+            r"quais sao "
+            r"(?:as )?"
+            r"tuas diretivas"
+            r"|tuas diretivas"
+        ),
+        normalized,
+    ):
+        return (
+            "JARVIS_DIRECTIVES"
+        )
 
     return None
 
@@ -1158,6 +1357,8 @@ def resolve_semantic_request(
             subject="OWNER",
             action="recall_recent_explicit_memory",
             target="OWNER",
+            memory_scope=
+                "OWNER_RECENT_EXPLICIT",
             requires_tool=False,
             preferred_tool=None,
             epistemic_learning_eligible=False,
@@ -1218,6 +1419,9 @@ def resolve_semantic_request(
             subject="OWNER",
             action="discuss_owner_context",
             target="OWNER",
+            memory_scope=_owner_memory_scope(
+                raw
+            ),
             requires_tool=False,
             preferred_tool=None,
             epistemic_learning_eligible=False,
@@ -1442,6 +1646,9 @@ def resolve_semantic_request(
             subject="OWNER",
             action="discuss_owner_context",
             target="OWNER",
+            memory_scope=_owner_memory_scope(
+                raw
+            ),
             requires_tool=False,
             preferred_tool=None,
             epistemic_learning_eligible=False,
@@ -1457,6 +1664,9 @@ def resolve_semantic_request(
             subject="JARVIS",
             action="discuss_identity",
             target="JARVIS",
+            memory_scope=_jarvis_memory_scope(
+                raw
+            ),
             requires_tool=False,
             preferred_tool=None,
             epistemic_learning_eligible=False,
@@ -1507,6 +1717,9 @@ def resolve_semantic_request(
             subject="JARVIS",
             action="discuss_identity",
             target="JARVIS",
+            memory_scope=_jarvis_memory_scope(
+                raw
+            ),
             requires_tool=False,
             preferred_tool=None,
             epistemic_learning_eligible=False,

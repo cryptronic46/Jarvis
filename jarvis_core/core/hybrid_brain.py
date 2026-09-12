@@ -12,6 +12,11 @@ from jarvis_core.services.learning_gap import (
     contains_secret_hints,
     freshness_days_for_topic,
 )
+from jarvis_core.core.generation_result import (
+    BrainAnswer,
+    GenerationStatus,
+)
+from jarvis_core.core.local_llm import LocalLLMError
 
 
 @dataclass(slots=True)
@@ -33,6 +38,7 @@ class HybridAnswer:
     reason: str
     used_web: bool = False
     cloud_estimated_usd: float = 0.0
+    generation_status: GenerationStatus = GenerationStatus.SUCCESS
 
 
 def _norm(value: str) -> str:
@@ -511,6 +517,7 @@ class HybridBrain:
         user_text: str,
         *,
         request: StructuredRequest | None = None,
+        memory_grounding_context: str = "",
     ) -> HybridAnswer:
         started = monotonic()
         decision = self.policy.decide(user_text, cloud_available=False)
@@ -825,19 +832,53 @@ class HybridBrain:
         # Local-first: always attempt the local model first. External compute is
         # considered only for explicit OWNER routing or genuine complexity after
         # that local attempt, never merely because cloud exists or the PC is busy.
+        local_generation_status = GenerationStatus.SUCCESS
+
         try:
-            if request is None:
-                local_text = self.local.ask(decision.text)
-            else:
-                local_text = self.local.ask(
-                    decision.text,
-                    request=request,
+            local_kwargs = {}
+
+            if request is not None:
+                local_kwargs[
+                    "request"
+                ] = request
+
+            if memory_grounding_context:
+                local_kwargs[
+                    "memory_grounding_context"
+                ] = memory_grounding_context
+
+            local_result = self.local.ask(
+                decision.text,
+                **local_kwargs,
+            )
+
+            if isinstance(local_result, BrainAnswer):
+                local_text = local_result.text
+                local_generation_status = (
+                    local_result.generation_status
                 )
-            local_failed = not str(local_text or "").strip()
-        except Exception as exc:
+            else:
+                # Keep compatibility with lightweight local test doubles.
+                # The production JarvisBrain boundary is always typed.
+                local_text = str(local_result or "")
+
+            local_failed = (
+                local_generation_status
+                is GenerationStatus.MODEL_FAILURE
+                or not str(local_text or "").strip()
+            )
+
+        except LocalLLMError as exc:
             local_text = ""
             local_failed = True
-            self.events.emit("LOCAL_REASONING_ERROR", error=type(exc).__name__)
+            local_generation_status = GenerationStatus.MODEL_FAILURE
+            self.events.emit(
+                "LOCAL_REASONING_ERROR",
+                error=type(exc).__name__,
+            )
+
+        except Exception:
+            raise
 
         threshold = max(1, int(getattr(self.settings, "external_ai_complexity_threshold", 4)))
         complex_request = decision.complexity_score >= threshold
@@ -878,12 +919,21 @@ class HybridBrain:
                 learning_offer.elapsed_ms = round(
                     (monotonic() - started) * 1000
                 )
+                learning_offer.generation_status = (
+                    local_generation_status
+                )
                 return learning_offer
             # External AI is intentionally not an escalation path.
 
         elapsed_ms = round((monotonic() - started) * 1000)
         return HybridAnswer(
-            text=local_text or "Não consegui concluir localmente este pedido.",
-            route="LOCAL", model=self.settings.model, elapsed_ms=elapsed_ms,
+            text=(
+                local_text
+                or "Não consegui concluir localmente este pedido."
+            ),
+            route="LOCAL",
+            model=self.settings.model,
+            elapsed_ms=elapsed_ms,
             reason=decision.reason,
+            generation_status=local_generation_status,
         )

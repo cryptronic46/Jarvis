@@ -18,6 +18,7 @@ from typing import Any
 from urllib import request, error
 from threading import RLock
 from time import monotonic, sleep
+import http.client
 import json
 import os
 import socket
@@ -32,6 +33,29 @@ from jarvis_core.services.network_egress import (
 
 class LocalLLMError(RuntimeError):
     pass
+
+
+class LocalLLMAvailabilityError(LocalLLMError):
+    """Recoverable local inference transport/capacity failure."""
+
+
+def _http_status_is_availability(status: int) -> bool:
+    return status == 429 or 500 <= status <= 599
+
+
+def _transport_is_availability(exc: BaseException) -> bool:
+    return isinstance(
+        exc,
+        (
+            error.URLError,
+            TimeoutError,
+            socket.timeout,
+            ConnectionRefusedError,
+            ConnectionResetError,
+            ConnectionAbortedError,
+            http.client.IncompleteRead,
+        ),
+    )
 
 
 @dataclass(slots=True)
@@ -438,7 +462,7 @@ class NativeLlamaRuntime:
                             f"Log tail: {detail}"
                         )
 
-                    raise LocalLLMError(
+                    raise LocalLLMAvailabilityError(
                         "llama-server exited during startup with code "
                         f"{code} ({code_hex}); runtime MOTW files: "
                         f"{motw_count}; log tail: {detail}"
@@ -488,7 +512,7 @@ class NativeLlamaRuntime:
 
             self.shutdown(reason="startup_timeout")
 
-            raise LocalLLMError(
+            raise LocalLLMAvailabilityError(
                 "Native llama.cpp runtime did not become healthy within "
                 f"{timeout:.0f}s; see {log_path}."
             )
@@ -550,9 +574,28 @@ class NativeLlamaClient:
         except error.HTTPError as exc:
             raw = exc.read()
             detail = raw.decode("utf-8", errors="replace")[:1200]
-            raise LocalLLMError(f"llama.cpp HTTP {exc.code}: {detail}") from exc
-        except Exception as exc:
-            raise LocalLLMError(f"llama.cpp request failed: {type(exc).__name__}: {exc}") from exc
+            error_type = (
+                LocalLLMAvailabilityError
+                if _http_status_is_availability(int(exc.code))
+                else LocalLLMError
+            )
+            raise error_type(
+                f"llama.cpp HTTP {exc.code}: {detail}"
+            ) from exc
+        except (
+            error.URLError,
+            TimeoutError,
+            socket.timeout,
+            ConnectionRefusedError,
+            ConnectionResetError,
+            ConnectionAbortedError,
+            http.client.IncompleteRead,
+        ) as exc:
+            if not _transport_is_availability(exc):
+                raise
+            raise LocalLLMAvailabilityError(
+                f"llama.cpp request unavailable: {type(exc).__name__}: {exc}"
+            ) from exc
         try:
             data = json.loads(raw.decode("utf-8"))
         except Exception as exc:
@@ -619,7 +662,7 @@ class NativeLlamaClient:
             return [NativeLlamaClient._llama_safe_schema(x) for x in value]
         if not isinstance(value, dict):
             return value
-        allowed = {"type", "properties", "required", "items", "enum", "description"}
+        allowed = {"type", "properties", "required", "items", "enum", "description", "oneOf", "const", "additionalProperties"}
         out = {}
         for key, item in value.items():
             if key not in allowed:
@@ -794,9 +837,28 @@ class OllamaLocalCompatClient:
         except error.HTTPError as exc:
             raw = exc.read()
             detail = raw.decode("utf-8", errors="replace")[:1200]
-            raise LocalLLMError(f"Local Ollama executor HTTP {exc.code}: {detail}") from exc
-        except Exception as exc:
-            raise LocalLLMError(f"Local Ollama executor unavailable: {type(exc).__name__}: {exc}") from exc
+            error_type = (
+                LocalLLMAvailabilityError
+                if _http_status_is_availability(int(exc.code))
+                else LocalLLMError
+            )
+            raise error_type(
+                f"Local Ollama executor HTTP {exc.code}: {detail}"
+            ) from exc
+        except (
+            error.URLError,
+            TimeoutError,
+            socket.timeout,
+            ConnectionRefusedError,
+            ConnectionResetError,
+            ConnectionAbortedError,
+            http.client.IncompleteRead,
+        ) as exc:
+            if not _transport_is_availability(exc):
+                raise
+            raise LocalLLMAvailabilityError(
+                f"Local Ollama executor unavailable: {type(exc).__name__}: {exc}"
+            ) from exc
         try:
             parsed = json.loads(raw.decode("utf-8")) if raw else {}
         except Exception as exc:

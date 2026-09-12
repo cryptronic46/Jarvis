@@ -2403,7 +2403,18 @@ class UnifiedMemoryIndex:
         query: str,
         *,
         limit: int = 10,
-        sources: list[str] | tuple[str, ...] | set[str] | None = None,
+        sources: (
+            list[str]
+            | tuple[str, ...]
+            | set[str]
+            | None
+        ) = None,
+        kinds: (
+            list[str]
+            | tuple[str, ...]
+            | set[str]
+            | None
+        ) = None,
     ) -> dict[str, Any]:
         path = self.path
 
@@ -2482,6 +2493,36 @@ class UnifiedMemoryIndex:
                 requested_sources
             )
 
+        kind_filter = None
+
+        if kinds is not None:
+            requested_kinds = {
+                str(
+                    value
+                    or ""
+                ).strip()
+                for value
+                in kinds
+                if str(
+                    value
+                    or ""
+                ).strip()
+            }
+
+            if not requested_kinds:
+                return {
+                    "ok": True,
+                    "query": query,
+                    "sources":
+                        source_filter,
+                    "kinds": [],
+                    "results": [],
+                }
+
+            kind_filter = sorted(
+                requested_kinds
+            )
+
         # Retrieve a substantially larger lexical candidate pool before
         # source-aware reranking. This prevents the 1332-row conversation
         # source from excluding smaller durable stores before reranking can
@@ -2538,6 +2579,23 @@ class UnifiedMemoryIndex:
 
             parameters.extend(
                 source_filter
+            )
+
+        if kind_filter is not None:
+            placeholders = ",".join(
+                "?"
+                for _
+                in kind_filter
+            )
+
+            sql += (
+                " AND r.kind IN ("
+                + placeholders
+                + ")"
+            )
+
+            parameters.extend(
+                kind_filter
             )
 
         sql += """
@@ -2639,6 +2697,8 @@ class UnifiedMemoryIndex:
                 len(candidates),
             "sources":
                 source_filter,
+            "kinds":
+                kind_filter,
             "results":
                 results,
         }
