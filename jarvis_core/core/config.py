@@ -36,7 +36,7 @@ class Settings:
     native_llama_flash_attention: bool = True
     native_llama_cache_type_k: str = "q8_0"
     native_llama_cache_type_v: str = "q8_0"
-    native_llama_start_timeout_seconds: float = 45.0
+    native_llama_start_timeout_seconds: float = 90.0
     native_llama_request_timeout_seconds: float = 180.0
     native_llama_state_path: str = "memory/native_llama_runtime.json"
     ollama_host: str = "http://localhost:11434"  # loopback compatibility executor / legacy model cache
