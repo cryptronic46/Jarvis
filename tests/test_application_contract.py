@@ -192,6 +192,25 @@ class FakePerformance(FakeService):
         return {"state": "ok"}
 
 
+class FakeRequestLock:
+    def __init__(self):
+        self.enters = 0
+        self.exits = 0
+
+    def __enter__(self):
+        self.enters += 1
+        return self
+
+    def __exit__(
+        self,
+        exc_type,
+        exc,
+        tb,
+    ):
+        self.exits += 1
+        return False
+
+
 class JarvisApplicationContractTests(
     unittest.TestCase
 ):
@@ -209,6 +228,7 @@ class JarvisApplicationContractTests(
             telemetry=FakeService(),
             performance=FakePerformance(),
             activity_trace=FakeService(),
+            request_lock=FakeRequestLock(),
         )
 
     def test_runtime_lifecycle_is_application_owned(
@@ -292,6 +312,16 @@ class JarvisApplicationContractTests(
                     "source": "web",
                 }
             ],
+        )
+
+        self.assertEqual(
+            app.request_lock.enters,
+            1,
+        )
+
+        self.assertEqual(
+            app.request_lock.exits,
+            1,
         )
 
     def test_kali_action_remains_owner_authorized(

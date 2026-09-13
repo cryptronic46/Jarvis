@@ -30,6 +30,7 @@ class JarvisApplication:
     telemetry: object
     performance: object
     activity_trace: object
+    request_lock: object
 
     _runtime_services_started: bool = field(
         default=False,
@@ -167,10 +168,11 @@ class JarvisApplication:
         *,
         source: str = "terminal",
     ) -> ProcessRequestResult:
-        return self.runtime.process_request(
-            user_text,
-            source=source,
-        )
+        with self.request_lock:
+            return self.runtime.process_request(
+                user_text,
+                source=source,
+            )
 
     def open_owner_kali_session(
         self,

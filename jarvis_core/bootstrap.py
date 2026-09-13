@@ -497,6 +497,7 @@ def build_application() -> ApplicationBootstrapResult:
             telemetry=telemetry,
             performance=performance,
             activity_trace=activity_trace,
+            request_lock=command_lock,
         )
 
         context = JarvisCoreContext(

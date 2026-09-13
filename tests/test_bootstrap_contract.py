@@ -181,6 +181,11 @@ class BootstrapContractTests(
             build_source,
         )
 
+        self.assertIn(
+            "request_lock=command_lock",
+            build_source,
+        )
+
     def test_cli_constructs_core_only_through_bootstrap(
         self,
     ):
