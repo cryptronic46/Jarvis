@@ -111,6 +111,87 @@ class FakeCyberKnowledge:
         }
 
 
+class FakeSettings:
+    performance_release_llm_on_pressure = True
+    performance_warmup_delay_seconds = 0.0
+    background_warmup = False
+    ollama_release_on_shutdown = True
+
+
+class FakeEvents:
+    def __init__(self):
+        self.rows = []
+
+    def emit(
+        self,
+        name,
+        **payload,
+    ):
+        self.rows.append(
+            (name, payload)
+        )
+
+
+class FakeBrain:
+    def __init__(self):
+        self.release_model_calls = []
+        self.release_all_calls = []
+        self.warmup_calls = 0
+
+    def release_model(
+        self,
+        *,
+        reason,
+    ):
+        self.release_model_calls.append(
+            reason
+        )
+        return {"ok": True}
+
+    def release_all_models(
+        self,
+        **kwargs,
+    ):
+        self.release_all_calls.append(
+            kwargs
+        )
+
+    def warmup(self):
+        self.warmup_calls += 1
+
+
+class FakeService:
+    def __init__(self):
+        self.starts = 0
+        self.stops = 0
+
+    def start(self):
+        self.starts += 1
+
+    def stop(self):
+        self.stops += 1
+
+
+class FakePerformance(FakeService):
+    def __init__(self):
+        super().__init__()
+        self.callback = None
+
+    def start(
+        self,
+        *,
+        on_sustained_pressure,
+    ):
+        self.starts += 1
+        self.callback = on_sustained_pressure
+
+    def should_warm_llm(self):
+        return False
+
+    def pressure(self):
+        return {"state": "ok"}
+
+
 class JarvisApplicationContractTests(
     unittest.TestCase
 ):
@@ -122,6 +203,70 @@ class JarvisApplicationContractTests(
             cyber_knowledge=(
                 FakeCyberKnowledge()
             ),
+            settings=FakeSettings(),
+            events=FakeEvents(),
+            brain=FakeBrain(),
+            telemetry=FakeService(),
+            performance=FakePerformance(),
+            activity_trace=FakeService(),
+        )
+
+    def test_runtime_lifecycle_is_application_owned(
+        self,
+    ):
+        app = self.make_application()
+
+        app.start_runtime_services()
+
+        self.assertEqual(
+            app.activity_trace.starts,
+            1,
+        )
+        self.assertEqual(
+            app.telemetry.starts,
+            1,
+        )
+        self.assertEqual(
+            app.performance.starts,
+            1,
+        )
+
+        app.performance.callback(
+            {"cpu": 95}
+        )
+
+        self.assertEqual(
+            app.brain.release_model_calls,
+            ["sustained_resource_pressure"],
+        )
+
+        app.stop_activity_trace()
+        app.release_models_on_shutdown()
+        app.stop_runtime_services()
+
+        self.assertEqual(
+            app.activity_trace.stops,
+            1,
+        )
+        self.assertEqual(
+            app.performance.stops,
+            1,
+        )
+        self.assertEqual(
+            app.telemetry.stops,
+            1,
+        )
+
+        self.assertEqual(
+            app.brain.release_all_calls,
+            [
+                {
+                    "reason":
+                        "jarvis_shutdown",
+                    "include_configured":
+                        True,
+                }
+            ],
         )
 
     def test_process_request_delegates_to_single_runtime(
@@ -276,6 +421,35 @@ class JarvisApplicationContractTests(
 
         self.assertNotIn(
             "def owner_authorized_cyber_sync(",
+            main_source,
+        )
+
+        self.assertIn(
+            "application.start_runtime_services()",
+            main_source,
+        )
+        self.assertIn(
+            "application.stop_activity_trace()",
+            main_source,
+        )
+        self.assertIn(
+            "application.release_models_on_shutdown()",
+            main_source,
+        )
+        self.assertIn(
+            "application.stop_runtime_services()",
+            main_source,
+        )
+
+        # Manual OWNER maintenance remains a terminal capability.
+        self.assertIn(
+            'reason="manual_release"',
+            main_source,
+        )
+
+        # Only shutdown ownership moves into JarvisApplication.
+        self.assertNotIn(
+            'reason="jarvis_shutdown"',
             main_source,
         )
 

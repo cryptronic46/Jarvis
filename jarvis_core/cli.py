@@ -789,8 +789,6 @@ def main() -> None:
         # Live terminal trace is session-only. Normal startup is quiet.
         live=False,
     )
-    activity_trace.start()
-
     def current_address() -> str:
         return profiles.active().get("address_as") or user_address
 
@@ -835,6 +833,12 @@ def main() -> None:
         autonomy=autonomy,
         kali_bridge=kali_bridge,
         cyber_knowledge=cyber_knowledge,
+        settings=settings,
+        events=events,
+        brain=brain,
+        telemetry=telemetry,
+        performance=performance,
+        activity_trace=activity_trace,
     )
 
     open_owner_kali_session = (
@@ -877,50 +881,7 @@ def main() -> None:
     # EventBus itself keeps writing events to logs/events.jsonl while quiet.
     events.subscribe(terminal_event_printer)
 
-    telemetry.start()
-
-    def on_sustained_pressure(
-        pressure: dict,
-    ) -> None:
-        if settings.performance_release_llm_on_pressure:
-            result = brain.release_model(
-                reason="sustained_resource_pressure"
-            )
-            events.emit(
-                "PERFORMANCE_LLM_RELEASE_RESULT",
-                pressure=pressure,
-                result=result,
-            )
-
-    performance.start(
-        on_sustained_pressure=on_sustained_pressure
-    )
-
-    def warm_services():
-        events.emit("WARMUP_STARTED")
-        sleep(
-            max(
-                0.0,
-                float(settings.performance_warmup_delay_seconds),
-            )
-        )
-
-        if performance.should_warm_llm():
-            brain.warmup()
-        else:
-            events.emit(
-                "LLM_WARMUP_DEFERRED",
-                pressure=performance.pressure(),
-            )
-
-        events.emit("WARMUP_FINISHED")
-
-    if settings.background_warmup:
-        Thread(
-            target=warm_services,
-            name="jarvis-warmup",
-            daemon=True,
-        ).start()
+    application.start_runtime_services()
 
 
 
@@ -3196,22 +3157,21 @@ def main() -> None:
                     )
                 events.emit("LLM_RESPONSE_READY", chars=len(answer), route=route, source="terminal")
     finally:
-        activity_trace.stop()
+        application.stop_activity_trace()
+
         if settings.skills_enabled:
             skills.stop_all()
-        if bool(getattr(settings, "ollama_release_on_shutdown", True)):
-            brain.release_all_models(
-                reason="jarvis_shutdown",
-                include_configured=True,
-            )
+
+        application.release_models_on_shutdown()
+
         reminder_service.stop()
         security_watch_service.stop()
         proactive_service.stop()
         companion_service.stop()
         book_library_service.stop()
         cyber_knowledge_service.stop()
-        performance.stop()
-        telemetry.stop()
+
+        application.stop_runtime_services()
 
 
 if __name__ == "__main__":

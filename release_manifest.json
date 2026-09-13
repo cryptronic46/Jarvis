@@ -111,11 +111,11 @@
     },
     {
       "path": "jarvis_core/application.py",
-      "sha256": "feb97d6af9d44bd8159cd117bc9e59594feb567727b5b9f2cd393bb927f1bd82"
+      "sha256": "c93c74fd2d5cef374581f9b3f77150b65fce535114a4984a10adf4539fe9bdff"
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "9762adf139d26e809ff344c72c5d7aa0f827a6e5c82af4d4e67e9462a81465f5"
+      "sha256": "569d07820471eddc46a63376fdbda8ecd1a569407901b02cbdaab0d19f161d1e"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -703,7 +703,7 @@
     },
     {
       "path": "tests/test_application_contract.py",
-      "sha256": "6666a449a4a3b31afadea7b72c6c23a17c33a1ecc7507aeb19203ea3fbdf6d21"
+      "sha256": "d999f9884bce994fd20779d04b088dbdbc2ef47b56f7980a32d5d4170559d4c6"
     },
     {
       "path": "tests/test_apps.py",

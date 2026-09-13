@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from threading import Thread
+from time import sleep
 
 from jarvis_core.runtime import (
     JarvisRuntime,
@@ -22,6 +24,134 @@ class JarvisApplication:
     autonomy: object
     kali_bridge: object
     cyber_knowledge: object
+    settings: object
+    events: object
+    brain: object
+    telemetry: object
+    performance: object
+    activity_trace: object
+
+    _runtime_services_started: bool = field(
+        default=False,
+        init=False,
+        repr=False,
+    )
+
+    def _on_sustained_pressure(
+        self,
+        pressure: dict,
+    ) -> None:
+        if (
+            self.settings
+            .performance_release_llm_on_pressure
+        ):
+            result = self.brain.release_model(
+                reason="sustained_resource_pressure"
+            )
+
+            self.events.emit(
+                "PERFORMANCE_LLM_RELEASE_RESULT",
+                pressure=pressure,
+                result=result,
+            )
+
+    def _warm_services(
+        self,
+    ) -> None:
+        self.events.emit(
+            "WARMUP_STARTED"
+        )
+
+        sleep(
+            max(
+                0.0,
+                float(
+                    self.settings
+                    .performance_warmup_delay_seconds
+                ),
+            )
+        )
+
+        if self.performance.should_warm_llm():
+            self.brain.warmup()
+
+        else:
+            self.events.emit(
+                "LLM_WARMUP_DEFERRED",
+                pressure=self.performance.pressure(),
+            )
+
+        self.events.emit(
+            "WARMUP_FINISHED"
+        )
+
+    def start_runtime_services(
+        self,
+    ) -> None:
+        if self._runtime_services_started:
+            return
+
+        self.activity_trace.start()
+
+        try:
+            self.telemetry.start()
+
+            try:
+                self.performance.start(
+                    on_sustained_pressure=(
+                        self._on_sustained_pressure
+                    )
+                )
+
+            except Exception:
+                self.telemetry.stop()
+                raise
+
+        except Exception:
+            self.activity_trace.stop()
+            raise
+
+        self._runtime_services_started = True
+
+        if self.settings.background_warmup:
+            Thread(
+                target=self._warm_services,
+                name="jarvis-warmup",
+                daemon=True,
+            ).start()
+
+    def stop_activity_trace(
+        self,
+    ) -> None:
+        self.activity_trace.stop()
+
+    def release_models_on_shutdown(
+        self,
+    ) -> None:
+        if bool(
+            getattr(
+                self.settings,
+                "ollama_release_on_shutdown",
+                True,
+            )
+        ):
+            self.brain.release_all_models(
+                reason="jarvis_shutdown",
+                include_configured=True,
+            )
+
+    def stop_runtime_services(
+        self,
+    ) -> None:
+        if not self._runtime_services_started:
+            return
+
+        try:
+            self.performance.stop()
+
+        finally:
+            self.telemetry.stop()
+            self._runtime_services_started = False
 
     def process_request(
         self,
