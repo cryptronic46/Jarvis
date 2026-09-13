@@ -153,6 +153,14 @@ class JarvisApplication:
             self.telemetry.stop()
             self._runtime_services_started = False
 
+    def semantic_context_inputs(
+        self,
+    ):
+        return (
+            self.runtime
+            .semantic_context_inputs()
+        )
+
     def process_request(
         self,
         user_text: str,

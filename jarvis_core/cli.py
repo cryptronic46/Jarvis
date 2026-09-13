@@ -851,7 +851,7 @@ def main() -> None:
 
 
     def semantic_context_inputs():
-        return turn_runtime.semantic_context_inputs()
+        return application.semantic_context_inputs()
 
     def process_request(
         user_text: str,
