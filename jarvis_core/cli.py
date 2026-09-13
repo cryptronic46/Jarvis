@@ -136,6 +136,7 @@ from jarvis_core.runtime import (
     ProcessRequestResult,
     route_runtime_request,
 )
+from jarvis_core.application import JarvisApplication
 
 
 
@@ -645,206 +646,11 @@ def main() -> None:
         autonomy
     )
 
-    def open_owner_kali_session(
-        *,
-        target: str = "",
-        profiles,
-        ports=None,
-        scope: str,
-        source_text: str,
-    ) -> dict:
-        scoped = (
-            kali_bridge
-            .build_security_session_scope(
-                target=target,
-                profiles=list(profiles),
-                ports=ports,
-                scope=scope,
-            )
-        )
-
-        if not scoped.get("ok"):
-            return scoped
-
-        payload = dict(
-            scoped.get("payload")
-            or {}
-        )
-
-        try:
-            authorization = (
-                autonomy
-                .record_direct_authorization(
-                    capability=
-                        "kali_security_session",
-                    payload=payload,
-                    description=(
-                        "abrir uma sess?o Kali limitada "
-                        f"ao scope {payload.get('scope')}, "
-                        f"alvo {payload.get('target')} "
-                        "e perfis "
-                        f"{payload.get('profiles')}"
-                    ),
-                    source_text=source_text,
-                )
-            )
-        except Exception as exc:
-            return {
-                "ok": False,
-                "error":
-                    "KALI_DIRECT_AUTHORITY_ERROR",
-                "reason":
-                    f"{type(exc).__name__}: {exc}",
-            }
-
-        if (
-            not isinstance(
-                authorization,
-                dict,
-            )
-            or not authorization.get("ok")
-            or not authorization.get(
-                "authorized",
-                False,
-            )
-        ):
-            return {
-                "ok": False,
-                "error":
-                    "KALI_DIRECT_AUTHORIZATION_FAILED",
-                "reason_code": str(
-                    authorization.get("error")
-                    if isinstance(
-                        authorization,
-                        dict,
-                    )
-                    else ""
-                )
-                or
-                "KALI_DIRECT_AUTHORIZATION_FAILED",
-            }
-
-        execution_token = str(
-            authorization.get(
-                "execution_token"
-            )
-            or ""
-        )
-
-        if not execution_token:
-            return {
-                "ok": False,
-                "error":
-                    "KALI_EXECUTION_CREDENTIAL_MISSING",
-            }
-
-        return kali_bridge.open_security_session(
-            target=target,
-            profiles=list(profiles),
-            ports=ports,
-            scope=scope,
-            execution_token=execution_token,
-        )
 
     cyber_range.set_authority_guardian(
         autonomy
     )
 
-    def owner_authorized_cyber_sync(
-        *,
-        full: bool = False,
-        source_id: str = "",
-        source_text: str,
-    ) -> dict:
-        source_id = str(
-            source_id
-            or ""
-        ).strip()
-
-        payload = {
-            "operation":
-                "cyber_knowledge_sync",
-            "full": bool(full),
-            "source_id": source_id,
-        }
-
-        try:
-            authorization = (
-                autonomy
-                .record_direct_authorization(
-                    capability="external_learning",
-                    payload=payload,
-                    description=(
-                        "sincronizar fontes oficiais "
-                        "da Cyber Knowledge Vault"
-                    ),
-                    source_text=source_text,
-                )
-            )
-        except Exception as exc:
-            return {
-                "ok": False,
-                "error":
-                    "OWNER_AUTHORITY_ERROR",
-                "reason_code":
-                    "OWNER_AUTHORITY_ERROR",
-                "message": (
-                    f"{type(exc).__name__}: "
-                    f"{exc}"
-                ),
-            }
-
-        if (
-            not isinstance(
-                authorization,
-                dict,
-            )
-            or not authorization.get(
-                "ok"
-            )
-            or not authorization.get(
-                "authorized",
-                False,
-            )
-        ):
-            return {
-                "ok": False,
-                "error":
-                    "OWNER_AUTHORIZATION_FAILED",
-                "reason_code": str(
-                    authorization.get(
-                        "error"
-                    )
-                    if isinstance(
-                        authorization,
-                        dict,
-                    )
-                    else ""
-                )
-                or "OWNER_AUTHORIZATION_FAILED",
-            }
-
-        execution_token = str(
-            authorization.get(
-                "execution_token"
-            )
-            or ""
-        )
-
-        if not execution_token:
-            return {
-                "ok": False,
-                "error":
-                    "OWNER_EXECUTION_CREDENTIAL_MISSING",
-                "reason_code":
-                    "OWNER_EXECUTION_CREDENTIAL_MISSING",
-            }
-
-        return cyber_knowledge.sync(
-            full=bool(full),
-            source_id=source_id,
-            execution_token=execution_token,
-        )
 
     brain = JarvisBrain(
         settings,
@@ -1024,6 +830,22 @@ def main() -> None:
         fast_router=fast_router,
     )
 
+    application = JarvisApplication(
+        runtime=turn_runtime,
+        autonomy=autonomy,
+        kali_bridge=kali_bridge,
+        cyber_knowledge=cyber_knowledge,
+    )
+
+    open_owner_kali_session = (
+        application.open_owner_kali_session
+    )
+
+    owner_authorized_cyber_sync = (
+        application.owner_authorized_cyber_sync
+    )
+
+
     def semantic_context_inputs():
         return turn_runtime.semantic_context_inputs()
 
@@ -1032,7 +854,7 @@ def main() -> None:
         *,
         source: str = "terminal",
     ) -> ProcessRequestResult:
-        return turn_runtime.process_request(
+        return application.process_request(
             user_text,
             source=source,
         )

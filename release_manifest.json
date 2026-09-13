@@ -110,8 +110,12 @@
       "sha256": "b536287c234c3d1882e50b3b295455df63553eb750d878df8283037f87c286c4"
     },
     {
+      "path": "jarvis_core/application.py",
+      "sha256": "feb97d6af9d44bd8159cd117bc9e59594feb567727b5b9f2cd393bb927f1bd82"
+    },
+    {
       "path": "jarvis_core/cli.py",
-      "sha256": "85938fddc726ba7cf55da22fe4912e5421dd785ff05a254159aa61f1ab8ff39a"
+      "sha256": "9762adf139d26e809ff344c72c5d7aa0f827a6e5c82af4d4e67e9462a81465f5"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -696,6 +700,10 @@
     {
       "path": "tests/test_appcontrol_trust_policy_0277.py",
       "sha256": "e5a251856f1aafb59304ca08cad7d37d519c6e07b69055f9486f72a66d1f3d74"
+    },
+    {
+      "path": "tests/test_application_contract.py",
+      "sha256": "6666a449a4a3b31afadea7b72c6c23a17c33a1ecc7507aeb19203ea3fbdf6d21"
     },
     {
       "path": "tests/test_apps.py",
