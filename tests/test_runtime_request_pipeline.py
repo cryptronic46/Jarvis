@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import ast
 import unittest
 
-from jarvis_core.cli import route_runtime_request
+from jarvis_core.runtime import route_runtime_request
 
 
 APP_ALIASES = {
@@ -425,11 +425,11 @@ class RuntimeRequestPipelineTests(
             event["requires_tool"]
         )
 
-    def test_real_cli_process_request_uses_tested_pipeline(
+    def test_shared_runtime_process_request_uses_tested_pipeline(
         self,
     ):
         path = Path(
-            "jarvis_core/cli.py"
+            "jarvis_core/runtime.py"
         )
 
         source = path.read_text(

@@ -2,13 +2,19 @@ import unittest
 from pathlib import Path
 
 
-class RelationalPresenceCLIIntegrationTests(
+class RelationalPresenceRuntimeIntegrationTests(
     unittest.TestCase
 ):
     @classmethod
     def setUpClass(cls):
-        cls.source = Path(
+        cls.cli_source = Path(
             "jarvis_core/cli.py"
+        ).read_text(
+            encoding="utf-8"
+        )
+
+        cls.runtime_source = Path(
+            "jarvis_core/runtime.py"
         ).read_text(
             encoding="utf-8"
         )
@@ -23,11 +29,11 @@ class RelationalPresenceCLIIntegrationTests(
                 "relational_presence import "
                 "relational_presence"
             ),
-            self.source,
+            self.cli_source,
         )
 
         self.assertEqual(
-            self.source.count(
+            self.cli_source.count(
                 (
                     "relational_presence_store = "
                     "relational_presence()"
@@ -38,24 +44,19 @@ class RelationalPresenceCLIIntegrationTests(
 
         self.assertNotIn(
             "RelationalPresenceStore()",
-            self.source,
+            self.cli_source,
         )
 
 
     def test_owner_input_is_observed_after_synthetic_self(
         self,
     ):
-        process_start = self.source.index(
+        process_start = self.runtime_source.index(
             "    def process_request("
         )
 
-        process_end = self.source.index(
-            "\n    def ",
-            process_start + 8,
-        )
-
-        method = self.source[
-            process_start:process_end
+        method = self.runtime_source[
+            process_start:
         ]
 
         synthetic = method.index(
@@ -99,7 +100,9 @@ class RelationalPresenceCLIIntegrationTests(
         )
 
         self.assertEqual(
-            self.source.count(marker),
+            self.runtime_source.count(
+                marker
+            ),
             2,
         )
 
@@ -110,7 +113,7 @@ class RelationalPresenceCLIIntegrationTests(
                 "                    user_text,\n"
                 "                    answer,"
             ),
-            self.source,
+            self.runtime_source,
         )
 
         self.assertIn(
@@ -120,7 +123,7 @@ class RelationalPresenceCLIIntegrationTests(
                 "                user_text,\n"
                 "                hybrid.text,"
             ),
-            self.source,
+            self.runtime_source,
         )
 
 

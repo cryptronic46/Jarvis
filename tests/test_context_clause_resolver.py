@@ -316,18 +316,18 @@ class ContextClauseResolverTests(
             "get_synthetic_self_state",
         )
 
-    def test_cli_supplies_runtime_context_and_app_catalogue(
+    def test_runtime_supplies_context_and_app_catalogue(
         self,
     ):
         source = (
-            Path("jarvis_core/cli.py")
+            Path("jarvis_core/runtime.py")
             .read_text(
                 encoding="utf-8"
             )
         )
 
         self.assertIn(
-            "def semantic_context_inputs():",
+            "def semantic_context_inputs(self):",
             source,
         )
 
@@ -341,19 +341,23 @@ class ContextClauseResolverTests(
             source,
         )
 
-        call_start = source.index(
-            "structured_request = "
-            "resolve_semantic_request("
+        route_start = source.index(
+            "def route_runtime_request("
         )
 
-        call_end = source.index(
-            "\n\n        events.emit(",
-            call_start,
+        route_end = source.index(
+            "\n\nclass JarvisRuntime:",
+            route_start,
         )
 
         semantic_call = source[
-            call_start:call_end
+            route_start:route_end
         ]
+
+        self.assertIn(
+            "resolve_semantic_request(",
+            semantic_call,
+        )
 
         self.assertIn(
             "recent_turns=semantic_recent_turns",
@@ -364,7 +368,6 @@ class ContextClauseResolverTests(
             "app_aliases=semantic_app_aliases",
             semantic_call,
         )
-
 
 
     def test_social_followups_require_social_context(

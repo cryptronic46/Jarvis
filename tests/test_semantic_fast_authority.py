@@ -796,17 +796,19 @@ class SemanticFastAuthorityTests(unittest.TestCase):
             ],
         )
 
-    def test_cli_resolves_semantics_before_fast_dispatch(self):
+    def test_runtime_resolves_semantics_before_fast_dispatch(self):
         source = Path(
-            "jarvis_core/cli.py"
-        ).read_text(encoding="utf-8")
+            "jarvis_core/runtime.py"
+        ).read_text(
+            encoding="utf-8"
+        )
 
         route_start = source.index(
             "def route_runtime_request("
         )
 
         route_end = source.index(
-            "\ndef main() -> None:",
+            "\n\nclass JarvisRuntime:",
             route_start,
         )
 
@@ -818,13 +820,8 @@ class SemanticFastAuthorityTests(unittest.TestCase):
             "    def process_request("
         )
 
-        process_end = source.index(
-            "    def terminal_event_printer(",
-            process_start,
-        )
-
         process_block = source[
-            process_start:process_end
+            process_start:
         ]
 
         self.assertEqual(
@@ -898,6 +895,7 @@ class SemanticFastAuthorityTests(unittest.TestCase):
             "hybrid_brain.ask(",
             process_block,
         )
+
 
     def test_fast_router_has_single_tool_execution_boundary(self):
         source = Path(

@@ -111,7 +111,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "505a31de1c0a8fb4ee65b1b6501b633a60cba1ca8dc379847822cec8e0c91be1"
+      "sha256": "7f81f6db097e0a18e6e84fd04f5623ea8c9f274fc00bf36a2ff90d3ed85c857b"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -260,6 +260,10 @@
     {
       "path": "jarvis_core/memory/write_executor.py",
       "sha256": "5c70e59d897e01517ad742e72b5229ad6f6f95671be66c631839ccb8aec3255e"
+    },
+    {
+      "path": "jarvis_core/runtime.py",
+      "sha256": "d5a17232c168def044e76b455822c0555b594cf4ad282649a68fcd2583408786"
     },
     {
       "path": "jarvis_core/security/__init__.py",
@@ -787,7 +791,7 @@
     },
     {
       "path": "tests/test_context_clause_resolver.py",
-      "sha256": "0ef046f2154dc7680c75ad7ce657d18730c38ad556a56e641284e40db2e234b1"
+      "sha256": "ea8076397681735ab6ccd2fccde4bae066cb6b95cb12b6ec062999a2e4d850b8"
     },
     {
       "path": "tests/test_context_store.py",
@@ -1391,7 +1395,7 @@
     },
     {
       "path": "tests/test_relational_presence_cli.py",
-      "sha256": "aa4f92fa5f777b0bb55df9212777cbf98a48c1d526936f479c05591a8a69d667"
+      "sha256": "e2a2916755869c4085a1df7b9f31b629450c53cc821786a838dd2cb067c81d6f"
     },
     {
       "path": "tests/test_release_installer_coverage.py",
@@ -1431,7 +1435,7 @@
     },
     {
       "path": "tests/test_runtime_request_pipeline.py",
-      "sha256": "f60df265c87927db351ff784558cd71df7828e53ef936ccf57c60468a8239602"
+      "sha256": "cb1839d4930721312270d6cc85c0d42ff6fab6eb66f36a8ed31653a08bb721f8"
     },
     {
       "path": "tests/test_security.py",
@@ -1495,7 +1499,7 @@
     },
     {
       "path": "tests/test_semantic_fast_authority.py",
-      "sha256": "bea97bdcf2935a75051523a086793921b69f1818868945dceb09fbd67102a4fe"
+      "sha256": "e65319de45744d1d903d9bdb7e39aaa36050a59d179447008cc24a70ab64f2f5"
     },
     {
       "path": "tests/test_semantic_intent.py",
