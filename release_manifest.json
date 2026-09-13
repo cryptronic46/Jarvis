@@ -115,11 +115,11 @@
     },
     {
       "path": "jarvis_core/bootstrap.py",
-      "sha256": "1cbac674b80e2bddace626bade1cb07ae1f66b656b82e49868341d2c23fd9095"
+      "sha256": "878b915debe2351e724abd997f5e971e450ebe6bfdf108d17dfb9bf4c190ef4f"
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "22d2b033717bbd7300ad163b4fa0d489ec61f57330c4b9ce86c98f02f7b40abb"
+      "sha256": "d2aa47acaa6ee77324f7d49292d3cdf8b70687103fe2c4d9bb5176f724f7187e"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -707,7 +707,7 @@
     },
     {
       "path": "tests/test_application_contract.py",
-      "sha256": "d999f9884bce994fd20779d04b088dbdbc2ef47b56f7980a32d5d4170559d4c6"
+      "sha256": "d218099d94f675d860ee75dfe7d172ed44b1fecf72347e03dff4fac1dcde4085"
     },
     {
       "path": "tests/test_apps.py",
@@ -747,7 +747,7 @@
     },
     {
       "path": "tests/test_bootstrap_contract.py",
-      "sha256": "c43a8e234986e1738f364322e7fbf162a6efd732ae6679f0cba9d4cd967fc942"
+      "sha256": "8ebc72b657f68c49bc1e90513dd0ae3ca284eb6fb1a6e61642d12b14708cd321"
     },
     {
       "path": "tests/test_clean_cli_contract.py",
@@ -1223,7 +1223,7 @@
     },
     {
       "path": "tests/test_memory1_runtime_integration.py",
-      "sha256": "ce231c9520897b9aa7d4f3ed6118ba5196e8ba1ce585bd4009a95177e1e3fb02"
+      "sha256": "aab631057ef935448511f404014585f7777c160acdedd15b80e200ac19855bfe"
     },
     {
       "path": "tests/test_memory1_runtime_result.py",

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import fields
 from pathlib import Path
+import ast
 import unittest
 
 from jarvis_core.bootstrap import (
@@ -13,6 +14,7 @@ from jarvis_core.bootstrap import (
 EXPECTED_CONTEXT_FIELDS = (
     "memory",
     "profiles",
+    "user_address",
     "agenda",
     "routines",
     "inventory",
@@ -37,7 +39,7 @@ EXPECTED_CONTEXT_FIELDS = (
 class BootstrapContractTests(
     unittest.TestCase
 ):
-    def test_core_context_is_narrow_and_has_no_transport_state(
+    def test_core_context_is_internal_and_transport_free(
         self,
     ):
         names = tuple(
@@ -66,7 +68,6 @@ class BootstrapContractTests(
             "kali_bridge",
             "cyber_knowledge",
             "persistent_context",
-            "local_files",
             "relational_presence_store",
             "memory1_owner_bindings",
             "memory1_owner_id",
@@ -86,7 +87,11 @@ class BootstrapContractTests(
         self,
     ):
         values = {
-            name: object()
+            name: (
+                "Senhor"
+                if name == "user_address"
+                else object()
+            )
             for name
             in EXPECTED_CONTEXT_FIELDS
         }
@@ -114,6 +119,128 @@ class BootstrapContractTests(
             context,
         )
 
+    def test_build_application_contract_is_process_singleton(
+        self,
+    ):
+        source = Path(
+            "jarvis_core/bootstrap.py"
+        ).read_text(
+            encoding="utf-8"
+        )
+
+        tree = ast.parse(
+            source
+        )
+
+        build = next(
+            node
+            for node in tree.body
+            if isinstance(
+                node,
+                ast.FunctionDef,
+            )
+            and node.name
+            == "build_application"
+        )
+
+        build_source = (
+            ast.get_source_segment(
+                source,
+                build,
+            )
+            or ""
+        )
+
+        self.assertIn(
+            "global _BOOTSTRAP_RESULT",
+            build_source,
+        )
+
+        self.assertIn(
+            "with _BOOTSTRAP_LOCK:",
+            build_source,
+        )
+
+        self.assertIn(
+            "if _BOOTSTRAP_RESULT is not None:",
+            build_source,
+        )
+
+        self.assertIn(
+            "_BOOTSTRAP_RESULT = result",
+            build_source,
+        )
+
+        self.assertIn(
+            "JarvisRuntime(",
+            build_source,
+        )
+
+        self.assertIn(
+            "JarvisApplication(",
+            build_source,
+        )
+
+    def test_cli_constructs_core_only_through_bootstrap(
+        self,
+    ):
+        source = Path(
+            "jarvis_core/cli.py"
+        ).read_text(
+            encoding="utf-8"
+        )
+
+        tree = ast.parse(
+            source
+        )
+
+        main = next(
+            node
+            for node in tree.body
+            if isinstance(
+                node,
+                ast.FunctionDef,
+            )
+            and node.name == "main"
+        )
+
+        main_source = (
+            ast.get_source_segment(
+                source,
+                main,
+            )
+            or ""
+        )
+
+        self.assertEqual(
+            main_source.count(
+                "bootstrap = build_application()"
+            ),
+            1,
+        )
+
+        self.assertIn(
+            "application = bootstrap.application",
+            main_source,
+        )
+
+        self.assertIn(
+            "context = bootstrap.context",
+            main_source,
+        )
+
+        for forbidden in (
+            "JarvisApplication(",
+            "JarvisRuntime(",
+            "CanonicalMemoryStore(",
+            "JarvisBrain(",
+            "Settings.load(",
+        ):
+            self.assertNotIn(
+                forbidden,
+                main_source,
+            )
+
     def test_cli_no_longer_reaches_into_runtime_for_semantic_context(
         self,
     ):
@@ -130,25 +257,6 @@ class BootstrapContractTests(
 
         self.assertNotIn(
             "turn_runtime.semantic_context_inputs()",
-            source,
-        )
-
-    def test_application_owns_semantic_context_seam(
-        self,
-    ):
-        source = Path(
-            "jarvis_core/application.py"
-        ).read_text(
-            encoding="utf-8"
-        )
-
-        self.assertIn(
-            "def semantic_context_inputs(",
-            source,
-        )
-
-        self.assertIn(
-            ".semantic_context_inputs()",
             source,
         )
 

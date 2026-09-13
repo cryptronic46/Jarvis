@@ -136,7 +136,7 @@ from jarvis_core.runtime import (
     ProcessRequestResult,
     route_runtime_request,
 )
-from jarvis_core.application import JarvisApplication
+from jarvis_core.bootstrap import build_application
 
 
 
@@ -552,117 +552,55 @@ def main() -> None:
     # The updater preserves settings.json. Normalize/add the current schema on
     # every startup so current schema migrations and legacy-setting
     # retirement apply without overwriting custom OWNER choices.
-    Settings.ensure_file_schema()
-    settings = Settings.load()
+    # Terminal display state remains transport-local.
+    debug_terminal = {
+        "enabled": False
+    }
 
-    events = EventBus(settings.log_dir, max_bytes=settings.log_max_bytes, backup_count=settings.log_backup_count)
+    bootstrap = build_application()
+    application = bootstrap.application
+    context = bootstrap.context
 
-    # Quiet terminal is the product default. EventBus continues to persist
-    # all diagnostics to logs/events.jsonl; /debug on only changes display.
-    debug_terminal = {"enabled": False}
-    memory = user_memory_store()
-    profiles = profile_manager()
-    persistent_context = context_store()
-    agenda = agenda_store()
-    routines = routine_manager()
-    inventory = network_inventory()
-    local_files = configure_file_index(extra_roots=[settings.book_library_root])
-    integrations = integration_registry()
-    cyber_knowledge = cyber_vault()
-    book_library = configure_book_library(
-        settings.book_library_root,
-        settings.book_library_db_path,
-        chunk_chars=settings.book_library_chunk_chars,
-        chunk_overlap=settings.book_library_chunk_overlap,
+    settings = application.settings
+    events = application.events
+    brain = application.brain
+    telemetry = application.telemetry
+    performance = application.performance
+    activity_trace = (
+        application.activity_trace
     )
-    cognition = personal_cognition()
-
-    # MEMORY_RUNTIME_STARTUP_REFRESH_V1
-    try:
-        from jarvis_core.services.memory_maintenance import refresh_runtime_personal_memory
-        refresh_runtime_personal_memory()
-    except Exception:
-        pass
-    self_engine = synthetic_self()
-    relational_presence_store = relational_presence()
-
-    user_profile = memory.profile()
-    active_profile = profiles.active()
-    user_address = active_profile.get("address_as") or user_profile.get("address_as") or "Senhor"
-    security = SecurityPolicy()
-    telemetry = TelemetryService(
-        events,
-        interval_seconds=settings.telemetry_interval_seconds,
-        history_seconds=settings.telemetry_history_seconds,
-        gpu_interval_seconds=(
-            settings.performance_gpu_sample_interval_seconds
-        ),
-    )
-    performance = PerformanceGovernor(
-        settings,
-        events,
-        telemetry,
+    autonomy = application.autonomy
+    kali_bridge = application.kali_bridge
+    cyber_knowledge = (
+        application.cyber_knowledge
     )
 
-    apps = AppRegistry("apps.json")
-    cyber_range = CyberRangeManager(
-        settings.cyber_range_state_path,
-        enabled=settings.cyber_range_enabled,
-        probe_timeout_seconds=settings.cyber_range_probe_timeout_seconds,
+    memory = context.memory
+    profiles = context.profiles
+    user_address = context.user_address
+    agenda = context.agenda
+    routines = context.routines
+    inventory = context.inventory
+    integrations = context.integrations
+    book_library = context.book_library
+    cognition = context.cognition
+    self_engine = context.self_engine
+    security = context.security
+    apps = context.apps
+    cyber_range = context.cyber_range
+    tools = context.tools
+    memory1_store = context.memory1_store
+    research_engine = (
+        context.research_engine
     )
-    set_cyber_range_manager(cyber_range)
-    kali_bridge = KaliBridgeManager(
-        settings.kali_bridge_state_path,
-        enabled=settings.kali_bridge_enabled,
-        ssh_executable=settings.kali_bridge_ssh_executable,
-        connect_timeout_seconds=settings.kali_bridge_connect_timeout_seconds,
-        command_timeout_seconds=settings.kali_bridge_command_timeout_seconds,
-        output_max_chars=settings.kali_bridge_output_max_chars,
-        known_hosts_path=settings.kali_bridge_known_hosts_path,
-        vm_provider=settings.kali_vm_provider,
-        vm_identifier=settings.kali_vm_identifier,
-        vm_visible=settings.kali_vm_visible,
-        activity_log_path=settings.kali_activity_log_path,
-    )
-    set_kali_bridge_manager(kali_bridge)
-    tools = ToolRegistry(events, security, telemetry, apps)
-    autonomy = AutonomyGuardian(
-        settings,
-        events,
-    )
-    set_autonomy_guardian(
-        autonomy
-    )
+    skill_context = context.skill_context
+    skills = context.skills
+    hybrid_brain = context.hybrid_brain
+    command_lock = context.command_lock
+    silence_latch = context.silence_latch
 
-    configure_cyber_knowledge_egress(
-        autonomy
-    )
-
-    configure_environment_egress(
-        autonomy
-    )
-
-    kali_bridge.set_authority_guardian(
-        autonomy
-    )
-
-
-    cyber_range.set_authority_guardian(
-        autonomy
-    )
-
-
-    brain = JarvisBrain(
-        settings,
-        events,
-        tools,
-        performance=performance,
-    )
-
-    # MEMORY1_RUNTIME_V1
-    from jarvis_core.memory.canonical_store import (
-        CanonicalMemoryStore,
-    )
+    # These symbols remain available to legacy terminal/admin command
+    # handlers while Core construction itself is owned by bootstrap.py.
     from jarvis_core.memory.enums import (
         MemoryAuthority,
         SourceType,
@@ -674,20 +612,10 @@ def main() -> None:
     from jarvis_core.memory.model_adapter import (
         MemoryModelContractError,
         MemoryModelInvocationError,
-        TrustedTwoStageSemanticMemoryAdapter,
         utc_now,
     )
     from jarvis_core.memory.errors import (
         MemoryAvailabilityError,
-    )
-    from jarvis_core.memory.owner_bootstrap import (
-        ensure_canonical_owner,
-    )
-    from jarvis_core.memory.qwen_identity_matcher import (
-        QwenSemanticIdentityMatcher,
-    )
-    from jarvis_core.memory.qwen_model import (
-        JarvisQwenMemoryModel,
     )
     from jarvis_core.memory.resolution_plan import (
         build_memory_resolution_plan,
@@ -698,148 +626,64 @@ def main() -> None:
         execute_memory_resolution_plan,
     )
 
-    memory1_store = CanonicalMemoryStore()
-
-    memory1_owner_bindings = (
-        ensure_canonical_owner(
-            memory1_store
-        )
-    )
-
-    memory1_owner_id = (
-        memory1_owner_bindings
-        .canonical_id_for(
-            "owner"
-        )
-    )
-
-    memory1_qwen_model = (
-        JarvisQwenMemoryModel(
-            brain.client,
-            model=settings.model,
-        )
-    )
-
-    memory1_matcher = (
-        QwenSemanticIdentityMatcher(
-            memory1_qwen_model
-        )
-    )
-
-    memory1_adapter = (
-        TrustedTwoStageSemanticMemoryAdapter(
-            memory1_qwen_model,
-            model_id=settings.model,
-        )
-    )
-
-    # External AI is not part of the live runtime. HybridBrain orchestrates
-    # only local JARVIS/Qwen reasoning and bounded public-web research.
-    research_engine = LocalResearchEngine(
-        settings,
-        events,
-        brain,
-        egress_guardian=autonomy,
-    )
-    configure_external_learning_runtime(
-        research_engine,
-        events,
-    )
-
-    skill_context = SkillContext(
-        settings=settings,
-        events=events,
-        registry=tools,
-        brain=brain,
-        apps=apps,
-        memory=memory,
-        cyber_range=cyber_range,
-        kali_bridge=kali_bridge,
-    )
-    skills = SkillManager(
-        skill_context,
-        external_root=settings.skills_external_root,
-        trust_path=settings.skills_trust_path,
-        external_enabled=(
-            settings.skills_enabled
-            and settings.skills_external_enabled
-        ),
-    )
-    if settings.skills_enabled:
-        skills.load_all()
-
-    hybrid_brain = HybridBrain(
-        settings,
-        events,
-        local_brain=brain,
-        performance=performance,
-        autonomy=autonomy,
-        research_engine=research_engine,
-    )
-    fast_router = FastCommandRouter(events, tools, apps)
-    command_lock = RLock()
-    silence_latch = SilenceLatchService(
-        events,
-        enabled=settings.silence_latch_enabled,
-    )
-    activity_trace = ActivityTraceService(
-        events,
-        path=settings.activity_trace_path,
-        enabled=settings.activity_trace_enabled,
-        # Live terminal trace is session-only. Normal startup is quiet.
-        live=False,
-    )
     def current_address() -> str:
-        return profiles.active().get("address_as") or user_address
+        return (
+            profiles.active().get(
+                "address_as"
+            )
+            or user_address
+        )
 
-    def is_silence_command(value: str) -> bool:
-        normalized = str(value or "").lower().replace("-", " ")
-        normalized = " ".join(normalized.split())
-        compact = normalized.replace(" ", "")
+    def is_silence_command(
+        value: str,
+    ) -> bool:
+        normalized = (
+            str(value or "")
+            .lower()
+            .replace("-", " ")
+        )
+        normalized = " ".join(
+            normalized.split()
+        )
+        compact = normalized.replace(
+            " ",
+            "",
+        )
+
         return (
             "calate" in compact
             or "para de falar" in normalized
-            or normalized in {"silencio", "silêncio", "fica calada", "fica em silencio", "fica em silêncio"}
+            or normalized in {
+                "silencio",
+                "sil?ncio",
+                "fica calada",
+                "fica em silencio",
+                "fica em sil?ncio",
+            }
         )
 
+    def read_tool(
+        name: str,
+        arguments: dict | None = None,
+    ):
+        raw = tools.execute(
+            name,
+            arguments or {},
+        )
 
-    def read_tool(name: str, arguments: dict | None = None):
-        raw = tools.execute(name, arguments or {})
         try:
-            return json.loads(raw)
+            return json.loads(
+                raw
+            )
+
         except Exception:
-            return {"ok": False, "error": "INVALID_TOOL_RESULT", "raw": raw}
+            return {
+                "ok": False,
+                "error":
+                    "INVALID_TOOL_RESULT",
+                "raw": raw,
+            }
 
-    turn_runtime = JarvisRuntime(
-        settings=settings,
-        events=events,
-        performance=performance,
-        apps=apps,
-        persistent_context=persistent_context,
-        cognition=cognition,
-        relational_presence_store=relational_presence_store,
-        self_engine=self_engine,
-        memory1_store=memory1_store,
-        memory1_owner_bindings=memory1_owner_bindings,
-        memory1_owner_id=memory1_owner_id,
-        memory1_matcher=memory1_matcher,
-        memory1_adapter=memory1_adapter,
-        hybrid_brain=hybrid_brain,
-        fast_router=fast_router,
-    )
-
-    application = JarvisApplication(
-        runtime=turn_runtime,
-        autonomy=autonomy,
-        kali_bridge=kali_bridge,
-        cyber_knowledge=cyber_knowledge,
-        settings=settings,
-        events=events,
-        brain=brain,
-        telemetry=telemetry,
-        performance=performance,
-        activity_trace=activity_trace,
-    )
 
     open_owner_kali_session = (
         application.open_owner_kali_session

@@ -14,6 +14,11 @@ CLI_PATH = (
     / "jarvis_core/cli.py"
 )
 
+BOOTSTRAP_PATH = (
+    REPO_ROOT
+    / "jarvis_core/bootstrap.py"
+)
+
 RUNTIME_PATH = (
     REPO_ROOT
     / "jarvis_core/runtime.py"
@@ -124,6 +129,19 @@ class Memory1RuntimeIntegrationTests(
             ),
         )
 
+        cls.bootstrap_source = (
+            BOOTSTRAP_PATH.read_text(
+                encoding="utf-8"
+            )
+        )
+
+        cls.bootstrap_tree = ast.parse(
+            cls.bootstrap_source,
+            filename=str(
+                BOOTSTRAP_PATH
+            ),
+        )
+
         cls.runtime_source = (
             RUNTIME_PATH.read_text(
                 encoding="utf-8"
@@ -157,6 +175,30 @@ class Memory1RuntimeIntegrationTests(
 
         cls.main = (
             main_nodes[
+                0
+            ]
+        )
+
+        build_nodes = [
+            node
+            for node
+            in cls.bootstrap_tree.body
+            if (
+                isinstance(
+                    node,
+                    ast.FunctionDef,
+                )
+                and node.name
+                == "build_application"
+            )
+        ]
+
+        assert len(
+            build_nodes
+        ) == 1
+
+        cls.build = (
+            build_nodes[
                 0
             ]
         )
@@ -241,6 +283,14 @@ class Memory1RuntimeIntegrationTests(
             or ""
         )
 
+        cls.build_source = (
+            ast.get_source_segment(
+                cls.bootstrap_source,
+                cls.build,
+            )
+            or ""
+        )
+
         cls.process_source = (
             ast.get_source_segment(
                 cls.runtime_source,
@@ -270,7 +320,7 @@ class Memory1RuntimeIntegrationTests(
         bootstrap_imports = set()
 
         for node in ast.walk(
-            self.main
+            self.bootstrap_tree
         ):
             if not isinstance(
                 node,
@@ -345,7 +395,7 @@ class Memory1RuntimeIntegrationTests(
         store_lines = []
 
         for node in ast.walk(
-            self.main
+            self.build
         ):
             if not isinstance(
                 node,
@@ -397,7 +447,7 @@ class Memory1RuntimeIntegrationTests(
         assignments = {}
 
         for node in ast.walk(
-            self.main
+            self.build
         ):
             if not isinstance(
                 node,
@@ -484,7 +534,7 @@ class Memory1RuntimeIntegrationTests(
             )
             for node
             in ast.walk(
-                self.main
+                self.build
             )
             if isinstance(
                 node,
@@ -516,23 +566,69 @@ class Memory1RuntimeIntegrationTests(
     def test_owner_bootstrap_and_binding_are_single_startup_values(
         self,
     ) -> None:
-        source = (
-            self.main_source
-        )
+        ensure_calls = []
+        binding_calls = []
+
+        for node in ast.walk(
+            self.build
+        ):
+            if not isinstance(
+                node,
+                ast.Call,
+            ):
+                continue
+
+            name = call_name(
+                node.func
+            )
+
+            if name == "ensure_canonical_owner":
+                ensure_calls.append(
+                    node
+                )
+
+            if (
+                name
+                == "memory1_owner_bindings.canonical_id_for"
+            ):
+                binding_calls.append(
+                    node
+                )
 
         self.assertEqual(
-            source.count(
-                "ensure_canonical_owner("
-            ),
+            len(ensure_calls),
             1,
         )
 
         self.assertEqual(
-            source.count(
-                '.canonical_id_for(\n            "owner"'
-            ),
+            len(binding_calls),
             1,
         )
+
+        self.assertEqual(
+            expr_text(
+                ensure_calls[0].args[0]
+            ),
+            "memory1_store",
+        )
+
+        binding = binding_calls[0]
+
+        self.assertEqual(
+            len(binding.args),
+            1,
+        )
+
+        self.assertIsInstance(
+            binding.args[0],
+            ast.Constant,
+        )
+
+        self.assertEqual(
+            binding.args[0].value,
+            "owner",
+        )
+
 
     # 06
     def test_process_request_captures_occurred_at_at_entry(

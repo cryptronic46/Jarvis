@@ -403,10 +403,19 @@ class JarvisApplicationContractTests(
 
         self.assertEqual(
             main_source.count(
-                "application = "
-                "JarvisApplication("
+                "bootstrap = build_application()"
             ),
             1,
+        )
+
+        self.assertIn(
+            "application = bootstrap.application",
+            main_source,
+        )
+
+        self.assertNotIn(
+            "JarvisApplication(",
+            main_source,
         )
 
         self.assertIn(
