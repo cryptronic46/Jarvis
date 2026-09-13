@@ -1,3 +1,0 @@
-# Voice Lock pair intentionally pinned to matching builds.
-torch==2.11.0
-torchaudio==2.11.0

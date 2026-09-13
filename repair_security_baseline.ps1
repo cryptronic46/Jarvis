@@ -131,11 +131,8 @@ if ($Left.Count -gt 0) {
     Fail "Ainda existem binarios legacy bloqueados: $((@($Left | ForEach-Object FullName) -join ', '))"
 }
 
-Write-Host "4/6 A validar a stack nativa de voz/STT atualmente usada..."
-& $Python -c "import numpy, sounddevice, ctranslate2, onnxruntime, pyaudiowpatch; from jarvis_core.services.openwakeword_compat import runtime_classes; M,V=runtime_classes(); M(wakeword_models=['hey_jarvis'], inference_framework='onnx', vad_threshold=0.0); V(n_threads=1); from jarvis_core.services.stt_compat import probe_faster_whisper_pcm_import; r=probe_faster_whisper_pcm_import(); assert r.get('ok'), r; print('VOICE_STT_NATIVE_CURRENT: OK')"
-if ($LASTEXITCODE -ne 0) { Fail "A stack nativa atual falhou a validacao." }
 
-Write-Host "5/6 A validar o executavel do cerebro nativo JARVIS..."
+Write-Host "4/5 A validar o executavel do cerebro nativo JARVIS..."
 $LlamaServer = Join-Path $Destination "runtime\llama.cpp\llama-server.exe"
 if (Test-Path -LiteralPath $LlamaServer -PathType Leaf) {
     $oldPreference = $ErrorActionPreference
@@ -149,7 +146,7 @@ if (Test-Path -LiteralPath $LlamaServer -PathType Leaf) {
     if ($LlamaCode -ne 0) {
         $CodeHex = Format-WindowsExitCode $LlamaCode
         $ProbeDetail = ((@($LlamaProbe) -join ' ').Trim())
-        Write-Warning "llama-server standalone nao carrega (exit $LlamaCode / $CodeHex). O passo 6 vai verificar o executor local alternativo antes de decidir se isto e fatal. Detalhe: $ProbeDetail"
+        Write-Warning "llama-server standalone nao carrega (exit $LlamaCode / $CodeHex). O passo 5 vai verificar o executor local alternativo antes de decidir se isto e fatal. Detalhe: $ProbeDetail"
         Write-Host "  JARVIS_LLM_RUNTIME_CURRENT: NATIVE_UNAVAILABLE_PENDING_COMPAT_CHECK ($CodeHex)" -ForegroundColor Yellow
     }
     else {
@@ -160,7 +157,7 @@ else {
     Write-Host "  JARVIS_LLM_RUNTIME_CURRENT: NOT_INSTALLED (setup_native_brain deve correr antes deste baseline)" -ForegroundColor Yellow
 }
 
-Write-Host "6/6 A repetir Windows Block Audit com corroboracao atual..."
+Write-Host "5/5 A repetir Windows Block Audit com corroboracao atual..."
 $AuditJson = & $Python -c "import json; from jarvis_core.services.windows_block_audit import audit_windows_blocked_files; r=audit_windows_blocked_files(save_report=True); print(json.dumps({'status':r.get('status'),'active':len(r.get('active_block_events') or []),'resolved':len(r.get('resolved_historical_block_events') or []),'historical_uncorroborated':len(r.get('historical_uncorroborated_block_events') or []),'mitigated':len(r.get('mitigated_block_events') or []),'native_failures':r.get('native_import_failures') or [],'llama_probe':r.get('native_llama_runtime_probe') or {},'local_executor':r.get('local_llm_executor_probe') or {},'motw':len(r.get('motw_current') or [])}))"
 if ($LASTEXITCODE -ne 0) { Fail "Windows Block Audit falhou." }
 $Audit = $AuditJson | ConvertFrom-Json

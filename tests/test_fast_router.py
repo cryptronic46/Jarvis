@@ -101,14 +101,9 @@ class FastRouterTests(unittest.TestCase):
         self.assertEqual(self.tools.calls[-1][0], "open_application")
 
 
-    def test_voice_asr_open_repair_for_known_app(self):
-        result = self.router.dispatch("Agrade o Brave", voice_origin=True)
-        self.assertTrue(result.handled)
-        self.assertEqual(result.route, "voice_app_open_repair")
-        self.assertEqual(self.tools.calls[-1][0], "open_application")
 
-    def test_asr_repair_does_not_apply_to_typed_text(self):
-        result = self.router.dispatch("Agrade o Brave", voice_origin=False)
+    def test_malformed_open_verb_does_not_guess_action(self):
+        result = self.router.dispatch("Agrade o Brave")
         self.assertFalse(result.handled)
 
     def test_capability_question_uses_fast_path(self):

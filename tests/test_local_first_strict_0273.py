@@ -27,6 +27,5 @@ class LocalFirstStrict0273Tests(unittest.TestCase):
         self.assertFalse(s.performance_cloud_offload_under_pressure)
         self.assertFalse(s.performance_release_llm_on_pressure)
         self.assertEqual(s.ollama_keep_alive,'30m')
-        self.assertTrue(s.voice_v2_preload_stt)
 
 if __name__=='__main__': unittest.main()

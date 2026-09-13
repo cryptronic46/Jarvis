@@ -35,17 +35,33 @@ function Stop-JarvisNativeBrain {
     foreach ($pidValue in @($pids)) {
         Stop-Process -Id $pidValue -Force -ErrorAction SilentlyContinue
     }
-    if ($pids.Count -gt 0) { Start-Sleep -Milliseconds 600 }
 
+    # Windows may keep a terminating process visible briefly after taskkill.
+    # Poll for a bounded period before declaring the shutdown gate failed.
+    $deadline = [DateTime]::UtcNow.AddSeconds(5)
     $alive = @()
-    foreach ($pidValue in @($pids)) {
-        if ($null -ne (Get-Process -Id $pidValue -ErrorAction SilentlyContinue)) { $alive += $pidValue }
+
+    do {
+        $alive = @()
+
+        foreach ($pidValue in @($pids)) {
+            if ($null -ne (
+                Get-Process -Id $pidValue -ErrorAction SilentlyContinue
+            )) {
+                $alive += $pidValue
+            }
+        }
+
+        if ($alive.Count -eq 0) {
+            break
+        }
+
+        Start-Sleep -Milliseconds 200
     }
+    while ([DateTime]::UtcNow -lt $deadline)
+
     if ($alive.Count -eq 0) {
         Remove-Item $state -Force -ErrorAction SilentlyContinue
-        if ($pids.Count -gt 0) {
-            Write-Host "[JARVIS/VRAM] native llama.cpp runtime stopped." -ForegroundColor DarkGreen
-        }
         return $true
     }
     Write-Warning ("JARVIS shutdown gate: native llama.cpp PID(s) still running: " + ($alive -join ", "))
@@ -78,7 +94,6 @@ function Stop-JarvisOllamaCompatModel {
         $body = @{ model=$model; prompt=""; stream=$false; keep_alive=0 } | ConvertTo-Json -Compress
         Invoke-RestMethod -UseBasicParsing -Uri ($host + "/api/generate") -Method Post -ContentType "application/json" -Body $body -TimeoutSec 8 | Out-Null
         Remove-Item $executorState -Force -ErrorAction SilentlyContinue
-        Write-Host "[JARVIS/VRAM] local compatibility model release requested." -ForegroundColor DarkGreen
         return $true
     }
     catch {

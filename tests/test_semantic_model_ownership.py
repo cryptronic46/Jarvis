@@ -34,13 +34,11 @@ class FakeFastRouter:
         self,
         text,
         *,
-        voice_origin=False,
         request=None,
     ):
         self.calls.append(
             {
                 "text": text,
-                "voice_origin": voice_origin,
                 "request": request,
             }
         )

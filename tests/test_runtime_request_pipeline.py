@@ -44,13 +44,11 @@ class FakeFastRouter:
         self,
         text,
         *,
-        voice_origin=False,
         request=None,
     ):
         self.calls.append(
             {
                 "text": text,
-                "voice_origin": voice_origin,
                 "request": request,
             }
         )
@@ -366,70 +364,6 @@ class RuntimeRequestPipelineTests(
             request,
         )
 
-    def test_voice_origin_is_forwarded_without_changing_semantics(
-        self,
-    ):
-        events = FakeEvents()
-
-        fast = FakeFastRouter(
-            handled=False,
-        )
-
-        hybrid = FakeHybridBrain()
-
-        def context_inputs():
-            return (
-                [],
-                dict(APP_ALIASES),
-            )
-
-        route_runtime_request(
-            "Abre o Brave",
-            source="wake",
-            semantic_context_inputs=context_inputs,
-            events=events,
-            fast_router=fast,
-            hybrid_brain=hybrid,
-        )
-
-        self.assertEqual(
-            len(fast.calls),
-            1,
-        )
-
-        self.assertTrue(
-            fast.calls[0][
-                "voice_origin"
-            ]
-        )
-
-        request = fast.calls[0][
-            "request"
-        ]
-
-        self.assertEqual(
-            request.intent,
-            "OPERATIONAL_ACTION",
-        )
-
-        self.assertEqual(
-            request.subject,
-            "SYSTEM",
-        )
-
-        self.assertEqual(
-            request.preferred_tool,
-            "open_application",
-        )
-
-        self.assertEqual(
-            request.as_dict()[
-                "tool_arguments"
-            ],
-            {
-                "app_name": "brave",
-            },
-        )
 
     def test_semantic_event_reports_authoritative_contract(
         self,

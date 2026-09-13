@@ -13,7 +13,7 @@ class SelfRepairService:
     """Safe, idempotent diagnostics and bounded repair actions."""
 
     RUNTIME_DIRS = (
-        "memory", "knowledge", "logs", ".cache", "voice_profiles", "models", "skills",
+        "memory", "knowledge", "logs", ".cache", "models", "skills",
     )
 
     def __init__(self, context: SkillContext) -> None:

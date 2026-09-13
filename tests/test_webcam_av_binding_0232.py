@@ -6,8 +6,6 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from jarvis_core.services.av_devices import webcam_audio_score
-from jarvis_core.services.listening import ListeningConfig, MicrophoneService
-from jarvis_core.services.wakeword import WakeWordConfig, WakeWordService
 from jarvis_core.skills.builtin.vision import VisionService
 
 
@@ -32,53 +30,8 @@ class WebcamAVBindingTests(unittest.TestCase):
         self.assertGreater(webcam_audio_score("Microphone (HD Pro Webcam C920)"), 1200)
         self.assertLess(webcam_audio_score("Hands-Free (JBL WAVE BEAM)"), 1200)
 
-    def test_microphone_webcam_outranks_legacy_configured_jbl(self):
-        devices = [
-            {"name": "Hands-Free (JBL WAVE BEAM)", "max_input_channels": 1, "default_samplerate": 16000, "hostapi": 0},
-            {"name": "Microphone (HD Pro Webcam C920)", "max_input_channels": 1, "default_samplerate": 48000, "hostapi": 0},
-        ]
-        service = MicrophoneService(
-            Events(),
-            ListeningConfig(
-                device=0,
-                preferred_device_name="JBL WAVE BEAM",
-                prefer_webcam_audio=True,
-            ),
-        )
-        with patch.dict(sys.modules, {"sounddevice": self.fake_sd(devices)}):
-            rows = service._input_device_candidates()
-        self.assertEqual(rows[0][0], 1)
 
-    def test_microphone_falls_back_to_jbl_when_webcam_missing(self):
-        devices = [
-            {"name": "Hands-Free (JBL WAVE BEAM)", "max_input_channels": 1, "default_samplerate": 16000, "hostapi": 0},
-            {"name": "Other Mic", "max_input_channels": 1, "default_samplerate": 48000, "hostapi": 0},
-        ]
-        service = MicrophoneService(
-            Events(),
-            ListeningConfig(preferred_device_name="JBL WAVE BEAM", prefer_webcam_audio=True),
-        )
-        with patch.dict(sys.modules, {"sounddevice": self.fake_sd(devices)}):
-            rows = service._input_device_candidates()
-        self.assertEqual(rows[0][0], 0)
 
-    def test_wake_resolver_uses_same_webcam_preference(self):
-        devices = [
-            {"name": "Hands-Free (JBL WAVE BEAM)", "max_input_channels": 1, "default_samplerate": 16000},
-            {"name": "Microphone (USB Webcam)", "max_input_channels": 1, "default_samplerate": 48000},
-        ]
-        fake_sd = self.fake_sd(devices)
-        service = WakeWordService(
-            Events(),
-            WakeWordConfig(preferred_device_name="JBL WAVE BEAM", prefer_webcam_audio=True),
-            on_wake=lambda *args: None,
-            transcribe_callback=lambda *args: {},
-            cleanup_callback=lambda *args: None,
-        )
-        with patch.dict(sys.modules, {"sounddevice": fake_sd}):
-            idx, dev = service._resolve_device()
-        self.assertEqual(idx, 1)
-        self.assertIn("Webcam", dev["name"])
 
     def test_vision_camera_candidates_recover_index(self):
         with tempfile.TemporaryDirectory() as td:
@@ -97,10 +50,6 @@ class WebcamAVBindingTests(unittest.TestCase):
             service.set_camera_index(1)
             self.assertEqual(service._camera_candidates(), [1, 0, 2, 3])
 
-    def test_cli_contains_owner_av_commands(self):
-        text = Path("jarvis_core/cli.py").read_text(encoding="utf-8")
-        for command in ("/av status", "/av auto", "/av microphones", "/av cameras", "/av mic ", "/av camera "):
-            self.assertIn(command, text)
 
 
 if __name__ == "__main__":

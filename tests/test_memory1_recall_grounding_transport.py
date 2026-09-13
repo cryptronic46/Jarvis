@@ -48,13 +48,11 @@ class _Fast:
         self,
         text,
         *,
-        voice_origin=False,
         request=None,
     ):
         self.calls.append(
             (
                 text,
-                voice_origin,
                 request,
             )
         )

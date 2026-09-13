@@ -35,14 +35,7 @@ function Get-ControlledReleaseFiles(
         [System.IO.Path]::GetFullPath($Root)
     ).TrimEnd('\')
     $RuntimeParts = @(
-        "__pycache__",
-        ".venv",
-        "memory",
-        "knowledge",
-        ".cache",
-        "logs",
-        "voice_profiles",
-        "models"
+        "__pycache__"
     )
     $Result = @()
 
@@ -290,7 +283,6 @@ Write-Host "  knowledge\"
 Write-Host "  .venv\"
 Write-Host "  .cache\"
 Write-Host "  logs\"
-Write-Host "  voice_profiles\"
 Write-Host "  models\"
 Write-Host "  skills\ (OWNER trusted external modules)"
 Write-Host "  settings.json"
@@ -325,22 +317,9 @@ else {
         "setup_native_brain.ps1",
         "setup_appcontrol_trust.ps1",
         "setup_cloud.ps1",
-        "setup_voiceid.ps1",
-        "setup_wakeword.ps1",
-        "setup_voice_v2.ps1",
-        "setup_voice_reset.ps1",
-        "install_custom_wake_model.ps1",
-        "setup_wake_learning_wsl.ps1",
-        "setup_voice_learning.ps1",
-        "collect_voice_learning.ps1",
-        "train_voice_learning.ps1",
         "setup_vision.ps1",
         "requirements.txt",
         "requirements-cloud.txt",
-        "requirements-voiceid.txt",
-        "requirements-wakeword.txt",
-        "requirements-voice-v2.txt",
-        "requirements-voice-learning.txt",
         "README.md",
         "AUDIT_0.27.8.md",
         "JARVIS_FUNCTIONAL_AUDIT.md",
@@ -385,11 +364,6 @@ $VersionText = Get-Content -LiteralPath (
 $CliText = Get-Content -LiteralPath (
     Join-Path $Destination "jarvis_core\cli.py"
 ) -Raw
-$WakeText = (
-    (Get-Content -LiteralPath (Join-Path $Destination "jarvis_core\services\wakeword.py") -Raw) +
-    "`n" +
-    (Get-Content -LiteralPath (Join-Path $Destination "jarvis_core\services\voice_engine_v2.py") -Raw)
-)
 $HybridText = Get-Content -LiteralPath (
     Join-Path $Destination "jarvis_core\core\hybrid_brain.py"
 ) -Raw
@@ -406,7 +380,6 @@ $NativeVisionPath = Join-Path $Destination "jarvis_core\core\local_vision.py"
 $GuardianSkillPath = Join-Path $Destination "jarvis_core\skills\builtin\system_guardian.py"
 $PurpleSkillPath = Join-Path $Destination "jarvis_core\skills\builtin\purple_team.py"
 $VisionSetupPath = Join-Path $Destination "setup_vision.ps1"
-$ListeningWatchdogPath = Join-Path $Destination "jarvis_core\services\listening_watchdog.py"
 $AvDevicesPath = Join-Path $Destination "jarvis_core\services\av_devices.py"
 $CoreStatePath = Join-Path $Destination "jarvis_core\skills\builtin\core_state.py"
 $SilenceLatchPath = Join-Path $Destination "jarvis_core\services\silence_latch.py"
@@ -414,58 +387,8 @@ $ActivityTracePath = Join-Path $Destination "jarvis_core\services\activity_trace
 $IdleMindPath = Join-Path $Destination "jarvis_core\services\idle_mind.py"
 $ActionTruthPath = Join-Path $Destination "jarvis_core\services\action_truth.py"
 $FastRouterPath = Join-Path $Destination "jarvis_core\core\fast_router.py"
-$VoiceV2Path = Join-Path $Destination "jarvis_core\services\voice_engine_v2.py"
-$VoiceV2SetupPath = Join-Path $Destination "setup_voice_reset.ps1"
-$OpenWakeCompatPath = Join-Path $Destination "jarvis_core\services\openwakeword_compat.py"
-$VoiceV2RequirementsPath = Join-Path $Destination "requirements-voice-v2.txt"
-$SttCompatPath = Join-Path $Destination "jarvis_core\services\stt_compat.py"
-$WakeVerifierPath = Join-Path $Destination "jarvis_core\services\wake_verifier.py"
-$WakeLearningSetupPath = Join-Path $Destination "setup_wake_learning_wsl.ps1"
 $FastRouterText = Get-Content -LiteralPath $FastRouterPath -Raw
-$VoiceV2SetupText = Get-Content -LiteralPath $VoiceV2SetupPath -Raw
 
-if (-not (Test-Path -LiteralPath $VoiceV2Path -PathType Leaf)) {
-    Fail "Voice Engine v2 nao esta presente no Core."
-}
-if (-not (Test-Path -LiteralPath $VoiceV2SetupPath -PathType Leaf)) {
-    Fail "setup_voice_reset.ps1 nao esta presente."
-}
-if (-not (Test-Path -LiteralPath $OpenWakeCompatPath -PathType Leaf)) {
-    Fail "openWakeWord inference-only compatibility loader nao esta presente."
-}
-if (-not (Test-Path -LiteralPath $VoiceV2RequirementsPath -PathType Leaf)) {
-    Fail "requirements-voice-v2.txt nao esta presente."
-}
-if (-not (Test-Path -LiteralPath $SttCompatPath -PathType Leaf)) {
-    Fail "STT PCM compatibility loader nao esta presente."
-}
-if (-not (Test-Path -LiteralPath $WakeVerifierPath -PathType Leaf)) {
-    Fail "NumPy wake verifier nao esta presente."
-}
-if (-not (Test-Path -LiteralPath $WakeLearningSetupPath -PathType Leaf)) {
-    Fail "setup_wake_learning_wsl.ps1 nao esta presente."
-}
-if ($VoiceV2SetupText -notmatch '--no-deps') {
-    Fail "Voice v2 setup nao instala openWakeWord em modo inference-only."
-}
-if ($VoiceV2SetupText -notmatch 'openwakeword_compat') {
-    Fail "Voice v2 setup nao valida o compatibility loader."
-}
-if ($VoiceV2SetupText -notmatch 'load_whisper_model_class') {
-    Fail "Voice v2 setup nao usa o loader PCM do Faster Whisper."
-}
-if ($VoiceV2SetupText -match 'from faster_whisper import WhisperModel') {
-    Fail "Voice v2 setup voltou a importar PyAV diretamente via faster_whisper."
-}
-if ($CliText -notmatch '/voice doctor') {
-    Fail "Voice Engine v2 diagnostics nao estao presentes no CLI."
-}
-if ($CliText -notmatch '/voice latency') {
-    Fail "Voice Engine v2 latency diagnostics nao estao presentes no CLI."
-}
-if ($CliText -notmatch '/voice backend ') {
-    Fail "Voice Engine backend selector nao esta presente no CLI."
-}
 
 if (-not (Test-Path -LiteralPath $SilenceLatchPath -PathType Leaf)) {
     Fail "Silence Latch nao esta presente no Core."
@@ -484,9 +407,6 @@ if ($CliText -notmatch '/mind idle reflect') {
 }
 if (-not (Test-Path -LiteralPath $ActionTruthPath -PathType Leaf)) {
     Fail "Action Truth Guard nao esta presente no Core."
-}
-if ($FastRouterText -notmatch 'voice_app_fragment_open') {
-    Fail "Voice app-fragment recovery nao esta presente no Fast Path."
 }
 if ($CliText -notmatch '/activity status') {
     Fail "Activity Trace CLI nao esta presente."
@@ -560,23 +480,8 @@ if ($GuardianText -notmatch 'severity_counts') {
 if (-not (Test-Path -LiteralPath $PurpleSkillPath -PathType Leaf)) {
     Fail "Purple Team Orchestrator nao esta presente no Core."
 }
-if (-not (Test-Path -LiteralPath $ListeningWatchdogPath -PathType Leaf)) {
-    Fail "Listening Watchdog nao esta presente no Core."
-}
 if (-not (Test-Path -LiteralPath $AvDevicesPath -PathType Leaf)) {
     Fail "Webcam A/V binding nao esta presente no Core."
-}
-if ($CliText -notmatch '/av probe') {
-    Fail "Signal-Aware Microphone Probe nao esta presente no CLI."
-}
-if ($WakeText -notmatch 'WAKE_CANDIDATE_CONFIRMED') {
-    Fail "Wake candidate Whisper confirmation nao esta presente."
-}
-if ($WakeText -notmatch 'WAKE_ZERO_NOISE_FLOOR') {
-    Fail "Wake noise-gate tolerance nao esta presente no Core."
-}
-if ($WakeText -notmatch 'preferred_device_index') {
-    Fail "OWNER exact microphone binding nao esta presente no Wake Core."
 }
 if (-not (Test-Path -LiteralPath $CoreStatePath -PathType Leaf)) {
     Fail "Live Core State async publisher nao esta presente no Core."
@@ -602,29 +507,11 @@ if ($CliText -notmatch '/guardian status') {
 if ($CliText -notmatch '/purple status') {
     Fail "Purple Team Orchestrator nao esta presente no CLI."
 }
-if ($CliText -notmatch '/listening status') {
-    Fail "Listening Watchdog status nao esta presente no CLI."
-}
-if ($CliText -notmatch '/listening recover') {
-    Fail "Listening recovery nao esta presente no CLI."
-}
-if ($CliText -notmatch '/av status') {
-    Fail "Webcam A/V commands nao estao presentes no CLI."
-}
-if ($CliText -notmatch '/stt status') {
-    Fail "STT Accuracy diagnostics nao estao presentes no CLI."
-}
-if ($CliText -notmatch '/stt test') {
-    Fail "STT Accuracy test nao esta presente no CLI."
-}
 if ($CliText -notmatch '/vram status') {
     Fail "VRAM residency diagnostics nao estao presentes no CLI."
 }
 if ($CliText -notmatch 'release_all_models') {
     Fail "VRAM shutdown release nao esta presente no Core."
-}
-if ($WakeText -notmatch 'bargein-v2\+whisper') {
-    Fail "Barge-In v2 nao esta presente."
 }
 if (-not (Test-Path -LiteralPath $ResearchPath -PathType Leaf)) {
     Fail "Local Research Engine nao esta presente."
@@ -649,7 +536,6 @@ if ($PreserveMarkOfTheWeb) {
 else {
     Write-Host "MOTW da release verificada: REMOVIDO APOS SHA-256"
 }
-Write-Host "Barge-In v2: PRESENTE"
 Write-Host "Deep Security Inspection 2.0: PRESENTE"
 Write-Host "Cyber Range Guard: PRESENTE"
 Write-Host "Capability Intent Guard: PRESENTE"
@@ -665,15 +551,10 @@ Write-Host "Relational Memory Graph: PRESENTE"
 Write-Host "Live Core State Contract: PRESENTE"
 Write-Host "Local Screen/Camera Vision: PRESENTE (native llama.cpp multimodal; explicit setup)"
 Write-Host "Self Diagnostics / Safe Repair: PRESENTE"
-Write-Host "Listening Watchdog / auto-recovery: PRESENTE"
-Write-Host "Silence Latch / false-wake confirmation: PRESENTE"
+Write-Host "Silence Latch: PRESENTE"
 Write-Host "Safe Activity Trace: PRESENTE"
 Write-Host "Action Truth Guard: PRESENTE"
-Write-Host "Voice Reset 0.27.8: PRESENTE (WASAPI + Silero VAD + openWakeWord + Faster-Whisper)"
-Write-Host "Voice Fast-Path recovery: PRESENTE"
 Write-Host "Idle Mind on-demand reflection: PRESENTE"
-Write-Host "Unified Webcam A/V Binding: PRESENTE"
-Write-Host "Webcam STT Accuracy Pipeline: PRESENTE"
 Write-Host "VRAM Residency / shutdown unload: PRESENTE"
 Write-Host "Live HUD async event publishing: PRESENTE"
 Write-Host "LAB TCP Probe: PRESENTE"

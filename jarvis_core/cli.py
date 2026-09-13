@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
+import sys
 from pathlib import Path
 from time import sleep, monotonic
 from threading import Thread, RLock
@@ -20,18 +22,10 @@ from jarvis_core.services.learning_followup import (
     get_learning_followup_context,
 )
 from jarvis_core.services.telemetry import TelemetryService
-from jarvis_core.services.disabled_voice import (
-    DisabledSpeechService,
-    DisabledMicrophoneService,
-    DisabledSpeakerVerifier,
-    DisabledWakeService,
-    DisabledListeningWatchdog,
-)
 from jarvis_core.services.silence_latch import SilenceLatchService
 from jarvis_core.services.activity_trace import ActivityTraceService
 from jarvis_core.services.idle_mind import IdleMindService
 from jarvis_core.services.user_memory import store as user_memory_store
-from jarvis_core.services.startup_briefing import build_startup_briefing
 from jarvis_core.services.request_intent import sanitize_assistant_text
 from jarvis_core.services.profiles import manager as profile_manager
 from jarvis_core.services.context_store import context_store
@@ -152,9 +146,7 @@ _MODEL_OWNED_SEMANTIC_INTENTS = frozenset({
 
 BANNER_TEMPLATE = """
 ========================================
-              J A R V I S
-             CORE {version}
-        SKILLS | EYES | HANDS
+ JARVIS CORE {version}
 ========================================
 """
 
@@ -176,28 +168,9 @@ VISIBLE_EVENTS = {
     "CONFIRMATION_REQUIRED":"SEC",
     "TOOL_BLOCKED":"SEC",
     "FRESHNESS_GUARD_TRIGGERED":"GUARD",
-    "SPEECH_STARTED":"VOICE",
-    "SPEECH_FINISHED":"VOICE",
-    "SPEECH_BACKEND_FAILED":"VOICE",
-    "LISTENING_STARTED":"MIC",
-    "MIC_CALIBRATED":"MIC",
-    "SPEECH_DETECTED":"MIC",
-    "AUDIO_CAPTURED":"MIC",
-    "LISTENING_TIMEOUT":"MIC",
-    "TRANSCRIPTION_STARTED":"STT",
-    "TRANSCRIPTION_FINISHED":"STT",
-    "STT_MODEL_LOADING":"STT",
-    "STT_MODEL_READY":"STT",
-    "STT_BACKEND_FAILED":"STT",
-    "STT_RUNTIME_FALLBACK":"STT",
-    "MIC_ERROR":"MIC",
-    "MIC_CALIBRATION_CACHED":"MIC",
     "FAST_PATH_HIT":"FAST",
-    "STT_PRELOADED":"WARM",
-    "STT_PRELOAD_FAILED":"WARM",
     "LLM_PRELOADED":"WARM",
     "LLM_PRELOAD_FAILED":"WARM",
-    "TTS_CACHE_HIT":"VOICE",
     "HYBRID_ROUTE":"ROUTE",
     "CLOUD_REQUEST":"CLOUD",
     "CLOUD_RESPONSE":"CLOUD",
@@ -213,53 +186,9 @@ VISIBLE_EVENTS = {
     "LOCAL_EXPERT_SYNTHESIS_STARTED":"EXPERT",
     "LOCAL_EXPERT_SYNTHESIS_FINISHED":"EXPERT",
     "LOCAL_EXPERT_SYNTHESIS_ERROR":"EXPERT",
-    "WAKE_SERVICE_STARTED":"WAKE",
-    "WAKE_SERVICE_STOPPED":"WAKE",
-    "WAKE_LISTENING":"WAKE",
-    "WAKE_WORD_DETECTED":"WAKE",
-    "WAKE_PROFILE_ENROLLED":"WAKE",
-    "WAKE_PROFILE_DELETED":"WAKE",
-    "WAKE_COMMAND_TRANSCRIBED":"WAKE",
-    "WAKE_COMMAND_TRANSCRIPTION_FAILED":"WAKE",
-    "WAKE_COMMAND_TIMEOUT":"WAKE",
-    "VOICE_INTERRUPT_CANDIDATE":"VOICE",
-    "VOICE_INTERRUPT_DETECTED":"VOICE",
-    "VOICE_INTERRUPT_TRANSCRIBED":"VOICE",
-    "VOICE_INTERRUPT_REJECTED_SELF_AUDIO":"VOICE",
-    "VOICE_INTERRUPT_TRANSCRIPTION_FAILED":"VOICE",
-    "VOICE_INTERRUPT_APPLIED":"VOICE",
-    "WAKE_CANDIDATE":"WAKE",
-    "WAKE_CANDIDATE_CONFIRMED":"WAKE",
-    "WAKE_CANDIDATE_REJECTED":"WAKE",
-    "VOICE_HEARD":"HEARD",
     "SILENCE_LATCHED":"SILENCE",
     "SILENCE_RELEASED":"SILENCE",
     "SILENCE_OUTPUT_SUPPRESSED":"SILENCE",
-    "WAKE_AUDIO_OVERFLOW":"WAKE",
-    "WAKE_STREAM_STATUS":"WAKE",
-    "WAKE_STREAM_REUSED":"WAKE",
-    "WAKE_STREAM_CLOSED":"WAKE",
-    "WAKE_STREAM_OPENED":"WAKE",
-    "WAKE_TTS_SUPPRESSED":"WAKE",
-    "WAKE_TTS_RESUMED":"WAKE",
-    "WAKE_CALIBRATED":"WAKE",
-    "WAKE_LOW_SIGNAL":"WAKE",
-    "WAKE_ERROR":"WAKE",
-    "WAKE_CALLBACK_ERROR":"WAKE",
-    "SPEAKER_OBSERVE":"VOICEID",
-    "MIC_STREAM_NO_SIGNAL":"MIC",
-    "MIC_STREAM_RECOVERY":"MIC",
-    "MIC_DEVICE_RECOVERY":"MIC",
-    "MIC_DEVICE_CANDIDATE_FAILED":"MIC",
-    "MIC_DEVICE_SELECTED":"MIC",
-    "SPEAKER_MODEL_LOADING":"VOICEID",
-    "SPEAKER_MODEL_READY":"VOICEID",
-    "SPEAKER_MODEL_FAILED":"VOICEID",
-    "SPEAKER_ENROLLMENT_STARTED":"VOICEID",
-    "SPEAKER_ENROLLMENT_FINISHED":"VOICEID",
-    "SPEAKER_VERIFICATION_STARTED":"VOICEID",
-    "SPEAKER_VERIFICATION_FINISHED":"VOICEID",
-    "SPEAKER_LOCK_CHANGED":"VOICEID",
     "PROACTIVE_MESSAGE":"MIND",
     "DESKTOP_INTEGRATION_READY":"DESKTOP",
     "DESKTOP_INTEGRATION_ERROR":"DESKTOP",
@@ -300,19 +229,6 @@ def event_printer(event: Event) -> None:
         detail = f" {event.data.get('count')} tool call(s)"
     elif event.name == "CONFIRMATION_REQUIRED":
         detail = f" {event.data.get('tool')} token={event.data.get('token')}"
-    elif event.name == "LISTENING_STARTED":
-        detail = f" device={event.data.get('device')} {event.data.get('device_name')}"
-    elif event.name == "MIC_CALIBRATED":
-        detail = (
-            f" noise={event.data.get('noise_rms')} "
-            f"raw={event.data.get('raw_noise_mean')} "
-            f"threshold={event.data.get('threshold')}"
-        )
-    elif event.name == "MIC_CALIBRATION_CACHED":
-        detail = (
-            f" threshold={event.data.get('threshold')} "
-            f"age={event.data.get('age_seconds')}s"
-        )
     elif event.name == "FAST_PATH_HIT":
         detail = f" route={event.data.get('route')} tool={event.data.get('tool')}"
     elif event.name == "HYBRID_ROUTE":
@@ -334,147 +250,127 @@ def event_printer(event: Event) -> None:
             f"out={event.data.get('output_tokens')} "
             f"~${event.data.get('estimated_usd')}"
         )
-    elif event.name == "WAKE_LISTENING":
-        detail = (
-            f" backend={event.data.get('backend')} "
-            f"device={event.data.get('device')} "
-            f"{event.data.get('device_name')}"
-        )
-    elif event.name == "WAKE_WORD_DETECTED":
-        detail = (
-            f" keyword={event.data.get('keyword')} "
-            f"score={event.data.get('score')} "
-            f"threshold={event.data.get('threshold')} "
-            f"whisper={event.data.get('whisper_used')}"
-        )
-    elif event.name == "WAKE_PROFILE_ENROLLED":
-        detail = (
-            f" samples={event.data.get('samples')} "
-            f"threshold={event.data.get('threshold')} "
-            f"mean={event.data.get('mean_similarity')}"
-        )
-    elif event.name == "WAKE_COMMAND_TRANSCRIBED":
-        detail = (
-            f" text={event.data.get('text')!r} "
-            f"profile={event.data.get('profile')} "
-            f"beam={event.data.get('beam')} "
-            f"{event.data.get('elapsed_ms')}ms"
-        )
-    elif event.name == "WAKE_CALIBRATED":
-        detail = (
-            f" noise={event.data.get('noise_rms')} "
-            f"threshold={event.data.get('threshold')}"
-        )
-    elif event.name == "WAKE_SPEECH_DETECTED":
-        detail = (
-            f" rms={event.data.get('rms')} "
-            f"threshold={event.data.get('threshold')} "
-            f"blocks={event.data.get('blocks')}"
-        )
-    elif event.name == "WAKE_CANDIDATE_TRANSCRIBED":
-        detail = (
-            f" text={event.data.get('transcript')!r} "
-            f"accepted={event.data.get('accepted')} "
-            f"score={event.data.get('score')} "
-            f"{event.data.get('elapsed_ms')}ms"
-        )
-    elif event.name == "WAKE_CANDIDATE_REJECTED":
-        detail = (
-            f" reason={event.data.get('reason')} "
-            f"duration={event.data.get('duration_seconds')}s "
-            f"peak={event.data.get('peak_rms')} "
-            f"ratio={event.data.get('peak_ratio')}"
-        )
-    elif event.name == "WAKE_ERROR":
-        detail = f" error={event.data.get('error')}"
-    elif event.name == "WAKE_LOW_SIGNAL":
-        detail = (
-            f" max_rms={event.data.get('max_rms')} "
-            f"device={event.data.get('device')}"
-        )
-    elif event.name == "WAKE_STREAM_STATUS":
-        detail = f" status={event.data.get('status')}"
-    elif event.name == "WAKE_STREAM_OPENED":
-        detail = (
-            f" open_count={event.data.get('open_count')} "
-            f"device={event.data.get('device')} "
-            f"rate={event.data.get('sample_rate')}"
-        )
-    elif event.name == "WAKE_STREAM_REUSED":
-        detail = (
-            f" open_count={event.data.get('open_count')} "
-            f"dropped={event.data.get('dropped_stale_blocks')}"
-        )
-    elif event.name == "WAKE_STREAM_CLOSED":
-        detail = f" reason={event.data.get('reason')}"
-    elif event.name == "WAKE_PHRASE_CAPTURED":
-        detail = (
-            f" duration={event.data.get('duration_seconds')}s "
-            f"single_stream={event.data.get('single_stream')}"
-        )
-    elif event.name == "SPEAKER_OBSERVE":
-        detail = (
-            f" accepted={event.data.get('accepted')} "
-            f"score={event.data.get('score')}"
-        )
-    elif event.name in {"STT_PRELOADED","LLM_PRELOADED"}:
+    elif event.name == "LLM_PRELOADED":
         detail = f" {event.data.get('elapsed_ms')}ms"
-    elif event.name == "MIC_STREAM_NO_SIGNAL":
-        detail = (
-            f" device={event.data.get('device')} "
-            f"max_rms={event.data.get('max_rms')}"
-        )
-    elif event.name == "MIC_STREAM_RECOVERY":
-        detail = (
-            f" retry={event.data.get('next_attempt')} "
-            f"after={event.data.get('wait_seconds')}s"
-        )
-    elif event.name == "MIC_DEVICE_RECOVERY":
-        detail = (
-            f" stale={event.data.get('stale_device')} "
-            f"preferred={event.data.get('preferred_device')} "
-            f"{event.data.get('preferred_name')}"
-        )
-    elif event.name == "MIC_DEVICE_CANDIDATE_FAILED":
-        detail = (
-            f" device={event.data.get('device')} "
-            f"{event.data.get('device_name')} "
-            f"hostapi={event.data.get('hostapi')} "
-            f"error={event.data.get('error')}"
-        )
-    elif event.name == "MIC_DEVICE_SELECTED":
-        detail = (
-            f" device={event.data.get('device')} "
-            f"{event.data.get('device_name')} "
-            f"hostapi={event.data.get('hostapi')} "
-            f"fallback={event.data.get('fallback_position')}"
-        )
-    elif event.name == "STT_MODEL_LOADING":
-        detail = f" {event.data.get('model')} on {event.data.get('device')}"
-    elif event.name == "STT_MODEL_READY":
-        detail = f" backend={event.data.get('backend')}"
-    elif event.name == "STT_RUNTIME_FALLBACK":
-        detail = (
-            f" {event.data.get('from_backend')} -> "
-            f"{event.data.get('to_backend')}"
-        )
-    elif event.name == "TRANSCRIPTION_FINISHED":
-        detail = (
-            f" chars={event.data.get('chars')} "
-            f"backend={event.data.get('backend')} "
-            f"profile={event.data.get('profile')} "
-            f"beam={event.data.get('beam_size')}"
-        )
-    elif event.name == "SPEAKER_VERIFICATION_FINISHED":
-        detail = (
-            f" accepted={event.data.get('accepted')} "
-            f"score={event.data.get('score')} "
-            f"threshold={event.data.get('threshold')}"
-        )
     print(f"  [{label:<6}] {event.name}{detail}")
 
 
+QUICK_TEST_PATTERNS = (
+    "test_quiet_terminal.py",
+    "test_local_voice_retired.py",
+    "test_speed_contract.py",
+    "test_runtime_request_pipeline.py",
+    "test_memory1_recall_fast_router_guard.py",
+)
+
+
+def run_quick_tests() -> dict[str, object]:
+    repo_root = Path(__file__).resolve().parents[1]
+    total_tests = 0
+    completed_patterns = []
+
+    for pattern in QUICK_TEST_PATTERNS:
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "unittest",
+                "discover",
+                "-s",
+                "tests",
+                "-p",
+                pattern,
+                "-q",
+            ],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            errors="replace",
+        )
+
+        output = "\n".join(
+            part.strip()
+            for part in (
+                result.stdout,
+                result.stderr,
+            )
+            if part and part.strip()
+        )
+
+        match = re.search(
+            r"Ran\s+(\d+)\s+tests?",
+            output,
+        )
+
+        count = (
+            int(match.group(1))
+            if match is not None
+            else 0
+        )
+
+        if result.returncode != 0:
+            return {
+                "ok": False,
+                "pattern": pattern,
+                "tests": total_tests + count,
+                "completed_patterns": tuple(
+                    completed_patterns
+                ),
+                "output": output[-4000:],
+            }
+
+        total_tests += count
+        completed_patterns.append(pattern)
+
+    return {
+        "ok": True,
+        "tests": total_tests,
+        "patterns": len(completed_patterns),
+    }
+
+
 def help_text() -> str:
+    return """
+JARVIS \u2014 Terminal t\u00e9cnico
+
+ESSENCIAL
+  /status              estado operacional do JARVIS
+  /health              estado do c\u00e9rebro/runtime local
+  /version             vers\u00e3o do Core
+  /memory status       estado da mem\u00f3ria
+  /learning status     estado da aprendizagem autorizada
+
+DIAGN\u00d3STICO
+  /test quick          smoke-test r\u00e1pido do Core
+  /debug on|off        mostrar/ocultar eventos t\u00e9cnicos
+  /debug status        estado do debug
+  /events              \u00faltimos eventos persistidos
+  /telemetry           \u00faltima amostra de telemetria
+  /speed               resumo de desempenho
+  /vram status         modelos/runtime residentes
+
+SEGURAN\u00c7A / RECUPERA\u00c7\u00c3O
+  /security scan       resumo de seguran\u00e7a
+  /security blocked files
+                       bloqueios Windows atuais
+  /repair diagnose     diagn\u00f3stico do JARVIS
+  /repair safe         repara\u00e7\u00e3o local segura
+
+AUTORIZA\u00c7\u00d5ES
+  /pending             a\u00e7\u00f5es \u00e0 espera de confirma\u00e7\u00e3o
+  /confirm TOKEN       confirmar a\u00e7\u00e3o pendente
+  /cancel TOKEN        cancelar a\u00e7\u00e3o pendente
+
+COMANDOS
+  /help all            cat\u00e1logo completo
+  /commands            alias de /help all
+  /quit                desligar o Core
+""".strip()
+
+
+
+
+def help_text_full() -> str:
     return """
 Comandos:
   /help             ajuda
@@ -671,7 +567,7 @@ def route_runtime_request(
     semantic context -> StructuredRequest -> deterministic FastRouter
     or model-owned HybridBrain.
 
-    Persistence, cognition, performance accounting, voice lifecycle,
+    Persistence, cognition, performance accounting, runtime lifecycle,
     and other runtime side effects remain owned by main().
     """
     semantic_inputs = tuple(
@@ -726,16 +622,6 @@ def route_runtime_request(
         confidence=structured_request.confidence,
     )
 
-    voice_origin = (
-        str(source).lower()
-        in {
-            "wake",
-            "voice",
-            "manual_voice",
-            "manual",
-        }
-    )
-
     model_owned = (
         structured_request.intent
         in _MODEL_OWNED_SEMANTIC_INTENTS
@@ -768,7 +654,6 @@ def route_runtime_request(
     else:
         fast = fast_router.dispatch(
             user_text,
-            voice_origin=voice_origin,
             request=structured_request,
         )
 
@@ -810,22 +695,11 @@ def route_runtime_request(
 
 def main() -> None:
     # The updater preserves settings.json. Normalize/add the current schema on
-    # every startup so release migrations (including the 0.21 voice profile)
-    # apply without overwriting custom OWNER choices.
+    # every startup so current schema migrations and legacy-setting
+    # retirement apply without overwriting custom OWNER choices.
     Settings.ensure_file_schema()
     settings = Settings.load()
 
-    # Master switch for PC-local speech input/output.
-    # Vision/webcam remains independent from the retired audio path.
-    local_voice_enabled = bool(getattr(settings, "local_voice_enabled", False))
-    if not local_voice_enabled:
-        settings.speech_enabled = False
-        settings.wake_enabled = False
-        settings.wake_auto_start = False
-        settings.listening_watchdog_enabled = False
-        settings.speaker_lock_enabled = False
-        settings.proactive_speech_enabled = False
-        settings.voice_v2_preload_stt = False
     events = EventBus(settings.log_dir, max_bytes=settings.log_max_bytes, backup_count=settings.log_backup_count)
 
     # Quiet terminal is the product default. EventBus continues to persist
@@ -874,126 +748,7 @@ def main() -> None:
         events,
         telemetry,
     )
-    if local_voice_enabled:
-        # Real PC-local audio dependencies are loaded only when explicitly enabled.
-        from jarvis_core.services.speech import SpeechService, SpeechConfig
-        from jarvis_core.services.listening import MicrophoneService, ListeningConfig
-        from jarvis_core.services.av_devices import webcam_audio_score
-        from jarvis_core.services.speaker_verification import SpeakerVerifier
-        from jarvis_core.services.wakeword import WakeWordService, WakeWordConfig
-        from jarvis_core.services.voice_engine_v2 import VoiceEngineV2
-        from jarvis_core.services.voice_pipeline import (
-            listening_config_from_settings,
-            voice_v2_config_from_settings,
-            speaker_config_from_settings,
-        )
-        from jarvis_core.services.listening_watchdog import ListeningWatchdogService
 
-        speech = SpeechService(
-            events,
-            SpeechConfig(
-                enabled=settings.speech_enabled,
-                backend=settings.speech_backend,
-                edge_voice=settings.speech_voice,
-                rate=settings.speech_rate,
-                pitch=settings.speech_pitch,
-                persona_profile=settings.speech_persona_profile,
-                sapi_prefer_gender=settings.speech_sapi_prefer_gender,
-                volume=settings.speech_volume,
-                max_chars=settings.speech_max_chars,
-                fallback_sapi=settings.speech_fallback_sapi,
-                cache_enabled=settings.speech_cache_enabled,
-                cache_dir=settings.speech_cache_dir,
-                cache_max_bytes=settings.speech_cache_max_bytes,
-                cache_max_files=settings.speech_cache_max_files,
-            ),
-        )
-        def build_microphone(*, model: str, stt_device: str) -> MicrophoneService:
-            return MicrophoneService(
-                events,
-                ListeningConfig(
-                    device=settings.mic_device,
-                    language=settings.stt_language,
-                    model=model,
-                    stt_device=stt_device,
-                    download_root=settings.stt_download_root,
-                    calibration_seconds=settings.mic_calibration_seconds,
-                    start_timeout_seconds=settings.mic_start_timeout_seconds,
-                    max_phrase_seconds=settings.mic_max_phrase_seconds,
-                    silence_seconds=settings.mic_silence_seconds,
-                    threshold_multiplier=settings.mic_threshold_multiplier,
-                    threshold_floor=settings.mic_threshold_floor,
-                    beam_size=settings.stt_beam_size,
-                    wake_candidate_beam_size=settings.wake_candidate_beam_size,
-                    command_beam_size=settings.wake_stt_beam_size,
-                    command_retry_beam_size=settings.wake_stt_retry_beam_size,
-                    command_low_confidence_avg_logprob=settings.wake_stt_low_confidence_avg_logprob,
-                    command_low_confidence_no_speech=settings.wake_stt_low_confidence_no_speech,
-                    command_reject_avg_logprob=settings.wake_stt_reject_avg_logprob,
-                    command_reject_no_speech=settings.wake_stt_reject_no_speech,
-                    wake_reject_avg_logprob=settings.wake_candidate_reject_avg_logprob,
-                    wake_reject_no_speech=settings.wake_candidate_reject_no_speech,
-                    normalize_command_audio=settings.stt_normalize_command_audio,
-                    command_target_rms=settings.stt_command_target_rms,
-                    command_max_gain=settings.stt_command_max_gain,
-                    command_trim_silence=settings.stt_command_trim_silence,
-                    command_trim_padding_ms=settings.stt_command_trim_padding_ms,
-                    command_trim_floor_rms=settings.stt_command_trim_floor_rms,
-                    command_initial_prompt=settings.wake_stt_initial_prompt,
-                    command_hotwords=settings.wake_stt_hotwords,
-                    stream_retries=settings.mic_stream_retries,
-                    stream_recovery_seconds=settings.mic_stream_recovery_seconds,
-                    no_signal_rms=settings.mic_no_signal_rms,
-                    cpu_threads=settings.stt_cpu_threads,
-                    calibration_cache_seconds=settings.mic_calibration_cache_seconds,
-                    cached_calibration_blocks=settings.mic_cached_calibration_blocks,
-                    preferred_device_index=settings.mic_device,
-                    preferred_device_name=settings.mic_preferred_device_name,
-                    preferred_handsfree=settings.mic_preferred_handsfree,
-                    preferred_samplerate=settings.mic_preferred_samplerate,
-                    prefer_webcam_audio=settings.av_webcam_primary_enabled,
-                    webcam_name_hint=settings.av_webcam_name_hint,
-                    probe_min_signal_rms=settings.av_probe_min_signal_rms,
-                    verified_signal_ttl_seconds=settings.av_verified_signal_ttl_seconds,
-                ),
-            )
-
-        legacy_microphone = build_microphone(
-            model=settings.stt_model,
-            stt_device=settings.stt_device,
-        )
-        # 0.27.6: Voice v2 and full_system_validation share this exact config factory.
-        v2_microphone = MicrophoneService(
-            events,
-            listening_config_from_settings(settings, voice_v2=True),
-        )
-        # Closures below resolve this binding at call time; it is switched to the
-        # v2 transcriber after the voice backend has passed its startup doctor.
-        microphone = legacy_microphone
-        speaker = SpeakerVerifier(events, speaker_config_from_settings(settings))
-    else:
-        # No PC-local audio objects are constructed in retired mode.
-        speech = DisabledSpeechService()
-        legacy_microphone = DisabledMicrophoneService(settings)
-        v2_microphone = DisabledMicrophoneService(settings)
-        microphone = legacy_microphone
-        speaker = DisabledSpeakerVerifier()
-        events.emit("LOCAL_VOICE_SERVICES_NOT_CONSTRUCTED")
-
-    # Health baseline: an enabled lock must be usable. If Torch or the
-    # configured model is unavailable, disable only the effective runtime lock
-    # instead of breaking every voice command or pretending protection is active.
-    speaker_lock_health = {"ok": True, "disabled": False}
-    if local_voice_enabled and speaker.config.enabled:
-        speaker_lock_health = speaker.ensure_ready()
-        if not speaker_lock_health.get("ok"):
-            speaker.set_enabled(False)
-            speaker_lock_health["disabled"] = True
-            events.emit(
-                "SPEAKER_LOCK_AUTO_DISABLED",
-                error=speaker_lock_health.get("error"),
-                message=str(speaker_lock_health.get("message") or "")[:240],
-            )
     apps = AppRegistry("apps.json")
     cyber_range = CyberRangeManager(
         settings.cyber_range_state_path,
@@ -1371,7 +1126,8 @@ def main() -> None:
         events,
         path=settings.activity_trace_path,
         enabled=settings.activity_trace_enabled,
-        live=settings.activity_trace_live,
+        # Live terminal trace is session-only. Normal startup is quiet.
+        live=False,
     )
     activity_trace.start()
 
@@ -1388,8 +1144,6 @@ def main() -> None:
             or normalized in {"silencio", "silêncio", "fica calada", "fica em silencio", "fica em silêncio"}
         )
 
-    wake_holder = {"service": None}
-    wake_followup_state = {"pending": False}
 
     def read_tool(name: str, arguments: dict | None = None):
         raw = tools.execute(name, arguments or {})
@@ -1510,40 +1264,6 @@ def main() -> None:
                 ),
             )
 
-        def before_hybrid():
-            if (
-                voice_engine_state.get("effective") == "v2"
-                and bool(
-                    getattr(
-                        settings,
-                        "voice_v2_vram_handoff_enabled",
-                        True,
-                    )
-                )
-            ):
-                try:
-                    stt_state = (
-                        microphone.stt_residency_status()
-                    )
-
-                    if str(
-                        stt_state.get("backend")
-                        or ""
-                    ).lower().startswith("cuda/"):
-                        released = microphone.release_stt()
-
-                        events.emit(
-                            "VOICE_V2_VRAM_TO_REASONING",
-                            result=released,
-                        )
-                except Exception as exc:
-                    events.emit(
-                        "VOICE_V2_VRAM_TO_REASONING_FAILED",
-                        error=(
-                            f"{type(exc).__name__}: "
-                            f"{exc}"
-                        ),
-                    )
 
         # MEMORY1_RUNTIME_PRE_ROUTE_V1
         from jarvis_core.memory.recall_executor import (
@@ -2086,7 +1806,6 @@ def main() -> None:
                 requires_memory_aware_response=(
                     memory1_requires_memory_aware_response
                 ),
-                before_hybrid=before_hybrid,
             )
 
         elapsed = round(
@@ -2229,387 +1948,15 @@ def main() -> None:
             hybrid,
         )
 
-    def handle_voice_command(source: str = "manual"):
-        with command_lock:
-            wake = wake_holder["service"]
-            if source != "wake" and wake is not None:
-                wake.suspend()
-            if source != "wake" and silence_latch.active():
-                silence_latch.release(source="explicit_listen")
-
-            try:
-                speech.stop(clear_queue=True)
-                print("\nJARVIS > A ouvir... fala normalmente.")
-
-                capture = microphone.capture_phrase()
-                if not capture.get("ok"):
-                    print("JARVIS >", json.dumps(capture, ensure_ascii=False, indent=2))
-                    return
-
-                wav_path = capture.get("wav_path")
-                try:
-                    voiceid_ms = 0
-                    verification = None
-                    if speaker.config.enabled and speaker.enrolled():
-                        voiceid_started = monotonic()
-                        try:
-                            verification = speaker.verify(
-                                wav_path,
-                                duration_seconds=capture.get("duration_seconds"),
-                            )
-                        except Exception as exc:
-                            verification = {
-                                "ok": False,
-                                "accepted": False,
-                                "error": type(exc).__name__,
-                                "message": str(exc),
-                            }
-                        voiceid_ms = round((monotonic() - voiceid_started) * 1000)
-                        mode = str(settings.speaker_enforcement_mode).lower().strip()
-                        if mode == "enforce":
-                            if not verification.get("ok"):
-                                print("JARVIS >", json.dumps(verification, ensure_ascii=False, indent=2))
-                                return
-                            if not verification.get("accepted"):
-                                print(
-                                    "JARVIS > Comando ignorado: voz não autorizada "
-                                    f"(score={verification.get('score')}, "
-                                    f"threshold={verification.get('threshold')})."
-                                )
-                                return
-                        else:
-                            events.emit(
-                                "SPEAKER_OBSERVE",
-                                accepted=verification.get("accepted"),
-                                score=verification.get("score"),
-                                threshold=verification.get("threshold"),
-                            )
-
-                    result = microphone.transcribe_command_file(wav_path)
-                    if not result.get("ok"):
-                        print("JARVIS >", json.dumps(result, ensure_ascii=False, indent=2))
-                        return
-
-                    transcript = result["text"]
-                    events.emit(
-                        "VOICE_HEARD",
-                        text=transcript,
-                        raw_text=result.get("raw_text") or transcript,
-                        source=source,
-                        device=capture.get("device"),
-                    )
-                    if is_silence_command(transcript):
-                        speech.stop(clear_queue=True)
-                        silence_latch.latch(reason="owner_interrupt", source="voice_command")
-                        return
-
-                    print(f"\n{current_address()} > {transcript}")
-                    if debug_terminal["enabled"]:
-                        print(
-                            f"  [STT   ] {result.get('backend')} | "
-                            f"{capture.get('duration_seconds')}s | "
-                            f"{result.get('elapsed_ms')}ms"
-                        )
-
-                    request_generation = silence_latch.generation()
-                    answer, route, command_ms, hybrid = process_request(transcript, source="manual_voice")
-                    if not silence_latch.output_allowed(request_generation):
-                        silence_latch.mark_suppressed_response("response")
-                        return
-                    print(f"\nJARVIS > {answer}\n")
-                    cloud_cost = (
-                        f" cloud~${hybrid.cloud_estimated_usd:.6f}"
-                        if hybrid and hybrid.route.startswith("CLOUD")
-                        else ""
-                    )
-                    if debug_terminal["enabled"]:
-                        print(
-                            f"  [PERF  ] voiceid={voiceid_ms}ms "
-                            f"stt={result.get('elapsed_ms')}ms "
-                            f"command={command_ms}ms route={route}{cloud_cost}"
-                        )
-                    events.emit("LLM_RESPONSE_READY", chars=len(answer), route=route, source="manual_voice")
-                    speech.say(answer)
-                finally:
-                    microphone.cleanup_capture(wav_path)
-            finally:
-                if source != "wake" and wake is not None:
-                    wake.resume()
-
-    def _listen_after_wake_only() -> None:
-        """After a wake-only utterance, wait for the acknowledgement TTS and
-        then capture the OWNER's next phrase as the command.
-
-        This runs outside the Voice v2 stream thread so the callback can return,
-        the single-stream wake engine can re-arm cleanly, and the ordinary
-        microphone capture can suspend the wake stream before opening WASAPI.
-        """
-        try:
-            deadline = monotonic() + 8.0
-            while monotonic() < deadline:
-                status = speech.status()
-                if not bool(status.get("speaking")) and int(status.get("queued") or 0) == 0:
-                    break
-                sleep(0.05)
-            # Let the configured TTS tail/speaker echo clear before opening the
-            # command capture. This is short enough to still feel conversational.
-            sleep(0.10)
-            if not silence_latch.active():
-                handle_voice_command(source="wake_followup")
-        finally:
-            wake_followup_state["pending"] = False
-
-    def on_wake(inline_command: str | None = None):
-        if debug_terminal["enabled"]:
-            print("\n  [WAKE  ] JARVIS confirmado.")
-
-        was_silent = silence_latch.active()
-        if was_silent:
-            silence_latch.release(source="verified_wake")
-
-        if not inline_command:
-            # A wake word by itself is a valid conversational turn. Acknowledge
-            # it once, then automatically listen for the next phrase instead of
-            # forcing the OWNER to repeat "Jarvis" with the command inline.
-            if wake_followup_state["pending"]:
-                events.emit("WAKE_ONLY_DUPLICATE_SUPPRESSED")
-                return
-            wake_followup_state["pending"] = True
-            print("JARVIS > Sim, Senhor?")
-            speech.say("Sim, Senhor?")
-            events.emit("WAKE_ONLY_PHRASE", followup_listening=True)
-            Thread(
-                target=_listen_after_wake_only,
-                name="jarvis-wake-followup",
-                daemon=True,
-            ).start()
-            return
-
-        with command_lock:
-            transcript = inline_command.strip()
-            events.emit("VOICE_HEARD", text=transcript, raw_text=transcript, source="wake")
-            if is_silence_command(transcript):
-                speech.stop(clear_queue=True)
-                silence_latch.latch(reason="owner_interrupt", source="wake_command")
-                return
-
-            print(f"\n{current_address()} > {transcript}")
-            request_generation = silence_latch.generation()
-            answer, route, command_ms, hybrid = process_request(transcript, source="wake")
-            if not silence_latch.output_allowed(request_generation):
-                silence_latch.mark_suppressed_response("response")
-                return
-            print(f"\nJARVIS > {answer}\n")
-            cloud_cost = (
-                f" cloud~${hybrid.cloud_estimated_usd:.6f}"
-                if hybrid and hybrid.route.startswith("CLOUD")
-                else ""
-            )
-            if debug_terminal["enabled"]:
-                print(
-                    f"  [PERF  ] wake-command command={command_ms}ms "
-                    f"route={route}{cloud_cost}"
-                )
-            events.emit("LLM_RESPONSE_READY", chars=len(answer), route=route, source="wake")
-            speech.say(answer)
-
-    def on_interrupt_probe_start() -> bool:
-        return speech.pause_for_bargein()
-
-    def on_interrupt_probe_end(
-        confirmed: bool,
-    ) -> None:
-        if not confirmed:
-            speech.resume_after_bargein()
-
-    def on_interrupt() -> None:
-        speech.stop(clear_queue=True)
-        silence_latch.latch(reason="owner_interrupt", source="barge_in")
-        events.emit("VOICE_INTERRUPT_APPLIED", phrase="Cala-te", silence_latched=True)
-
-    if local_voice_enabled:
-        legacy_wake = WakeWordService(
-            events,
-            WakeWordConfig(
-                enabled=settings.wake_enabled,
-                auto_start=settings.wake_auto_start,
-                keyword=settings.wake_keyword,
-                calibration_seconds=settings.wake_calibration_seconds,
-                threshold_multiplier=settings.wake_threshold_multiplier,
-                threshold_floor=settings.wake_threshold_floor,
-                threshold_ceiling=settings.wake_threshold_ceiling,
-                pre_roll_seconds=settings.wake_pre_roll_seconds,
-                block_seconds=settings.wake_block_seconds,
-                no_signal_rms=settings.wake_no_signal_rms,
-                speech_confirm_blocks=settings.wake_speech_confirm_blocks,
-                preferred_device_index=settings.mic_device,
-                preferred_device_name=settings.mic_preferred_device_name,
-                preferred_handsfree=settings.mic_preferred_handsfree,
-                preferred_samplerate=settings.mic_preferred_samplerate,
-                prefer_webcam_audio=settings.av_webcam_primary_enabled,
-                webcam_name_hint=settings.av_webcam_name_hint,
-                tts_tail_seconds=settings.wake_tts_tail_seconds,
-                rearm_seconds=settings.wake_rearm_seconds,
-                enrollment_samples=settings.wake_enrollment_samples,
-                template_path=settings.wake_template_path,
-                interrupt_template_path=settings.interrupt_template_path,
-                interrupt_enrollment_samples=settings.interrupt_enrollment_samples,
-                interrupt_match_floor=settings.interrupt_match_floor,
-                feature_sample_rate=settings.wake_feature_sample_rate,
-                feature_frame_ms=settings.wake_feature_frame_ms,
-                feature_hop_ms=settings.wake_feature_hop_ms,
-                feature_bands=settings.wake_feature_bands,
-                probe_min_seconds=settings.wake_probe_min_seconds,
-                probe_max_seconds=settings.wake_probe_max_seconds,
-                wake_match_floor=settings.wake_match_floor,
-                wake_match_margin=settings.wake_match_margin,
-                wake_start_slack_seconds=settings.wake_start_slack_seconds,
-                candidate_whisper_confirm=settings.wake_candidate_whisper_confirm,
-                candidate_reject_cooldown_seconds=settings.wake_candidate_reject_cooldown_seconds,
-                candidate_window_seconds=settings.wake_candidate_window_seconds,
-                candidate_tail_seconds=settings.wake_candidate_tail_seconds,
-                candidate_min_avg_logprob=settings.wake_candidate_min_avg_logprob,
-                candidate_max_no_speech_prob=settings.wake_candidate_max_no_speech_prob,
-                candidate_max_words=settings.wake_candidate_max_words,
-                command_start_timeout_seconds=settings.wake_command_start_timeout_seconds,
-                command_silence_seconds=settings.wake_command_silence_seconds,
-                command_max_seconds=settings.wake_command_max_seconds,
-                command_min_seconds=settings.wake_command_min_seconds,
-                command_preroll_seconds=settings.wake_command_preroll_seconds,
-                command_threshold_ratio=settings.wake_command_threshold_ratio,
-            ),
-            on_wake=on_wake,
-            on_interrupt=on_interrupt,
-            on_interrupt_probe_start=on_interrupt_probe_start,
-            on_interrupt_probe_end=on_interrupt_probe_end,
-            transcribe_callback=microphone.transcribe_command_file,
-            wake_transcribe_callback=microphone.transcribe_wake_file,
-            cleanup_callback=microphone.cleanup_capture,
-        )
-        # Voice v2 is independent of legacy device probing. Legacy objects remain
-        # available only for an explicit compatibility selection (/backend legacy).
-        def voice_v2_prepare_stt():
-            if not bool(getattr(settings, "voice_v2_vram_handoff_enabled", True)):
-                return {"ok": True, "enabled": False, "released_count": 0}
-
-            # 0.26.7: do not evict Qwen for CPU Faster Whisper. The previous v2
-            # handoff unloaded the 8B local model before every voice transcription,
-            # even after CUDA had already fallen back to CPU. That forced a multi-
-            # second Qwen reload on the very next conversational turn.
-            stt_state = v2_microphone.stt_residency_status()
-            preference = str(stt_state.get("device_preference") or "").lower().strip()
-            backend = str(stt_state.get("backend") or "").lower().strip()
-            if preference == "cpu" or backend.startswith("cpu/"):
-                return {
-                    "ok": True,
-                    "enabled": True,
-                    "released_count": 0,
-                    "reason": "stt_cpu_keeps_qwen_resident",
-                }
-
-            residency = brain.residency_status()
-            if not residency.get("running_configured"):
-                return {"ok": True, "enabled": True, "released_count": 0}
-            return brain.release_all_models(
-                reason="voice_v2_stt_handoff",
-                include_configured=True,
-            )
-
-        voice_v2 = VoiceEngineV2(
-            events,
-            voice_v2_config_from_settings(settings),
-            on_wake=on_wake,
-            on_interrupt=on_interrupt,
-            transcribe_callback=v2_microphone.transcribe_command_file,
-            wake_transcribe_callback=v2_microphone.transcribe_wake_file,
-            cleanup_callback=v2_microphone.cleanup_capture,
-            release_stt_callback=v2_microphone.release_stt,
-            before_stt_callback=voice_v2_prepare_stt,
-        )
-
-        requested_voice_backend = str(settings.voice_input_backend or "v2").strip().lower()
-        voice_engine_state = {
-            "requested": requested_voice_backend,
-            "effective": "v2",
-            "fallback_reason": None,
-        }
-        wake = voice_v2
-        microphone = v2_microphone
-
-        if requested_voice_backend == "legacy":
-            wake = legacy_wake
-            microphone = legacy_microphone
-            voice_engine_state["effective"] = "legacy"
-            events.emit("VOICE_LEGACY_EXPLICIT_COMPATIBILITY_MODE")
-        else:
-            if requested_voice_backend not in {"v2", "auto"}:
-                voice_engine_state["fallback_reason"] = "INVALID_BACKEND_SETTING_USING_V2"
-            v2_doctor = voice_v2.doctor()
-            if not v2_doctor.get("ok"):
-                voice_engine_state["fallback_reason"] = (
-                    v2_doctor.get("error") or v2_doctor.get("message") or "VOICE_V2_NOT_READY"
-                )
-                # 0.27.6 deliberately does not silently fall back to the old wake/STT
-                # pipeline. A broken v2 health check must remain visible and fail
-                # acceptance rather than changing architecture behind the user's back.
-                events.emit(
-                    "VOICE_V2_UNAVAILABLE_NO_LEGACY_FALLBACK",
-                    requested=requested_voice_backend,
-                    reason=voice_engine_state["fallback_reason"],
-                )
-
-        wake_holder["service"] = wake
-
-        listening_watchdog = ListeningWatchdogService(
-            events,
-            wake,
-            speech,
-            enabled=settings.listening_watchdog_enabled,
-            armed=(settings.wake_enabled and settings.wake_auto_start),
-            interval_seconds=settings.listening_watchdog_interval_seconds,
-            stream_grace_seconds=settings.listening_watchdog_stream_grace_seconds,
-            recovery_cooldown_seconds=(
-                settings.listening_watchdog_recovery_cooldown_seconds
-            ),
-        )
-    else:
-        # Retired PC-local voice: no wake engine, Voice v2 or
-        # listening watchdog service is constructed.
-        wake = DisabledWakeService(settings)
-        microphone = legacy_microphone
-        requested_voice_backend = "off"
-        voice_engine_state = {
-            "requested": "off",
-            "effective": "off",
-            "fallback_reason": None,
-        }
-        listening_watchdog = DisabledListeningWatchdog()
-        wake_holder["service"] = wake
-        events.emit("LOCAL_VOICE_DISABLED")
-        events.emit("LOCAL_VOICE_RUNTIME_NOT_CONSTRUCTED")
 
 
-    def wake_tts_guard(event: Event) -> None:
-        """
-        Prevent self-trigger while keeping the selected capture engine alive.
 
-        Voice v2 owns one WASAPI stream and keeps the local acoustic owner
-        interrupt profile available on that same stream while normal wake is
-        suppressed. Legacy mode keeps its historical behavior.
-        """
-        if event.name == "SPEECH_STARTED":
-            wake.suppress_audio(True, reason="tts")
-            events.emit("WAKE_TTS_SUPPRESSED", stream_kept_open=True)
-        elif event.name == "SPEECH_FINISHED":
-            wake.suppress_audio(
-                False,
-                reason="tts",
-                tail_seconds=settings.wake_tts_tail_seconds,
-            )
-            events.emit("WAKE_TTS_RESUMED", stream_kept_open=True)
 
-    # Functional wake/TTS guard is always active and never depends on logging.
-    events.subscribe(wake_tts_guard)
+
+
+
+
+
 
     def terminal_event_printer(event: Event) -> None:
         if debug_terminal["enabled"]:
@@ -2637,8 +1984,6 @@ def main() -> None:
     performance.start(
         on_sustained_pressure=on_sustained_pressure
     )
-    if local_voice_enabled:
-        speech.start()
 
     def warm_services():
         events.emit("WARMUP_STARTED")
@@ -2648,18 +1993,6 @@ def main() -> None:
                 float(settings.performance_warmup_delay_seconds),
             )
         )
-
-        if local_voice_enabled:
-            if speaker.enrolled():
-                speaker.ensure_ready()
-
-            # Voice v2 deliberately keeps the heavier STT model cold by default.
-            # openWakeWord+Silero remain resident on CPU; Faster Whisper is loaded
-            # only after a verified wake and released again after idle.
-            if voice_engine_state.get("effective") != "v2" or settings.voice_v2_preload_stt:
-                microphone.preload_stt()
-            else:
-                events.emit("STT_WARMUP_DEFERRED_FOR_VOICE_V2")
 
         if performance.should_warm_llm():
             brain.warmup()
@@ -2678,170 +2011,41 @@ def main() -> None:
             daemon=True,
         ).start()
 
-    if (
-        settings.wake_enabled
-        and settings.wake_auto_start
-        and wake.configured()
-        and wake.enrolled()
-    ):
-        wake.start()
 
-    if local_voice_enabled:
-        listening_watchdog.start()
+
+    ok, msg = brain.health_check()
+
+    try:
+        memory1_store.assert_readable()
+        memory_startup_status = "READY"
+    except Exception:
+        memory_startup_status = "ATTENTION"
+
+    try:
+        security.pending()
+        security_startup_status = "READY"
+    except Exception:
+        security_startup_status = "ATTENTION"
 
     print(BANNER_TEMPLATE.format(version=__version__))
-    print(f"Assistant : {settings.assistant_name}")
-    print(f"Model     : {settings.model}")
-    print(f"Tools     : {len(tools.names)}")
-    print(f"Skills    : {len(skills.skills) if settings.skills_enabled else 0} loaded | modular runtime")
-    print(f"Apps      : {len(apps.list_apps())} allowed")
+    print("Core      : READY")
     print(
-        f"Telemetry : CPU/RAM {settings.telemetry_interval_seconds}s | "
-        f"GPU {settings.performance_gpu_sample_interval_seconds}s"
-    )
-    if local_voice_enabled:
-        print(
-            f"Voice     : {'ON' if settings.speech_enabled else 'OFF'} | "
-            f"{settings.speech_voice} | {settings.speech_persona_profile}"
-        )
-    else:
-        print("Voice     : LOCAL PC AUDIO DISABLED | external speech client")
-
-    print(
-        f"Persona   : FEMININE | "
-        f"adaptive relational presence="
-        f"{'ON' if settings.companion_enabled else 'OFF'}"
+        f"Brain     : {'READY' if ok else 'ATTENTION'} "
+        f"| {settings.model}"
     )
     print(
-        f"Language  : pt-PT refinement=ON | "
-        f"personal learning={'ON' if settings.personal_learning_enabled else 'OFF'}"
-    )
-
-    if local_voice_enabled:
-        selected_stt_model = (
-            settings.voice_v2_stt_model
-            if voice_engine_state.get("effective") == "v2"
-            else settings.stt_model
-        )
-        selected_stt_device = (
-            settings.voice_v2_stt_device
-            if voice_engine_state.get("effective") == "v2"
-            else settings.stt_device
-        )
-        print(
-            f"Listening : {voice_engine_state.get('effective', 'legacy').upper()} | "
-            f"Whisper {selected_stt_model} ({selected_stt_device})"
-        )
-        if voice_engine_state.get("fallback_reason"):
-            print(
-                "Voice v2  : FALLBACK -> legacy | "
-                f"{voice_engine_state['fallback_reason']}"
-            )
-        elif voice_engine_state.get("effective") == "v2":
-            print("Voice v2  : WASAPI + openWakeWord + Silero VAD | READY")
-
-        try:
-            startup_mic = microphone.status().get("device") or {}
-            print(
-                "A/V       : webcam-primary="
-                + ("ON" if settings.av_webcam_primary_enabled else "OFF")
-                + f" | mic={startup_mic.get('name') or 'AUTO'}"
-                + f" | camera={settings.vision_camera_index}"
-            )
-        except Exception:
-            print(
-                "A/V       : webcam-primary="
-                + ("ON" if settings.av_webcam_primary_enabled else "OFF")
-                + f" | camera={settings.vision_camera_index}"
-            )
-
-        print(
-            "ListenGuard: "
-            + ("ON" if settings.listening_watchdog_enabled else "OFF")
-            + " | auto-recovery="
-            + ("ON" if settings.listening_watchdog_enabled else "OFF")
-        )
-    else:
-        print("Listening : OFF | STT=OFF | Wake=OFF")
-        print(
-            "A/V       : camera="
-            + str(settings.vision_camera_index)
-            + " | mic=DISABLED"
-        )
-        print("ListenGuard: OFF")
-
-    speed_detail = (
-        f"STT beam={settings.stt_beam_size}"
-        if local_voice_enabled
-        else "local voice=OFF"
+        f"Memory    : {memory_startup_status} | Memory 1.0"
     )
     print(
-        f"Speed     : Governor={performance.mode.upper()} | "
-        f"FAST PATH + selective tools | {speed_detail}"
+        f"Security  : {security_startup_status}"
     )
-    print(
-        f"AI VRAM   : native={getattr(settings, 'local_llm_backend', 'native_llama')} | "
-        f"vision={getattr(settings, 'vision_keep_alive', '2m')} | "
-        f"shutdown-release={'ON' if getattr(settings, 'ollama_release_on_shutdown', True) else 'OFF'}"
-    )
-    if local_voice_enabled:
-        print(
-            f"Voice Lock: {'ON' if speaker.config.enabled else 'OFF'} | "
-            f"{'ENROLLED' if speaker.enrolled() else 'NOT ENROLLED'} | "
-            f"mode={settings.speaker_enforcement_mode}"
-            + (
-                " | AUTO-DISABLED"
-                if speaker_lock_health.get("disabled")
-                else ""
-            )
-        )
-        wake_label = (
-            "OPENWAKEWORD/READY"
-            if voice_engine_state.get("effective") == "v2" and wake.enrolled()
-            else "ACOUSTIC/READY"
-            if wake.enrolled()
-            else "NOT READY"
-        )
-        print(f"Wake Word : {settings.wake_keyword.upper()} | {wake_label}")
-        print(
-            "Interrupt : CALA-TE | "
-            + (
-                "READY"
-                if wake.interrupt_enrolled()
-                else "NEEDS /interrupt enroll"
-            )
-        )
-        print(
-            f"Silence   : "
-            f"{'READY' if settings.silence_latch_enabled else 'OFF'} | "
-            "wake-release=ON"
-        )
-    else:
-        print("Voice Lock: OFF | local PC voice retired")
-        print("Wake Word : OFF")
-        print("Interrupt : OFF")
-        print(
-            f"Silence   : "
-            f"{'READY' if settings.silence_latch_enabled else 'OFF'} | "
-            "text-output gate"
-        )
+    print("Web       : NOT INTEGRATED")
+    print("Debug     : OFF | /debug on")
 
-    print(f"Activity  : {'ON' if settings.activity_trace_enabled else 'OFF'} | live={'ON' if settings.activity_trace_live else 'OFF'} | /activity on")
-    print(f"Brain     : LOCAL PRIMARY | {settings.model}")
-    print("External AI: HARD BLOCKED | Web research -> local Qwen synthesis")
-    print(f"Research  : DIRECT WEB -> LOCAL SYNTHESIS | {'READY' if research_engine.available() else 'OFF'}")
-    print("Authority : OWNER/STRICT | autonomous external actions require permission")
-    kali_state = kali_bridge.status()
-    print(f"Kali LAB  : {'READY' if kali_state.get('configured') and kali_state.get('ready_scope') else 'NOT CONFIGURED/NOT READY'} | fixed profiles only")
-    ok, msg = brain.health_check()
-    print(f"Native LLM: {'ONLINE' if ok else 'ATTENTION'}")
-    print(f"            {msg}")
-    briefing = build_startup_briefing()
-    briefing_text = briefing.get("text")
-    if briefing_text:
-        print(f"\nJARVIS > {briefing_text}\n")
-        speech.say(briefing_text)
-    print("\nTerminal silencioso ativo. /debug on para diagnóstico. /help para ajuda.\n")
+    if not ok:
+        print(f"Warning   : {msg}")
+
+    print()
 
     def proactive_callback(
         message: str,
@@ -2900,8 +2104,6 @@ def main() -> None:
             chars=len(final_message),
         )
         print(f"\nJARVIS > {final_message}\n")
-        if cognition.state().get("proactive_speech_enabled", True):
-            speech.say(final_message)
 
     proactive_service = ProactivePresenceService(
         proactive_callback,
@@ -2926,8 +2128,6 @@ def main() -> None:
             chars=len(message),
         )
         print(f"\nJARVIS > {message}\n")
-        if settings.speech_enabled:
-            speech.say(message)
 
     companion_service = CompanionPresenceService(
         brain.plan_companion_initiative,
@@ -2951,17 +2151,15 @@ def main() -> None:
         activity_trace=activity_trace,
         companion_service=companion_service,
         silence_latch=silence_latch,
-        wake=wake,
         planner_provider=lambda: skill_context.services.get("task_planner"),
         reflection_provider=brain.plan_idle_reflection,
     )
 
     def reminder_callback(message: str) -> None:
-        print(f"\nJARVIS > {message}\n")
         if silence_latch.active():
             silence_latch.mark_suppressed_response("proactive")
             return
-        speech.say(message)
+        print(f"\nJARVIS > {message}\n")
 
     reminder_service = ReminderService(
         events,
@@ -3090,7 +2288,6 @@ def main() -> None:
                 print(
                     f"\nJARVIS > {answer}\n"
                 )
-                speech.say(answer)
             return
 
         if action in {"external_learning", "external_learning_resume_query"}:
@@ -3193,7 +2390,6 @@ def main() -> None:
             print(
                 f"JARVIS > {message}"
             )
-            speech.say(message)
 
             if (
                 action
@@ -3227,9 +2423,6 @@ def main() -> None:
                             f"\nJARVIS > {answer}\n"
                         )
 
-                        speech.say(
-                            answer
-                        )
 
             return
 
@@ -3249,17 +2442,16 @@ def main() -> None:
             if not text:
                 continue
 
-            # Accept both "/wake on" and "\\wake on".
             if text.startswith("\\"):
                 text = "/" + text[1:]
 
             lower = text.lower()
 
-            # Resolve explicit OWNER terminal wake before specialized intent
+            # Resolve explicit OWNER textual addressing before specialized intent
             # parsers.  In 0.26.2 this happened only near the generic model
             # route, so a valid authorization such as
             # "Jarvis, tens a minha autorização ..." could be parsed against
-            # the unstripped wake prefix or bypass the local authority path.
+            # the unstripped JARVIS address prefix or bypass the local authority path.
             # Slash commands remain usable while silent without implicitly
             # releasing the latch.
             if (
@@ -3267,14 +2459,14 @@ def main() -> None:
                 and not is_silence_command(text)
                 and not lower.startswith("/")
             ):
-                wake_match = re.match(
+                jarvis_prefix_match = re.match(
                     r"^\s*jarvis(?=$|[\s,;:!?.-])[\s,;:!?.-]*(.*)$",
                     text,
                     flags=re.IGNORECASE,
                 )
-                if wake_match is not None:
-                    silence_latch.release(source="explicit_terminal_wake")
-                    text = str(wake_match.group(1) or "").strip()
+                if jarvis_prefix_match is not None:
+                    silence_latch.release(source="explicit_terminal_address")
+                    text = str(jarvis_prefix_match.group(1) or "").strip()
                     if not text:
                         print("JARVIS > Diga, Senhor.")
                         continue
@@ -3283,7 +2475,6 @@ def main() -> None:
                     silence_latch.release(source="explicit_terminal_input")
 
             if is_silence_command(text):
-                speech.stop(clear_queue=True)
                 silence_latch.latch(reason="owner_interrupt", source="terminal")
                 continue
 
@@ -3294,17 +2485,12 @@ def main() -> None:
                 print("JARVIS >", json.dumps(silence_latch.release(source="owner_cli"), ensure_ascii=False, indent=2))
                 continue
             if lower == "/silence on":
-                speech.stop(clear_queue=True)
                 print("JARVIS >", json.dumps(silence_latch.latch(reason="owner_cli", source="terminal"), ensure_ascii=False, indent=2))
                 continue
             if lower == "/activity on":
-                settings.activity_trace_live = True
-                Settings.update_file_values({"activity_trace_live": True})
                 print("JARVIS >", json.dumps(activity_trace.set_live(True), ensure_ascii=False, indent=2))
                 continue
             if lower == "/activity off":
-                settings.activity_trace_live = False
-                Settings.update_file_values({"activity_trace_live": False})
                 print("JARVIS >", json.dumps(activity_trace.set_live(False), ensure_ascii=False, indent=2))
                 continue
             if lower == "/activity status":
@@ -3317,43 +2503,116 @@ def main() -> None:
             if lower in {"/quit", "/qquit", "/exit", "sair"}:
                 print("JARVIS > Núcleo desligado.")
                 break
-            local_voice_command = (
-                lower in {"/listen", "/ptt"}
-                or lower.startswith("/voice")
-                or lower.startswith("/stt")
-                or lower.startswith("/mic")
-                or lower.startswith("/listening")
-                or lower.startswith("/wake")
-                or lower.startswith("/voiceid")
-                or lower.startswith("/interrupt")
-                or lower.startswith("/av mic ")
-                or lower in {
-                    "/av status",
-                    "/av microphones",
-                    "/av probe",
-                    "/av auto",
-                    "/av webcam on",
-                    "/av webcam off",
-                }
-                or lower in {
-                    "/mind speech on",
-                    "/mind speech off",
-                }
-            )
-
-            if not local_voice_enabled and local_voice_command:
-                events.emit(
-                    "LOCAL_VOICE_COMMAND_BLOCKED",
-                    command=lower[:120],
-                )
-                print(
-                    "JARVIS > A voz local do PC foi retirada da arquitetura. "
-                    "Este comando já não está disponível."
-                )
+            if lower == "/help":
+                print(help_text())
+                continue
+            if lower in {"/help all", "/commands"}:
+                print(help_text_full())
                 continue
 
-            if lower == "/help":
-                print(help_text()); continue
+            if lower == "/status":
+                brain_ok, brain_msg = brain.health_check()
+
+                try:
+                    memory1_store.assert_readable()
+                    memory1_revision = (
+                        memory1_store.canonical_revision()
+                    )
+                    memory1_status = (
+                        f"READY | rev={memory1_revision}"
+                    )
+                except Exception as exc:
+                    memory1_status = (
+                        "ATTENTION | "
+                        f"{type(exc).__name__}"
+                    )
+
+                try:
+                    security_pending = len(
+                        security.pending()
+                    )
+                    security_status = (
+                        f"READY | pending={security_pending}"
+                    )
+                except Exception as exc:
+                    security_status = (
+                        "ATTENTION | "
+                        f"{type(exc).__name__}"
+                    )
+
+                try:
+                    research_status = (
+                        "READY"
+                        if research_engine.available()
+                        else "OFF"
+                    )
+                except Exception as exc:
+                    research_status = (
+                        "ATTENTION | "
+                        f"{type(exc).__name__}"
+                    )
+
+                print("JARVIS STATUS")
+                print(
+                    f"Core      : READY | {__version__}"
+                )
+                print(
+                    f"Brain     : "
+                    f"{'READY' if brain_ok else 'ATTENTION'} "
+                    f"| {settings.model}"
+                )
+                print(
+                    f"Memory1   : {memory1_status}"
+                )
+                print(
+                    f"Security  : {security_status}"
+                )
+                print(
+                    f"Research  : {research_status}"
+                )
+                print(
+                    "Debug     : "
+                    + (
+                        "ON"
+                        if debug_terminal["enabled"]
+                        else "OFF"
+                    )
+                )
+                print("Web       : NOT INTEGRATED")
+
+                if not brain_ok:
+                    print(f"Warning   : {brain_msg}")
+
+                continue
+
+            if lower == "/test quick":
+                print(
+                    "JARVIS > QUICK TEST: running..."
+                )
+
+                result = run_quick_tests()
+
+                if result.get("ok"):
+                    print(
+                        "JARVIS > QUICK TEST: OK | "
+                        f"{result.get('tests')} tests | "
+                        f"{result.get('patterns')} suites"
+                    )
+                else:
+                    print(
+                        "JARVIS > QUICK TEST: FAILED | "
+                        f"{result.get('pattern')}"
+                    )
+
+                    output = str(
+                        result.get("output") or ""
+                    ).strip()
+
+                    if output:
+                        print(output)
+
+                continue
+
             if lower == "/health":
                 ok, msg = brain.health_check()
                 print(f"JARVIS > {'OK' if ok else 'ATENÇÃO'}: {msg}"); continue
@@ -3373,111 +2632,6 @@ def main() -> None:
                 app_name = text.split(maxsplit=1)[1].strip()
                 print(json.dumps(apps.diagnose(app_name), ensure_ascii=False, indent=2))
                 continue
-            if lower == "/voice status":
-                print(
-                    "JARVIS >",
-                    json.dumps(
-                        {
-                            "speech": speech.status(),
-                            "input_engine": dict(voice_engine_state),
-                            "listening": wake.status(),
-                            "microphone": microphone.status(),
-                            "stt_residency": microphone.stt_residency_status(),
-                        },
-                        ensure_ascii=False,
-                        indent=2,
-                    ),
-                )
-                continue
-            if lower == "/voice doctor":
-                selected_doctor = wake.doctor()
-                print(
-                    "JARVIS >",
-                    json.dumps(
-                        {
-                            "engine": dict(voice_engine_state),
-                            "doctor": selected_doctor,
-                            "stt": microphone.status(),
-                            "setup_v2": ".\\setup_voice_v2.ps1",
-                        },
-                        ensure_ascii=False,
-                        indent=2,
-                    ),
-                )
-                continue
-            if lower in {"/voice benchmark", "/voice latency"}:
-                benchmark = (
-                    wake.benchmark()
-                    if hasattr(wake, "benchmark")
-                    else {
-                        "ok": False,
-                        "error": "BENCHMARK_NOT_SUPPORTED_BY_LEGACY_ENGINE",
-                        "message": "Instala/ativa o Voice Engine v2 para benchmark do wake.",
-                    }
-                )
-                if lower == "/voice latency":
-                    benchmark = {
-                        "wake": benchmark,
-                        "stt": microphone.stt_residency_status(),
-                        "vram_handoff_enabled": bool(getattr(settings, "voice_v2_vram_handoff_enabled", True)),
-                    }
-                print("JARVIS >", json.dumps(benchmark, ensure_ascii=False, indent=2))
-                continue
-            if lower == "/voice release":
-                result = microphone.release_stt()
-                print("JARVIS >", json.dumps(result, ensure_ascii=False, indent=2))
-                continue
-            if lower.startswith("/voice backend "):
-                wanted = lower.split(maxsplit=2)[2].strip()
-                if wanted not in {"auto", "v2", "legacy"}:
-                    print("JARVIS > Backend inválido. Usa: auto, v2 ou legacy.")
-                    continue
-                settings.voice_input_backend = wanted
-                Settings.update_file_values({"voice_input_backend": wanted})
-                print(
-                    "JARVIS > Backend de entrada guardado como "
-                    f"{wanted}. Reinicia o JARVIS para aplicar. "
-                    "Para v2 executa primeiro .\\setup_voice_v2.ps1."
-                )
-                continue
-            if lower == "/voice test":
-                speech.test_phrase()
-                print("JARVIS > Teste de voz enviado para os altifalantes.")
-                continue
-            if lower == "/voice on":
-                speech.set_enabled(True)
-                print("JARVIS > Voz ativada.")
-                speech.say("Voz ativada. Estou online.")
-                continue
-            if lower == "/voice off":
-                speech.set_enabled(False)
-                print("JARVIS > Voz desativada.")
-                continue
-            if lower == "/voice stop":
-                speech.stop(clear_queue=True)
-                print("JARVIS > Fala interrompida.")
-                continue
-            if lower == "/voice feminine":
-                speech.config.edge_voice = "pt-PT-RaquelNeural"
-                speech.config.rate = "-9%"
-                speech.config.pitch = "-8Hz"
-                speech.config.persona_profile = "velvet_feminine"
-                speech.config.sapi_prefer_gender = "Female"
-                settings.speech_voice = speech.config.edge_voice
-                settings.speech_rate = speech.config.rate
-                settings.speech_pitch = speech.config.pitch
-                settings.speech_persona_profile = speech.config.persona_profile
-                settings.speech_sapi_prefer_gender = speech.config.sapi_prefer_gender
-                Settings.update_file_values({
-                    "speech_voice": settings.speech_voice,
-                    "speech_rate": settings.speech_rate,
-                    "speech_pitch": settings.speech_pitch,
-                    "speech_persona_profile": settings.speech_persona_profile,
-                    "speech_sapi_prefer_gender": settings.speech_sapi_prefer_gender,
-                })
-                print("JARVIS > Perfil de voz feminina Velvet aplicado: RaquelNeural.")
-                speech.say("Perfil feminino aplicado, Senhor. Assim está melhor.")
-                continue
             if lower == "/companion status":
                 print("JARVIS >", json.dumps(companion_service.status(), ensure_ascii=False, indent=2))
                 continue
@@ -3493,144 +2647,6 @@ def main() -> None:
                 Settings.update_file_values({"companion_enabled": False})
                 print("JARVIS > Presença social adaptativa desativada.")
                 continue
-            if lower == "/stt status":
-                payload = {
-                    "ok": True,
-                    "language": microphone.config.language,
-                    "model": microphone.config.model,
-                    "device": microphone.config.stt_device,
-                    "backend": microphone.status().get("model_backend"),
-                    "command_beam": microphone.config.command_beam_size,
-                    "retry_beam": microphone.config.command_retry_beam_size,
-                    "normalize_audio": microphone.config.normalize_command_audio,
-                    "target_rms": microphone.config.command_target_rms,
-                    "max_gain": microphone.config.command_max_gain,
-                    "wake_command_silence_seconds": wake.config.command_silence_seconds,
-                    "wake_command_preroll_seconds": wake.config.command_preroll_seconds,
-                    "wake_command_threshold_ratio": wake.config.command_threshold_ratio,
-                }
-                print("JARVIS >", json.dumps(payload, ensure_ascii=False, indent=2))
-                continue
-            if lower == "/stt test":
-                speech.stop(clear_queue=True)
-                was_running = bool(wake.status().get("running"))
-                if was_running:
-                    wake.suspend()
-                print("JARVIS > Teste STT preparado.")
-                wav_path = None
-                try:
-                    # 0.26.2: the previous text told the OWNER to wait for
-                    # "A ouvir" but never actually printed it.  That could
-                    # leave the capture listening only to room noise.
-                    print("JARVIS > A ouvir... fala agora.")
-                    capture = microphone.capture_phrase()
-                    if not capture.get("ok"):
-                        print("JARVIS >", json.dumps(capture, ensure_ascii=False, indent=2))
-                    else:
-                        wav_path = capture.get("wav_path")
-                        result = microphone.transcribe_command_file(wav_path)
-                        result["capture"] = {k: v for k, v in capture.items() if k != "wav_path"}
-                        if not result.get("ok") and wav_path:
-                            # Keep failed diagnostic audio instead of deleting
-                            # the only evidence needed to understand the mic.
-                            try:
-                                diagnostic_dir = Path(settings.log_dir) / "audio_diagnostics"
-                                diagnostic_dir.mkdir(parents=True, exist_ok=True)
-                                source_path = Path(wav_path)
-                                diagnostic_path = diagnostic_dir / source_path.name
-                                diagnostic_path.write_bytes(source_path.read_bytes())
-                                result["diagnostic_wav"] = str(diagnostic_path)
-                                events.emit(
-                                    "STT_DIAGNOSTIC_AUDIO_SAVED",
-                                    path=str(diagnostic_path),
-                                    reason=result.get("error") or "transcription_failed",
-                                )
-                            except Exception as exc:
-                                result["diagnostic_save_error"] = f"{type(exc).__name__}: {exc}"
-                        print("JARVIS >", json.dumps(result, ensure_ascii=False, indent=2))
-                finally:
-                    microphone.cleanup_capture(wav_path)
-                    if was_running:
-                        wake.resume()
-                continue
-            if lower == "/listening status":
-                combined = listening_watchdog.status()
-                try:
-                    combined["microphone"] = microphone.status()
-                except Exception as exc:
-                    combined["microphone"] = {
-                        "ok": False,
-                        "error": f"{type(exc).__name__}: {exc}",
-                    }
-                print(
-                    "JARVIS >",
-                    json.dumps(combined, ensure_ascii=False, indent=2),
-                )
-                continue
-            if lower == "/listening recover":
-                result = listening_watchdog.recover(reason="owner_manual")
-                print(
-                    "JARVIS >",
-                    json.dumps(result, ensure_ascii=False, indent=2),
-                )
-                continue
-
-            if lower == "/av status":
-                vision_service = skill_context.services.get("vision")
-                payload = {
-                    "ok": True,
-                    "webcam_primary": bool(settings.av_webcam_primary_enabled),
-                    "webcam_name_hint": settings.av_webcam_name_hint,
-                    "microphone": microphone.status(),
-                    "wake": wake.status(),
-                    "vision": (
-                        vision_service.status()
-                        if vision_service is not None
-                        else {"ok": False, "error": "VISION_SERVICE_UNAVAILABLE"}
-                    ),
-                }
-                print("JARVIS >", json.dumps(payload, ensure_ascii=False, indent=2))
-                continue
-            if lower == "/av microphones":
-                try:
-                    rows = []
-                    for dev in microphone.list_devices():
-                        score = webcam_audio_score(dev.get("name", ""), settings.av_webcam_name_hint)
-                        rows.append({
-                            **dev,
-                            "webcam_score": score,
-                            "probable_webcam_mic": score >= 1200,
-                        })
-                    print("JARVIS >", json.dumps(rows, ensure_ascii=False, indent=2))
-                except Exception as exc:
-                    print(f"JARVIS > Erro ao listar entradas A/V: {type(exc).__name__}: {exc}")
-                continue
-            if lower == "/av probe":
-                was_running = bool(wake.status().get("running"))
-                if was_running:
-                    wake.suspend()
-                try:
-                    print("JARVIS > A testar entradas de áudio. Fala normalmente durante alguns segundos.")
-                    rows = microphone.probe_devices(limit=12)
-                    live = [row for row in rows if row.get("ok")]
-                    selected_probe = microphone.select_best_probe(rows)
-                    payload = {
-                        "ok": bool(live),
-                        "live_inputs": len(live),
-                        "selected_candidate": selected_probe,
-                        "devices": rows,
-                    }
-                    print("JARVIS >", json.dumps(payload, ensure_ascii=False, indent=2))
-                except Exception as exc:
-                    print("JARVIS >", json.dumps({
-                        "ok": False,
-                        "error": type(exc).__name__,
-                        "message": str(exc),
-                    }, ensure_ascii=False, indent=2))
-                finally:
-                    if was_running:
-                        wake.resume()
-                continue
             if lower == "/av cameras":
                 vision_service = skill_context.services.get("vision")
                 result = (
@@ -3638,133 +2654,6 @@ def main() -> None:
                     if vision_service is not None
                     else {"ok": False, "error": "VISION_SERVICE_UNAVAILABLE"}
                 )
-                print("JARVIS >", json.dumps(result, ensure_ascii=False, indent=2))
-                continue
-            if lower == "/av auto":
-                result = {"ok": True, "microphone": None, "camera": None}
-                try:
-                    candidates = microphone._input_device_candidates()
-                    was_running = bool(wake.status().get("running"))
-                    if was_running:
-                        wake.suspend()
-                    try:
-                        probes = microphone.probe_devices(limit=12)
-                    finally:
-                        if was_running:
-                            wake.resume()
-                    probe_by_index = {
-                        int(row["index"]): row
-                        for row in probes
-                        if row.get("index") is not None
-                    }
-                    selected_probe = microphone.select_best_probe(probes)
-                    webcam = None
-                    if selected_probe is not None:
-                        selected_idx = int(selected_probe["index"])
-                        chosen = next(((idx, dev) for idx, dev in candidates if int(idx) == selected_idx), None)
-                        if chosen is not None:
-                            webcam = (chosen[0], chosen[1], selected_probe)
-                    if webcam is not None:
-                        idx, dev, probe = webcam
-                        name = str(dev.get("name", ""))
-                        microphone.config.device = int(idx)
-                        microphone.config.preferred_device_index = int(idx)
-                        microphone.config.prefer_webcam_audio = True
-                        wake.config.preferred_device_index = int(idx)
-                        if hasattr(wake.config, "preferred_device_name"):
-                            wake.config.preferred_device_name = name
-                        microphone.config.webcam_name_hint = name
-                        wake.config.prefer_webcam_audio = True
-                        wake.config.webcam_name_hint = name
-                        settings.mic_device = int(idx)
-                        settings.av_webcam_primary_enabled = True
-                        settings.av_webcam_name_hint = name
-                        settings.voice_v2_device_name = name
-                        result["microphone"] = {
-                            "index": int(idx),
-                            "name": name,
-                            "signal_probe": probe,
-                        }
-                    else:
-                        result["microphone"] = {
-                            "ok": False,
-                            "error": "NO_LIVE_MIC_INPUT",
-                            "probes": probes,
-                        }
-                except Exception as exc:
-                    result["microphone"] = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
-
-                vision_service = skill_context.services.get("vision")
-                if vision_service is not None:
-                    cameras = vision_service.list_cameras()
-                    rows = cameras.get("cameras") or []
-                    if rows:
-                        selected = next((row for row in rows if row.get("configured")), rows[0])
-                        cam_idx = int(selected["index"])
-                        vision_service.set_camera_index(cam_idx)
-                        settings.vision_camera_index = cam_idx
-                        result["camera"] = selected
-                    else:
-                        result["camera"] = cameras
-                Settings.update_file_values({
-                    "mic_device": settings.mic_device,
-                    "av_webcam_primary_enabled": settings.av_webcam_primary_enabled,
-                    "av_webcam_name_hint": settings.av_webcam_name_hint,
-                    "voice_v2_device_name": settings.voice_v2_device_name,
-                    "vision_camera_index": settings.vision_camera_index,
-                })
-                if isinstance(result.get("microphone"), dict) and result["microphone"].get("index") is not None:
-                    result["listening_recovery"] = listening_watchdog.recover(reason="owner_av_auto")
-                print("JARVIS >", json.dumps(result, ensure_ascii=False, indent=2))
-                continue
-            if lower == "/av webcam on":
-                settings.av_webcam_primary_enabled = True
-                microphone.config.prefer_webcam_audio = True
-                wake.config.prefer_webcam_audio = True
-                Settings.update_file_values({"av_webcam_primary_enabled": True})
-                recovered = listening_watchdog.recover(reason="owner_av_webcam_on")
-                print("JARVIS >", json.dumps({"ok": True, "webcam_primary": True, "listening_recovery": recovered}, ensure_ascii=False, indent=2))
-                continue
-            if lower == "/av webcam off":
-                settings.av_webcam_primary_enabled = False
-                microphone.config.prefer_webcam_audio = False
-                wake.config.prefer_webcam_audio = False
-                Settings.update_file_values({"av_webcam_primary_enabled": False})
-                recovered = listening_watchdog.recover(reason="owner_av_webcam_off")
-                print("JARVIS >", json.dumps({"ok": True, "webcam_primary": False, "listening_recovery": recovered}, ensure_ascii=False, indent=2))
-                continue
-            if lower.startswith("/av mic "):
-                raw_index = text[len("/av mic "):].strip()
-                try:
-                    index = int(raw_index)
-                    devices = microphone.list_devices()
-                    selected = next((row for row in devices if int(row["index"]) == index), None)
-                    if selected is None:
-                        raise ValueError("INVALID_MIC_DEVICE")
-                    name = str(selected["name"])
-                    microphone.config.device = index
-                    microphone.config.preferred_device_index = index
-                    microphone.config.prefer_webcam_audio = True
-                    wake.config.preferred_device_index = index
-                    if hasattr(wake.config, "preferred_device_name"):
-                        wake.config.preferred_device_name = name
-                    microphone.config.webcam_name_hint = name
-                    wake.config.prefer_webcam_audio = True
-                    wake.config.webcam_name_hint = name
-                    settings.mic_device = index
-                    settings.av_webcam_primary_enabled = True
-                    settings.av_webcam_name_hint = name
-                    settings.voice_v2_device_name = name
-                    Settings.update_file_values({
-                        "mic_device": index,
-                        "av_webcam_primary_enabled": True,
-                        "av_webcam_name_hint": name,
-                        "voice_v2_device_name": name,
-                    })
-                    recovered = listening_watchdog.recover(reason="owner_av_mic_bind")
-                    result = {"ok": True, "microphone": selected, "listening_recovery": recovered}
-                except Exception as exc:
-                    result = {"ok": False, "error": type(exc).__name__, "message": str(exc)}
                 print("JARVIS >", json.dumps(result, ensure_ascii=False, indent=2))
                 continue
             if lower.startswith("/av camera "):
@@ -3781,331 +2670,6 @@ def main() -> None:
                 except Exception as exc:
                     result = {"ok": False, "error": type(exc).__name__, "message": str(exc)}
                 print("JARVIS >", json.dumps(result, ensure_ascii=False, indent=2))
-                continue
-
-            if lower == "/mic list":
-                try:
-                    devices = microphone.list_devices()
-                    if not devices:
-                        print("JARVIS > Não encontrei microfones de entrada.")
-                    for d in devices:
-                        marker = "*" if d.get("is_selected") else ("D" if d["is_default"] else " ")
-                        print(
-                            f"{marker} [{d['index']}] {d['name']} | "
-                            f"{d['input_channels']} canal(is) | {d['default_samplerate']} Hz"
-                        )
-                    print("JARVIS > * = microfone selecionado pelo JARVIS | D = predefinido do Windows")
-                except Exception as exc:
-                    print(f"JARVIS > Erro ao listar microfones: {type(exc).__name__}: {exc}")
-                continue
-            if lower == "/mic status":
-                print("JARVIS >", json.dumps(microphone.status(), ensure_ascii=False, indent=2))
-                continue
-            if lower == "/mic doctor":
-                try:
-                    candidates = microphone._input_device_candidates()
-                    rows = []
-                    for position, (idx, dev) in enumerate(candidates, start=1):
-                        rows.append({
-                            "position": position,
-                            "index": int(idx),
-                            "name": str(dev.get("name", "")),
-                            "hostapi": str(dev.get("_hostapi_name", "")),
-                            "channels": int(dev.get("max_input_channels", 0)),
-                            "samplerate": int(
-                                float(
-                                    dev.get("default_samplerate", 0)
-                                    or 0
-                                )
-                            ),
-                        })
-                    print(
-                        "JARVIS >",
-                        json.dumps(
-                            rows,
-                            ensure_ascii=False,
-                            indent=2,
-                        ),
-                    )
-                except Exception as exc:
-                    print(
-                        f"JARVIS > Erro no diagnóstico do microfone: "
-                        f"{type(exc).__name__}: {exc}"
-                    )
-                continue
-
-            if lower == "/mic default":
-                result = microphone.set_device(None)
-                print("JARVIS >", json.dumps(result, ensure_ascii=False, indent=2))
-                continue
-            if lower.startswith("/mic use "):
-                raw_index = text.split(maxsplit=2)[2].strip()
-                try:
-                    index = int(raw_index)
-                    result = microphone.set_device(index)
-                    if result.get("ok"):
-                        selected = dict(result.get("device") or {})
-                        name = str(selected.get("name") or "").strip()
-                        rate = int(selected.get("default_samplerate") or 0)
-                        channels = int(selected.get("input_channels") or 0)
-                        microphone.config.preferred_device_name = name or microphone.config.preferred_device_name
-                        if rate > 0:
-                            microphone.config.preferred_samplerate = rate
-                        wake.config.preferred_device_index = index
-                        if hasattr(wake.config, "preferred_device_name") and name:
-                            wake.config.preferred_device_name = name
-                        if hasattr(wake.config, "preferred_samplerate") and rate > 0:
-                            wake.config.preferred_samplerate = rate
-                        settings.mic_device = index
-                        if name:
-                            settings.mic_preferred_device_name = name
-                            settings.voice_v2_device_name = name
-                            settings.av_webcam_name_hint = name
-                        if rate > 0:
-                            settings.mic_preferred_samplerate = rate
-                        settings.mic_preferred_handsfree = "hands-free" in name.lower() or "hands free" in name.lower()
-                        Settings.update_file_values({
-                            "mic_device": settings.mic_device,
-                            "mic_preferred_device_name": settings.mic_preferred_device_name,
-                            "mic_preferred_handsfree": settings.mic_preferred_handsfree,
-                            "mic_preferred_samplerate": settings.mic_preferred_samplerate,
-                            "voice_v2_device_name": settings.voice_v2_device_name,
-                            "av_webcam_name_hint": settings.av_webcam_name_hint,
-                        })
-                        recovery = listening_watchdog.recover(reason="owner_mic_use")
-                        result["persisted"] = True
-                        result["channels"] = channels
-                        result["listening_recovery"] = recovery
-                except ValueError:
-                    result = {"ok": False, "error": "INVALID_INDEX", "value": raw_index}
-                print("JARVIS >", json.dumps(result, ensure_ascii=False, indent=2))
-                continue
-            if lower == "/voiceid status":
-                print("JARVIS >", json.dumps(speaker.status(), ensure_ascii=False, indent=2))
-                continue
-            if lower == "/voiceid doctor":
-                result = speaker.ensure_ready()
-                print("JARVIS >", json.dumps(result, ensure_ascii=False, indent=2))
-                continue
-            if lower == "/voiceid on":
-                speaker.set_enabled(True)
-                print("JARVIS > Voice Lock ativado.")
-                continue
-            if lower == "/voiceid off":
-                speaker.set_enabled(False)
-                print("JARVIS > Voice Lock desativado.")
-                continue
-            if lower.startswith("/voiceid threshold "):
-                raw = text.split(maxsplit=2)[2].strip()
-                try:
-                    value = speaker.set_threshold(float(raw))
-                    print(f"JARVIS > Limiar Voice Lock definido para {value:.2f}.")
-                except ValueError:
-                    print("JARVIS > Valor inválido.")
-                continue
-            if lower == "/voiceid delete":
-                removed = speaker.delete_profile()
-                print("JARVIS >", "Perfil apagado." if removed else "Não existe perfil para apagar.")
-                continue
-            if lower == "/voiceid enroll":
-                speech.stop(clear_queue=True)
-
-                readiness = speaker.ensure_ready()
-                if not readiness.get("ok"):
-                    print("JARVIS >", json.dumps(readiness, ensure_ascii=False, indent=2))
-                    continue
-
-                total = max(3, int(settings.speaker_enrollment_samples))
-                captures = []
-                phrases = [
-                    "Jarvis, confirma a minha identidade e fica pronto.",
-                    "Jarvis, abre o Brave e verifica o estado do computador.",
-                    "Jarvis, coloca o volume a trinta por cento.",
-                    "Jarvis, mostra a temperatura atual da gráfica.",
-                    "Jarvis, estou pronto para continuar.",
-                ]
-                print(
-                    f"JARVIS > Vou registar {total} amostras da tua voz. "
-                    "Fala normalmente e mantém o JBL na posição habitual."
-                )
-
-                failed = False
-                try:
-                    for i in range(total):
-                        phrase = phrases[i % len(phrases)]
-                        print(f"\nAmostra {i+1}/{total}. Diz: {phrase}")
-                        capture = microphone.capture_phrase()
-                        if not capture.get("ok"):
-                            print("JARVIS >", json.dumps(capture, ensure_ascii=False, indent=2))
-                            failed = True
-                            break
-                        captures.append(capture["wav_path"])
-
-                        # Give Bluetooth/Windows time to release the capture
-                        # endpoint before the next enrollment sample.
-                        if i < total - 1:
-                            sleep(max(0.5, float(settings.mic_stream_recovery_seconds)))
-
-                    if not failed:
-                        try:
-                            result = speaker.enroll(captures)
-                        except ModuleNotFoundError:
-                            result = {
-                                "ok": False,
-                                "error": "VOICEID_DEPENDENCIES_MISSING",
-                                "message": "Executa .\\setup_voiceid.ps1 e tenta novamente.",
-                            }
-                        except Exception as exc:
-                            result = {
-                                "ok": False,
-                                "error": type(exc).__name__,
-                                "message": str(exc),
-                            }
-                        print("JARVIS >", json.dumps(result, ensure_ascii=False, indent=2))
-                finally:
-                    for wav in captures:
-                        microphone.cleanup_capture(wav)
-                continue
-            if lower in {"/listen", "/ptt"}:
-                handle_voice_command(source="manual")
-                continue
-            if lower == "/wake enroll":
-                speech.stop(clear_queue=True)
-                was_running = bool(wake.status().get("running"))
-                if was_running:
-                    wake.suspend()
-
-                total = max(3, int(settings.wake_enrollment_samples))
-                captures = []
-                print(
-                    f"JARVIS > Vou registar {total} amostras. "
-                    "Em cada uma, diz apenas: Jarvis."
-                )
-                failed = False
-                try:
-                    for i in range(total):
-                        print(f"\nWake {i+1}/{total}: diz apenas 'Jarvis'.")
-                        capture = microphone.capture_phrase()
-                        if not capture.get("ok"):
-                            print(
-                                "JARVIS >",
-                                json.dumps(
-                                    capture,
-                                    ensure_ascii=False,
-                                    indent=2,
-                                ),
-                            )
-                            failed = True
-                            break
-                        captures.append(capture["wav_path"])
-                        if i < total - 1:
-                            sleep(
-                                max(
-                                    0.4,
-                                    float(
-                                        settings.mic_stream_recovery_seconds
-                                    ),
-                                )
-                            )
-
-                    if not failed:
-                        result = wake.enroll(captures)
-                        print(
-                            "JARVIS >",
-                            json.dumps(
-                                result,
-                                ensure_ascii=False,
-                                indent=2,
-                            ),
-                        )
-                finally:
-                    for wav in captures:
-                        microphone.cleanup_capture(wav)
-                    if was_running:
-                        wake.resume()
-                continue
-
-            if lower == "/wake test":
-                speech.stop(clear_queue=True)
-                was_running = bool(wake.status().get("running"))
-                if was_running:
-                    wake.suspend()
-                wav_path = None
-                try:
-                    print("JARVIS > Teste de wake preparado. Quando aparecer 'A ouvir...', diz apenas: Jarvis.")
-                    print("JARVIS > A ouvir... diz agora: Jarvis.")
-                    capture = microphone.capture_phrase()
-                    if not capture.get("ok"):
-                        print("JARVIS >", json.dumps(capture, ensure_ascii=False, indent=2))
-                        continue
-                    wav_path = capture.get("wav_path")
-                    if hasattr(wake, "test_wake_file"):
-                        result = wake.test_wake_file(wav_path)
-                    else:
-                        result = {"ok": False, "error": "WAKE_TEST_UNAVAILABLE_ON_BACKEND"}
-                    result["capture"] = {
-                        "duration_seconds": capture.get("duration_seconds"),
-                        "device": capture.get("device"),
-                        "device_name": capture.get("device_name"),
-                        "noise_rms": capture.get("noise_rms"),
-                        "max_rms": capture.get("max_rms"),
-                    }
-                    print("JARVIS >", json.dumps(result, ensure_ascii=False, indent=2))
-                finally:
-                    if wav_path:
-                        microphone.cleanup_capture(wav_path)
-                    if was_running:
-                        wake.resume()
-                continue
-
-            if lower == "/wake delete":
-                wake.stop()
-                removed = wake.delete_profile()
-                print(
-                    "JARVIS > Perfil wake apagado."
-                    if removed
-                    else "JARVIS > Não existia perfil wake."
-                )
-                continue
-
-            if lower == "/interrupt enroll":
-                speech.stop(clear_queue=True)
-                was_running = bool(wake.status().get("running"))
-                if was_running:
-                    wake.suspend()
-                total = max(3, int(settings.interrupt_enrollment_samples))
-                captures = []
-                print(f"JARVIS > Vou registar {total} amostras. Em cada uma, diz apenas: Cala-te.")
-                failed = False
-                try:
-                    for i in range(total):
-                        print(f"\nInterrupção {i+1}/{total}: diz apenas 'Cala-te'.")
-                        capture = microphone.capture_phrase()
-                        if not capture.get("ok"):
-                            print("JARVIS >", json.dumps(capture, ensure_ascii=False, indent=2))
-                            failed = True
-                            break
-                        captures.append(capture["wav_path"])
-                        if i < total - 1:
-                            sleep(max(0.4, float(settings.mic_stream_recovery_seconds)))
-                    if not failed:
-                        result = wake.enroll_interrupt(captures)
-                        print("JARVIS >", json.dumps(result, ensure_ascii=False, indent=2))
-                finally:
-                    for wav in captures:
-                        microphone.cleanup_capture(wav)
-                    if was_running:
-                        wake.resume()
-                continue
-
-            if lower == "/interrupt status":
-                status = wake.status()
-                print("JARVIS >", json.dumps({"enrolled": status.get("interrupt_enrolled"), "threshold": status.get("interrupt_threshold"), "phrase": "Cala-te"}, ensure_ascii=False, indent=2))
-                continue
-
-            if lower == "/interrupt delete":
-                removed = wake.delete_interrupt_profile()
-                print("JARVIS > Perfil 'Cala-te' apagado." if removed else "JARVIS > Não existia perfil 'Cala-te'.")
                 continue
 
             if lower == "/memory status":
@@ -4367,13 +2931,6 @@ def main() -> None:
             if lower == "/mind proactive off":
                 print("JARVIS >", json.dumps(cognition.set_mode(proactive_enabled=False), ensure_ascii=False, indent=2))
                 continue
-            if lower == "/mind speech on":
-                print("JARVIS >", json.dumps(cognition.set_mode(proactive_speech_enabled=True), ensure_ascii=False, indent=2))
-                continue
-            if lower == "/mind speech off":
-                print("JARVIS >", json.dumps(cognition.set_mode(proactive_speech_enabled=False), ensure_ascii=False, indent=2))
-                continue
-
             if lower == "/learning status":
                 learning_status = authorized_learning().status()
                 learning_status.update({
@@ -5055,34 +3612,6 @@ def main() -> None:
                     print("JARVIS >", json.dumps(inventory.label(parts[0], parts[1]), ensure_ascii=False, indent=2))
                 continue
 
-            if lower == "/wake status":
-                print(
-                    "JARVIS >",
-                    json.dumps(wake.status(), ensure_ascii=False, indent=2),
-                )
-                continue
-            if lower == "/wake doctor":
-                result = wake.doctor()
-                print(
-                    "JARVIS >",
-                    json.dumps(result, ensure_ascii=False, indent=2),
-                )
-                continue
-            if lower == "/wake on":
-                result = wake.start()
-                if result.get("ok"):
-                    listening_watchdog.set_armed(True)
-                print(
-                    "JARVIS >",
-                    json.dumps(result, ensure_ascii=False, indent=2),
-                )
-                continue
-            if lower == "/wake off":
-                listening_watchdog.set_armed(False)
-                wake.stop()
-                print("JARVIS > Always Listening parado. Auto-recuperação desarmada.")
-                continue
-
             if lower == "/research status":
                 print(
                     "JARVIS >",
@@ -5169,25 +3698,16 @@ def main() -> None:
                 continue
 
             if lower == "/warmup":
-                if local_voice_enabled:
-                    result = {
-                        "voiceid": (
-                            speaker.ensure_ready()
-                            if speaker.enrolled()
-                            else {"ok": True, "skipped": "not_enrolled"}
-                        ),
-                        "stt": microphone.preload_stt(),
-                        "llm": brain.warmup(),
-                    }
-                else:
-                    result = {
-                        "voice": {
-                            "ok": True,
-                            "skipped": "local_voice_disabled",
-                        },
-                        "llm": brain.warmup(),
-                    }
-                print(json.dumps(result, ensure_ascii=False, indent=2))
+                result = {
+                    "llm": brain.warmup(),
+                }
+                print(
+                    json.dumps(
+                        result,
+                        ensure_ascii=False,
+                        indent=2,
+                    )
+                )
                 continue
             if lower == "/security blocked files":
                 result = audit_windows_blocked_files()
@@ -5694,7 +4214,7 @@ def main() -> None:
                     print("JARVIS >", json.dumps(result, ensure_ascii=False, indent=2))
                     continue
 
-            # Natural typed/voice equivalents remain token-bound.
+            # Natural typed equivalents remain token-bound.
             auth_match = re.fullmatch(
                 r"(?:jarvis[ ,]+)?autorizo\s+([a-f0-9]{6})[.!]?",
                 lower,
@@ -5765,10 +4285,8 @@ def main() -> None:
                         f"route={route}{cloud_cost}"
                     )
                 events.emit("LLM_RESPONSE_READY", chars=len(answer), route=route, source="terminal")
-                speech.say(answer)
     finally:
         activity_trace.stop()
-        listening_watchdog.stop()
         if settings.skills_enabled:
             skills.stop_all()
         if bool(getattr(settings, "ollama_release_on_shutdown", True)):
@@ -5782,8 +4300,6 @@ def main() -> None:
         companion_service.stop()
         book_library_service.stop()
         cyber_knowledge_service.stop()
-        wake.stop()
-        speech.shutdown()
         performance.stop()
         telemetry.stop()
 

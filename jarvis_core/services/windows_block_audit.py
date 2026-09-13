@@ -116,8 +116,8 @@ SMART_APP_CONTROL_POLICY_NAME = "VerifiedAndReputableDesktop"
 
 # Startup acceleration: a recent clean full audit may be reused for a short
 # window when all release/runtime/native-file metadata signals are unchanged.
-# This avoids re-importing the full native voice/STT stack and re-querying
-# Windows event logs on every quick JARVIS restart. The full /security audit
+# This avoids repeating native/runtime probes and re-querying Windows event
+# logs on every quick JARVIS restart. The full /security audit
 # remains uncached and authoritative.
 STARTUP_CACHE_SCHEMA = 1
 STARTUP_CACHE_TTL_SECONDS = 600.0
@@ -305,27 +305,13 @@ def _extract_policy_id(event: dict[str, Any]) -> str | None:
     return None
 
 
-def _is_pyav_native_path(path: str) -> bool:
-    normalized = str(path or "").replace("/", "\\").lower()
-    return (
-        "\\.venv\\lib\\site-packages\\av\\" in normalized
-        and normalized.endswith((".pyd", ".dll"))
-    )
-
-
 def _annotate_block_event(row: dict[str, Any]) -> dict[str, Any]:
     output = dict(row)
     policy_id = str(output.get("policy_id") or "").lower()
     if policy_id == SMART_APP_CONTROL_POLICY_ID.lower():
         output["source"] = f"SmartAppControl/{SMART_APP_CONTROL_POLICY_NAME}"
         output["smart_app_control"] = True
-        paths = output.get("paths") or []
-        if paths and all(_is_pyav_native_path(path) for path in paths):
-            output["mitigated"] = True
-            output["mitigation"] = "stt_pcm_numpy_bypass_configured"
-            output["dependency"] = "PyAV"
-        else:
-            output["mitigated"] = False
+        output["mitigated"] = False
     else:
         output["smart_app_control"] = False
         output["mitigated"] = False
@@ -476,25 +462,6 @@ def check_numpy():
     import numpy
     return getattr(numpy, "__version__", "unknown")
 
-def check_sounddevice():
-    import sounddevice
-    return getattr(sounddevice, "__version__", "unknown")
-
-def check_ctranslate2():
-    import ctranslate2
-    return getattr(ctranslate2, "__version__", "unknown")
-
-def check_faster_whisper_pcm():
-    from jarvis_core.services.stt_compat import probe_faster_whisper_pcm_import
-    result = probe_faster_whisper_pcm_import()
-    if not result.get("ok"):
-        raise RuntimeError(result.get("message") or result.get("error") or "STT_IMPORT_FAILED")
-    return "PyAV not required for PCM import path"
-
-check("numpy", check_numpy)
-check("sounddevice", check_sounddevice)
-check("ctranslate2", check_ctranslate2)
-check("faster_whisper_pcm", check_faster_whisper_pcm)
 print(json.dumps({"ok": True, "components": rows}, ensure_ascii=True))
 """
 
@@ -918,7 +885,7 @@ def audit_windows_blocked_files(
             "Events with no extractable path or with an existing but currently healthy/unmarked artifact remain visible as historical/unconfirmed review evidence; they do not fail the security baseline by themselves.",
             "Smart App Control/App Control enforcement blocks are read from CodeIntegrity event 3077; AppLocker blocks use 8004/8007.",
             "Policy {0283ac0f-fff1-49ae-ada1-8a933130cad6} is identified as Smart App Control VerifiedAndReputableDesktop.",
-            "PyAV native blocks can be marked mitigated for JARVIS microphone STT because Core 0.19.4 supplies decoded NumPy PCM to faster-whisper; the historical Windows block event remains in the report.",
+            "Native dependency block events are never auto-mitigated solely by dependency identity; current runtime evidence determines whether a historical block remains actionable.",
             "This audit is read-only and never unblocks files, removes Zone.Identifier, changes App Control policy or alters a file.",
         ],
     }
@@ -1049,7 +1016,7 @@ def format_windows_block_audit(
     if native_components:
         lines.append("")
         lines.append("NATIVE IMPORT HEALTH")
-        for name in ("numpy", "sounddevice", "ctranslate2", "faster_whisper_pcm"):
+        for name in ("numpy",):
             row = native_components.get(name)
             if not row:
                 continue

@@ -18,13 +18,6 @@ def _row(name: str, ok: bool, **data: Any) -> dict[str, Any]:
 
 LOCAL_VOICE_DISABLED_FIELDS = (
     "local_voice_enabled",
-    "speech_enabled",
-    "speaker_lock_enabled",
-    "wake_enabled",
-    "wake_auto_start",
-    "proactive_speech_enabled",
-    "listening_watchdog_enabled",
-    "voice_v2_preload_stt",
 )
 
 

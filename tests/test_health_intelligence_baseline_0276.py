@@ -31,15 +31,28 @@ class Cloud:
 
 
 class HealthIntelligenceBaseline0276Tests(unittest.TestCase):
-    def test_voice_v2_is_cpu_int8_and_no_silent_legacy_fallback(self):
-        s=Settings()
-        self.assertEqual('v2', s.voice_input_backend)
-        self.assertEqual('cpu', s.voice_v2_stt_device)
-        cli=Path('jarvis_core/cli.py').read_text(encoding='utf-8')
-        self.assertIn('VOICE_V2_UNAVAILABLE_NO_LEGACY_FALLBACK', cli)
-        self.assertNotIn('VOICE_V2_FALLBACK_LEGACY', cli)
-        reset=Path('setup_voice_reset.ps1').read_text(encoding='utf-8')
-        self.assertIn("'voice_v2_stt_device':'cpu'", reset.replace(' ', ''))
+    def test_local_pc_voice_runtime_is_physically_retired(self):
+        s = Settings()
+
+        self.assertFalse(
+            s.local_voice_enabled
+        )
+
+        cli = Path(
+            "jarvis_core/cli.py"
+        ).read_text(encoding="utf-8")
+
+        for retired in (
+            "voice_engine_state",
+            "microphone.preload_stt()",
+            "speaker.ensure_ready()",
+            "wake.start()",
+            "listening_watchdog.start()",
+        ):
+            self.assertNotIn(
+                retired,
+                cli,
+            )
 
     def test_full_validation_never_opens_retired_local_voice(self):
         text = Path(
@@ -53,10 +66,6 @@ class HealthIntelligenceBaseline0276Tests(unittest.TestCase):
 
         for marker in (
             'local_voice_enabled',
-            'speech_enabled',
-            'speaker_lock_enabled',
-            'wake_enabled',
-            'voice_v2_preload_stt',
             'microphone_opened=False',
             'stt_started=False',
             'wakeword_started=False',
@@ -82,11 +91,27 @@ class HealthIntelligenceBaseline0276Tests(unittest.TestCase):
                 text,
             )
 
-    def test_voice_lock_auto_disables_when_backend_unhealthy(self):
-        text=Path('jarvis_core/cli.py').read_text(encoding='utf-8')
-        self.assertIn('speaker.ensure_ready()', text)
-        self.assertIn('speaker.set_enabled(False)', text)
-        self.assertIn('SPEAKER_LOCK_AUTO_DISABLED', text)
+    def test_cli_no_longer_bootstraps_local_speaker_lock(self):
+        text = Path(
+            "jarvis_core/cli.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertNotIn(
+            "speaker.ensure_ready()",
+            text,
+        )
+        self.assertNotIn(
+            "speaker.set_enabled(False)",
+            text,
+        )
+        self.assertNotIn(
+            "SPEAKER_LOCK_AUTO_DISABLED",
+            text,
+        )
+        self.assertNotIn(
+            "DisabledSpeakerVerifier",
+            text,
+        )
 
     def test_planners_use_real_structured_json_format(self):
         planner=Path('jarvis_core/skills/builtin/task_planner.py').read_text(encoding='utf-8')
@@ -101,14 +126,11 @@ class HealthIntelligenceBaseline0276Tests(unittest.TestCase):
         for marker in ('notification_state','fingerprint','occurrences','notification_suppressed','SYSTEM_GUARDIAN_ALERT_COOLDOWN'):
             self.assertIn(marker, text)
 
-    def test_log_rotation_and_tts_cache_caps_exist(self):
-        events=Path('jarvis_core/core/events.py').read_text(encoding='utf-8')
-        speech=Path('jarvis_core/services/speech.py').read_text(encoding='utf-8')
-        self.assertIn('_rotate_if_needed', events)
-        self.assertIn('backup_count', events)
-        self.assertIn('_prune_cache', speech)
-        self.assertIn('cache_max_bytes', speech)
-        self.assertIn('cache_max_files', speech)
+
+    def test_log_rotation_caps_exist(self):
+        events = Path("jarvis_core/core/events.py").read_text(encoding="utf-8")
+        self.assertIn("_rotate_if_needed", events)
+        self.assertIn("backup_count", events)
 
     def test_complexity_alone_does_not_send_cloud(self):
         s=Settings(); s.external_ai_complex_only=True; s.external_ai_complexity_threshold=4
@@ -161,7 +183,7 @@ class HealthIntelligenceBaseline0276Tests(unittest.TestCase):
         self.assertIn('_owner_defensive_target_decision', kali)
 
     def test_dependencies_are_exactly_pinned(self):
-        for name in ('requirements.txt','requirements-cloud.txt','requirements-voice-v2.txt','requirements-voiceid.txt','requirements-voice-learning.txt'):
+        for name in ('requirements.txt','requirements-cloud.txt'):
             for raw in Path(name).read_text(encoding='utf-8').splitlines():
                 line=raw.strip()
                 if not line or line.startswith('#'): continue

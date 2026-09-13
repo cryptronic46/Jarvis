@@ -41,3 +41,8 @@ Thumbs.db
 # Local backups
 *.bak
 *.bak_*
+# JARVIS Memory 1.0 source package
+# Runtime/personal memory remains ignored; only source code below is tracked.
+!jarvis_core/memory/
+jarvis_core/memory/*
+!jarvis_core/memory/*.py

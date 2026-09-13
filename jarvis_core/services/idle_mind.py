@@ -47,7 +47,7 @@ class IdleMindService:
         activity_trace,
         companion_service,
         silence_latch,
-        wake,
+        wake=None,
         planner_provider: Callable[[], Any] | None = None,
         reflection_provider: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
     ) -> None:
@@ -56,7 +56,6 @@ class IdleMindService:
         self.activity_trace = activity_trace
         self.companion_service = companion_service
         self.silence_latch = silence_latch
-        self.wake = wake
         self.planner_provider = planner_provider
         self.reflection_provider = reflection_provider
 
@@ -140,7 +139,6 @@ class IdleMindService:
                 planner = service.status() if service is not None else None
             except Exception:
                 planner = None
-        wake_status = self.wake.status()
         try:
             self_state = synthetic_self().snapshot()
         except Exception:
@@ -190,11 +188,6 @@ class IdleMindService:
             },
             "companion_gate": companion,
             "planner": planner,
-            "listening": {
-                "wake_running": bool(wake_status.get("running")),
-                "device": wake_status.get("device"),
-                "last_command": wake_status.get("last_command"),
-            },
             "last_observable_activity": activity,
             "note": (
                 "Este estado mostra atenção, memória, gates e iniciativas observáveis. "
@@ -223,7 +216,6 @@ class IdleMindService:
             "possible_next_action": snapshot.get("possible_next_action"),
             "planner": snapshot.get("planner"),
             "silence_active": bool(self.silence_latch.active()),
-            "wake_running": (snapshot.get("listening") or {}).get("wake_running"),
         }
         reflection = self.reflection_provider(compact)
         return {

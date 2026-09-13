@@ -246,8 +246,6 @@ class SemanticFastAuthorityTests(unittest.TestCase):
             def _dispatch_legacy(
                 self,
                 text,
-                *,
-                voice_origin=False,
             ):
                 self._tool(
                     "open_application",
@@ -821,7 +819,7 @@ class SemanticFastAuthorityTests(unittest.TestCase):
         )
 
         process_end = source.index(
-            "    def handle_voice_command(",
+            "    def terminal_event_printer(",
             process_start,
         )
 

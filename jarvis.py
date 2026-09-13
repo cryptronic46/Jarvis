@@ -39,7 +39,32 @@ from jarvis_core.services.windows_block_audit import (
 if __name__ == "__main__":
     block_audit = startup_preflight()
     summary = format_startup_preflight(block_audit)
-    if summary:
+
+    active_rows = block_audit.get("active_block_events")
+    active_blocked = len(
+        (block_audit.get("confirmed_block_events") or [])
+        if active_rows is None
+        else (active_rows or [])
+    )
+    native_failures = len(
+        block_audit.get("native_import_failures") or []
+    )
+    llama_probe = (
+        block_audit.get("native_llama_runtime_probe") or {}
+    )
+    llama_failed = bool(
+        llama_probe.get("installed")
+        and not llama_probe.get("ok")
+    )
+
+    preflight_requires_attention = (
+        not block_audit.get("ok")
+        or active_blocked > 0
+        or native_failures > 0
+        or llama_failed
+    )
+
+    if summary and preflight_requires_attention:
         print(summary)
 
     try:

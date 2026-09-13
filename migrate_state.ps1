@@ -13,8 +13,6 @@ Write-Host "para:"
 Write-Host "  $targetPath"
 
 $items = @(
-    "voice_profiles",
-    "models\voiceid",
     ".cache\tts"
 )
 

@@ -122,14 +122,6 @@ class FastCommandRouter:
         "encerra", "encerre", "encerrar",
         "termina", "termine", "terminar",
     }
-    # Narrow ASR repairs used only for voice-origin commands that also name an
-    # application already present in apps.json. This is intentionally NOT a
-    # general fuzzy-language matcher.
-    VOICE_OPEN_ASR_WORDS = {
-        "agrade",  # observed pt-PT Whisper confusion for "abre"
-        "abro", "abram",
-    }
-
     def __init__(self, events, tools, apps):
         self.events = events
         self.tools = tools
@@ -947,7 +939,6 @@ class FastCommandRouter:
         self,
         text: str,
         *,
-        voice_origin: bool = False,
         request: Any | None = None,
         requires_memory_aware_response: bool = False,
     ) -> FastRouteResult:
@@ -972,7 +963,6 @@ class FastCommandRouter:
 
             return self._dispatch_legacy(
                 text,
-                voice_origin=voice_origin,
             )
 
         except _FastSemanticVeto:
@@ -984,8 +974,6 @@ class FastCommandRouter:
     def _dispatch_legacy(
         self,
         text: str,
-        *,
-        voice_origin: bool = False,
     ) -> FastRouteResult:
         text = re.sub(
             r"^\s*(?:\[\s*\d+\s*\]|(?:teste|test|t)\s*\d+|(?:quest[aã]o\s*)?\d+)\s*[\].:)\-]*\s*",
@@ -1882,31 +1870,20 @@ class FastCommandRouter:
             if app:
                 return self._hit(f"Sim, Senhor. {app['name']} está registado no App Registry para abertura local, mas não o abri.", "app_permission_query", "none")
             return self._hit("Não encontrei essa aplicação no App Registry; não executei nenhuma abertura.", "app_permission_query", "none")
-        voice_open_repair = False
-        if app and voice_origin and len(normalized.split()) <= 6:
-            first_word = normalized.split()[0] if normalized.split() else ""
-            voice_open_repair = first_word in self.VOICE_OPEN_ASR_WORDS
-        if app and (words.intersection(self.OPEN_WORDS) or voice_open_repair):
-            data = self._tool("open_application", {"app_name": app["id"]})
-            response = self._format_app_open_result(app["name"], data)
-            route = "voice_app_open_repair" if voice_open_repair else "app_open"
-            return self._hit(response, route, "open_application")
-
-        # If the first verb was clipped immediately after a verified wake, the
-        # ASR often returns only "O Brave".  Recover only tiny voice-origin
-        # fragments that are exactly an allowed app name/alias (optionally with
-        # a Portuguese article). Text/terminal requests do not get this repair.
-        if app and voice_origin and not words.intersection(self.CLOSE_WORDS):
-            fragment = re.sub(r"^(?:o|a|os|as|um|uma)\s+", "", normalized).strip()
-            app_values = {
-                _normalize(str(app.get("id") or "")),
-                _normalize(str(app.get("name") or "")),
-                *{_normalize(str(x)) for x in app.get("aliases", [])},
-            }
-            if fragment in {x for x in app_values if x} and len(normalized.split()) <= 4:
-                data = self._tool("open_application", {"app_name": app["id"]})
-                response = self._format_app_open_result(app["name"], data)
-                return self._hit(response, "voice_app_fragment_open", "open_application")
+        if app and words.intersection(self.OPEN_WORDS):
+            data = self._tool(
+                "open_application",
+                {"app_name": app["id"]},
+            )
+            response = self._format_app_open_result(
+                app["name"],
+                data,
+            )
+            return self._hit(
+                response,
+                "app_open",
+                "open_application",
+            )
 
         if app and words.intersection(self.CLOSE_WORDS):
             data = self._tool("close_application", {"app_name": app["id"]})

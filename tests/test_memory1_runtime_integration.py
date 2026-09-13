@@ -1129,8 +1129,6 @@ class Memory1RuntimeIntegrationTests(
             sources,
             {
                 "terminal",
-                "manual_voice",
-                "wake",
             },
         )
 

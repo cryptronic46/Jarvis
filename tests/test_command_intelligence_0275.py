@@ -14,11 +14,6 @@ class CommandIntelligence0275Tests(unittest.TestCase):
         r=classify_request_intent("O que você pode fazer?")
         self.assertEqual(r.kind, "KNOWLEDGE_CAPABILITY")
 
-    def test_fast_router_contains_narrow_voice_repair(self):
-        text=Path("jarvis_core/core/fast_router.py").read_text(encoding="utf-8")
-        self.assertIn('"agrade"', text)
-        self.assertIn('voice_app_open_repair', text)
-        self.assertIn('capability_query', text)
 
     def test_shutdown_has_native_runtime_cleanup(self):
         text=Path("run.ps1").read_text(encoding="utf-8")

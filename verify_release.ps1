@@ -41,14 +41,7 @@ function Get-ControlledReleaseFiles(
         [System.IO.Path]::GetFullPath($Root)
     ).TrimEnd('\')
     $RuntimeParts = @(
-        "__pycache__",
-        ".venv",
-        "memory",
-        "knowledge",
-        ".cache",
-        "logs",
-        "voice_profiles",
-        "models"
+        "__pycache__"
     )
     $Result = @()
 

@@ -34,7 +34,7 @@ class OwnerAuthorityPython0263Tests(unittest.TestCase):
         )
 
         wake = text.index(
-            'source="explicit_terminal_wake"',
+            'source="explicit_terminal_address"',
             loop,
         )
 

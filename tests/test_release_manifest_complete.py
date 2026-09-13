@@ -29,22 +29,9 @@ CONTROLLED_TOP_LEVEL = {
     "setup_native_brain.ps1",
     "setup_appcontrol_trust.ps1",
     "setup_cloud.ps1",
-    "setup_voiceid.ps1",
-    "setup_wakeword.ps1",
-    "setup_voice_v2.ps1",
-    "setup_voice_reset.ps1",
-    "install_custom_wake_model.ps1",
-    "setup_wake_learning_wsl.ps1",
-    "setup_voice_learning.ps1",
-    "collect_voice_learning.ps1",
-    "train_voice_learning.ps1",
     "setup_vision.ps1",
     "requirements.txt",
     "requirements-cloud.txt",
-    "requirements-voiceid.txt",
-    "requirements-wakeword.txt",
-    "requirements-voice-v2.txt",
-    "requirements-voice-learning.txt",
     "README.md",
     "AUDIT_0.27.8.md",
     "JARVIS_FUNCTIONAL_AUDIT.md",
@@ -57,13 +44,6 @@ CONTROLLED_TOP_LEVEL = {
 
 RUNTIME_PARTS = {
     "__pycache__",
-    ".venv",
-    "memory",
-    "knowledge",
-    ".cache",
-    "logs",
-    "voice_profiles",
-    "models",
 }
 
 

@@ -36,14 +36,13 @@ class WindowsSmartAppControlPolicyDetectionTests(unittest.TestCase):
         normalized = paths[0].replace("/", "\\").lower()
         self.assertTrue(normalized.endswith(r"\.venv\lib\site-packages\av\codec\context.pyd"))
 
-    def test_pyav_sac_block_is_marked_mitigated_for_pcm_path(self):
+    def test_pyav_sac_block_is_not_auto_mitigated(self):
         event = self._event()
         event["paths"] = _extract_jarvis_paths(event, Path(r"C:\JARVIS"))
         event["policy_id"] = _extract_policy_id(event)
         row = _annotate_block_event(event)
         self.assertTrue(row["smart_app_control"])
-        self.assertTrue(row["mitigated"])
-        self.assertEqual(row["dependency"], "PyAV")
+        self.assertFalse(row["mitigated"])
         self.assertEqual(row["source"], f"SmartAppControl/{SMART_APP_CONTROL_POLICY_NAME}")
 
     def test_mitigated_only_is_review_not_active_block(self):

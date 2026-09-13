@@ -2,9 +2,6 @@ from pathlib import Path
 import unittest
 
 class StabilityAutonomyKali0271(unittest.TestCase):
-    def test_voice_stack_stays_simple(self):
-        t=Path('jarvis_core/services/voice_engine_v2.py').read_text(encoding='utf-8')
-        self.assertNotIn('_process_owner_wake_frame', t.split('def _run(self)',1)[1].split('# ------------------------------------------------------------------\n    # Diagnostics',1)[0])
     def test_fast_router_tolerates_abrem(self):
         t=Path('jarvis_core/core/fast_router.py').read_text(encoding='utf-8')
         self.assertIn('"abrem"', t)

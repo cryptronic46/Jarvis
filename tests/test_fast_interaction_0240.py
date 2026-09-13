@@ -8,8 +8,6 @@ from jarvis_core.core.events import EventBus
 from jarvis_core.core.fast_router import FastCommandRouter
 from jarvis_core.services.activity_trace import ActivityTraceService
 from jarvis_core.services.idle_mind import IdleMindService
-from jarvis_core.services.listening import ListeningConfig, MicrophoneService
-from jarvis_core.services.wakeword import WakeWordConfig, WakeWordService
 
 
 class _Events:
@@ -52,33 +50,12 @@ class FastInteraction0240Tests(unittest.TestCase):
             trace.stop()
             self.assertTrue(any(r["stage"] == "ROTA" and "FAST/app_open" in r["detail"] for r in rows))
 
-    def test_wake_candidate_has_lightweight_profile(self):
-        cfg = ListeningConfig()
-        self.assertEqual(cfg.wake_candidate_beam_size, 1)
-        self.assertEqual(cfg.wake_candidate_hotwords, "")
-        self.assertEqual(cfg.wake_candidate_initial_prompt, "")
-        self.assertTrue(hasattr(MicrophoneService, "transcribe_wake_file"))
-        self.assertTrue(hasattr(WakeWordConfig(), "candidate_reject_cooldown_seconds"))
 
 
-    def test_wake_service_uses_separate_candidate_transcriber(self):
-        import numpy as np
-        called = {"wake": 0, "command": 0}
-        service = WakeWordService(
-            _Events(),
-            WakeWordConfig(),
-            on_wake=lambda command: None,
-            transcribe_callback=lambda path: called.__setitem__("command", called["command"] + 1) or {"ok": True, "text": "abre o Brave"},
-            wake_transcribe_callback=lambda path: called.__setitem__("wake", called["wake"] + 1) or {"ok": True, "text": "Jarvis"},
-        )
-        text = service._transcribe_wake_candidate(np.zeros(1600, dtype=np.float32), 16000)
-        self.assertEqual(text, "Jarvis")
-        self.assertEqual(called["wake"], 1)
-        self.assertEqual(called["command"], 0)
 
-    def test_cli_wires_separate_wake_transcriber_and_idle_command(self):
+
+    def test_cli_exposes_idle_command(self):
         text = Path("jarvis_core/cli.py").read_text(encoding="utf-8")
-        self.assertIn("wake_transcribe_callback=microphone.transcribe_wake_file", text)
         self.assertIn('"/mind idle"', text)
 
     def test_brain_has_successful_action_repeat_guard(self):

@@ -18,7 +18,6 @@ class ReleaseUpdaterContractTests(unittest.TestCase):
             ".venv\\",
             ".cache\\",
             "logs\\",
-            "voice_profiles\\",
             "models\\",
             "skills\\",
             "settings.json",
@@ -45,17 +44,10 @@ class ReleaseUpdaterContractTests(unittest.TestCase):
         self.assertIn("/vision status", text)
         self.assertIn("/guardian status", text)
         self.assertIn("/purple status", text)
-        self.assertIn("/listening status", text)
-        self.assertIn("/listening recover", text)
-        self.assertIn("listening_watchdog.py", text)
         self.assertIn("/vram status", text)
-        self.assertIn("/voice latency", text)
-        self.assertIn("openwakeword_compat.py", text)
-        self.assertIn("--no-deps", text)
         self.assertIn("severity_counts", text)
         self.assertIn("release_all_models", text)
         self.assertIn("/mind status", text)
-        self.assertIn("bargein-v2\\+whisper", text)
         self.assertIn("Get-FileHash", text)
         self.assertIn("release_manifest.json", text)
         self.assertIn("Manifest.files", text)

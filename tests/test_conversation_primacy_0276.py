@@ -55,12 +55,12 @@ class ConversationPrimacy0276Tests(unittest.TestCase):
     def test_social_turns_are_not_canned_fast_path(self):
         router = FastCommandRouter(_Events(), _Tools(), _Apps())
         for text in ("Obrigado", "Muito bem Jarvis", "Tchau", "Até logo"):
-            result = router.dispatch(text, voice_origin=True)
+            result = router.dispatch(text)
             self.assertFalse(result.handled, text)
 
     def test_runtime_status_question_can_remain_fast(self):
         router = FastCommandRouter(_Events(), _Tools(), _Apps())
-        result = router.dispatch("Estás a ouvir-me?", voice_origin=True)
+        result = router.dispatch("Estás a ouvir-me?")
         self.assertTrue(result.handled)
         self.assertEqual(result.route, "social_listening")
 

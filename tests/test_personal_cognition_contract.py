@@ -8,7 +8,6 @@ class PersonalCognitionContractTests(unittest.TestCase):
         for command in (
             "/mind status", "/mind profile", "/mind reflect", "/mind self", "/mind why",
             "/mind learning on", "/mind learning off", "/mind proactive on", "/mind proactive off",
-            "/mind speech on", "/mind speech off",
         ):
             self.assertIn(f'lower == "{command}"', cli)
 

@@ -1,4 +1,66 @@
 # JARVIS Core
+
+<!-- JARVIS_CURRENT_STATE_BEGIN -->
+
+## Current development state
+
+The active JARVIS Core is currently being prepared for its next major interface phase.
+
+- **Local brain:** Qwen3 14B running through the JARVIS-owned native `llama.cpp` runtime.
+- **Memory:** Memory 1.0 is complete and integrated into the active Core.
+- **PC-local Voice:** the former microphone, wake-word, STT, Voice ID and local speech runtime has been retired and structurally removed from the active runtime.
+- **Vision:** screen and camera capabilities remain available and are independent from the retired Voice stack.
+- **Terminal:** now operates as a quiet technical/admin control plane. Debug telemetry is hidden by default and can be explicitly enabled when required.
+- **Shutdown:** the JARVIS-owned native `llama-server` is released and verified on `/quit`.
+- **External AI:** external LLM reasoning remains blocked; public-Web research is treated as source data and synthesized locally by JARVIS.
+
+### WebJarvis ? in development
+
+**WebJarvis is now the next active development phase.**
+
+The browser interface is intended to become the primary user-facing interaction layer, while the terminal remains available for administration, diagnostics, recovery and development.
+
+The Web project already has a security-oriented FastAPI/browser architecture, but it is **not yet integrated with the real JARVIS Core**.
+
+The next phase will connect the Web interface to the existing JARVIS request pipeline through a real Core adapter:
+
+    Browser / authenticated client
+              |
+              v
+    Web security gateway
+              |
+              v
+    RealJarvisCoreAdapter
+              |
+              v
+    Existing JARVIS Core
+              |
+              +-- Qwen3 14B / llama.cpp
+              +-- Memory 1.0
+              +-- tools
+              +-- permissions
+              +-- security
+
+WebJarvis must not create a second brain, a second memory architecture or an independent reasoning pipeline.
+
+Planned work includes:
+
+- replacing the current mock Web adapter with the real JARVIS Core adapter;
+- reusing the existing Qwen/Memory 1.0 request pipeline;
+- secure file intake and quarantine;
+- isolated analysis of untrusted files;
+- PDF summarization, translation and explanation;
+- browser-first interaction;
+- possible authenticated browser/mobile voice transport later.
+
+Until the real adapter is integrated, the Core correctly reports:
+
+    Web       : NOT INTEGRATED
+
+> The release notes below are historical. Older Voice/STT sections describe the state of those historical releases and do not represent the current active runtime.
+
+<!-- JARVIS_CURRENT_STATE_END -->
+
 ## 0.27.8 — Epistemic Learning & Permission-Gated Expert Escalation
 
 > **Consolidated runtime/security hotfix:** this 0.27.8 build also carries forward the final 0.27.7 executor and Windows hardening that landed after the first 0.27.8 package was cut: `jarvis_local` executor abstraction, signed `0xC0E90002` handling, current Block Audit corroboration, pinned CUDA→Vulkan→local-compat fallback, and `setup_appcontrol_trust.ps1` for exact-hash App Control trust on Windows Pro. Epistemic Learning and the optional expert remain intact; expert access is still off by default and permission-gated.

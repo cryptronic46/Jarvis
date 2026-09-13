@@ -126,137 +126,26 @@ class Settings:
     # 0.25 Voice Engine v2. ``auto`` prefers the mature Windows-native
     # WASAPI/openWakeWord pipeline when its optional dependencies are ready,
     # while retaining the legacy acoustic engine as an explicit fallback.
-    voice_input_backend: str = "v2"  # v2 active baseline | legacy explicit compatibility only
-    voice_v2_device_name: str = ""
-    voice_v2_wake_threshold: float = 0.45
-    voice_v2_wake_vad_threshold: float = 0.35
-    voice_v2_wake_strong_threshold: float = 0.45
-    voice_v2_wake_confirm_frames: int = 1
-    voice_v2_wake_confirm_window_seconds: float = 0.15
-    voice_v2_inline_command_grace_seconds: float = 0.45
-    voice_v2_command_vad_threshold: float = 0.48
-    voice_v2_frame_ms: int = 80
-    voice_v2_debounce_seconds: float = 1.25
-    voice_v2_stt_model: str = "small"
-    voice_v2_stt_device: str = "cpu"
-    voice_v2_stt_idle_release_seconds: float = 120.0
-    voice_v2_preload_stt: bool = True
-    voice_v2_vram_handoff_enabled: bool = True
-    voice_v2_setup_script: str = "setup_voice_reset.ps1"
-    voice_v2_custom_wake_model_path: str = "models/openwakeword/jarvis.onnx"
     # Optional owner-specific wake verifier. Training may run in WSL when
     # Windows App Control blocks SciPy/scikit-learn native extensions; runtime
     # scoring uses NumPy only.
-    voice_v2_verifier_path: str = "models/wake_verifier_jarvis.npz"
-    voice_v2_verifier_threshold: float = 0.55
     # Separate from the legacy acoustic floor. Voice v2 uses the OWNER's
     # calibrated wake profile plus VAD/energy and temporal confirmation.
-    voice_v2_owner_wake_floor: float = 0.58
-    voice_v2_owner_fast_accept_threshold: float = 0.70
-    voice_v2_owner_semantic_confirm: bool = True
-    voice_v2_owner_max_phrase_seconds: float = 1.15
 
     # Listening resilience. The watchdog only repairs the local wake/audio
     # stream and never executes commands or changes security permissions.
-    listening_watchdog_enabled: bool = True
-    listening_watchdog_interval_seconds: float = 3.0
-    listening_watchdog_stream_grace_seconds: float = 8.0
-    listening_watchdog_recovery_cooldown_seconds: float = 15.0
 
     # 0.24.0 conversational silence + safe activity observability.
     silence_latch_enabled: bool = True
     activity_trace_enabled: bool = True
-    activity_trace_live: bool = False
     activity_trace_path: str = "memory/activity_trace.json"
-    wake_candidate_whisper_confirm: bool = True
-    wake_candidate_beam_size: int = 1
-    wake_candidate_reject_cooldown_seconds: float = 0.80
-    wake_candidate_window_seconds: float = 1.05
-    wake_candidate_tail_seconds: float = 0.06
-    wake_candidate_min_avg_logprob: float = -0.55
-    wake_candidate_max_no_speech_prob: float = 0.20
-    wake_candidate_max_words: int = 2
 
-    speech_enabled: bool = True
-    speech_backend: str = "auto"
-    speech_voice: str = "pt-PT-RaquelNeural"
-    speech_rate: str = "-9%"
-    speech_pitch: str = "-8Hz"
-    speech_persona_profile: str = "velvet_feminine"
-    speech_sapi_prefer_gender: str = "Female"
-    speech_volume: str = "+0%"
-    speech_max_chars: int = 1600
-    speech_fallback_sapi: bool = True
-    speech_cache_enabled: bool = True
-    speech_cache_dir: str = ".cache/tts"
-    speech_cache_max_bytes: int = 268435456
-    speech_cache_max_files: int = 500
-    mic_device: int | None = None
-    stt_language: str = "pt"
-    stt_model: str = "small"
-    stt_device: str = "cpu"
     # Keep Faster Whisper model snapshots inside the JARVIS installation so a
     # dedicated drive does not spill multi-GB caches into the Windows profile.
-    stt_download_root: str = "models/faster-whisper"
-    mic_calibration_seconds: float = 0.4
-    mic_start_timeout_seconds: float = 8.0
-    mic_max_phrase_seconds: float = 14.0
-    mic_silence_seconds: float = 0.65
-    mic_threshold_multiplier: float = 2.0
-    mic_threshold_floor: float = 0.006
-    stt_beam_size: int = 1
-    wake_stt_beam_size: int = 1
-    wake_stt_retry_beam_size: int = 5
-    wake_stt_low_confidence_avg_logprob: float = -0.72
-    wake_stt_low_confidence_no_speech: float = 0.35
-    wake_stt_reject_avg_logprob: float = -1.00
-    wake_stt_reject_no_speech: float = 0.55
-    wake_candidate_reject_avg_logprob: float = -0.80
-    wake_candidate_reject_no_speech: float = 0.40
-    stt_normalize_command_audio: bool = True
-    stt_command_target_rms: float = 0.08
-    stt_command_max_gain: float = 4.0
-    stt_command_trim_silence: bool = True
-    stt_command_trim_padding_ms: int = 140
-    stt_command_trim_floor_rms: float = 0.0025
-    wake_stt_initial_prompt: str = (
-        "Transcrição fiel em português europeu (pt-PT). Não traduzir. "
-        "Preservar nomes próprios, marcas, números e termos técnicos. "
-        "O utilizador fala naturalmente com a assistente Jarvis. "
-        "Comandos e perguntas podem mencionar Brave, Spotify, Steam, Discord, "
-        "Cyberpunk 2077, Windows, Kali Linux, volume, áudio, microfone, webcam, "
-        "GPU, gráfica, VRAM, CPU, temperatura, memória, ficheiros e aplicações. "
-        "Exemplos de comandos: abre o Brave; fecha o Spotify; mostra a temperatura da GPU."
-    )
-    wake_stt_hotwords: str = (
-        "Jarvis abre abrir fecha fechar mostra diz procura verifica aumenta baixa "
-        "liga desliga inicia para escreve clica Brave Spotify Steam Discord Cyberpunk "
-        "GPU CPU volume áudio gráfica temperatura"
-    )
-    stt_cpu_threads: int = 6
-    mic_calibration_cache_seconds: float = 180.0
-    mic_cached_calibration_blocks: int = 1
-    mic_preferred_device_name: str = "GENERAL WEBCAM"
-    mic_preferred_handsfree: bool = False
-    mic_preferred_samplerate: int = 48000
-    mic_stream_retries: int = 2
-    mic_stream_recovery_seconds: float = 0.8
-    mic_no_signal_rms: float = 0.00015
     av_probe_min_signal_rms: float = 0.001
     av_verified_signal_ttl_seconds: float = 120.0
-    speaker_lock_enabled: bool = True
-    speaker_profile_name: str = "owner"
-    speaker_profile_dir: str = "voice_profiles"
-    speaker_model_source: str = "speechbrain/spkrec-ecapa-voxceleb"
-    speaker_model_dir: str = "models/spkrec-ecapa-voxceleb"
-    speaker_model_path: str = "models/voiceid/3d_speaker-speech_campplus_sv_en_voxceleb_16k.pt"
-    speaker_model_sha256: str = "8ebcd0b04c1bb50d5fe77166f9a123206bf08ed14bcfd6a0b95fe8fcb2e25926"
-    speaker_threshold: float = 0.45
-    speaker_min_seconds: float = 0.7
-    speaker_enrollment_samples: int = 5
     # Voice ID remains active, but 0.6 defaults to observation-only until
     # per-user permissions are implemented.
-    speaker_enforcement_mode: str = "observe"  # observe | enforce
 
     # 0.27.8 hotfix: JARVIS/llama.cpp is the only AI reasoning route.
     # External AI is structurally blocked. Public-web research remains allowed
@@ -303,45 +192,6 @@ class Settings:
     expert_escalation_isolated_payload: bool = True
 
     # Always-listening wake word.
-    wake_enabled: bool = True
-    wake_auto_start: bool = True
-    wake_keyword: str = "jarvis"
-    wake_match_threshold: float = 0.72
-    wake_calibration_seconds: float = 0.8
-    wake_threshold_multiplier: float = 2.0
-    wake_threshold_floor: float = 0.006
-    wake_threshold_ceiling: float = 0.040
-    wake_silence_seconds: float = 1.20
-    wake_max_phrase_seconds: float = 12.0
-    wake_pre_roll_seconds: float = 0.40
-    wake_block_seconds: float = 0.10
-    wake_no_signal_rms: float = 0.00015
-    wake_speech_confirm_blocks: int = 2
-    wake_min_candidate_seconds: float = 0.40
-    wake_min_peak_ratio: float = 1.10
-    wake_rejected_cooldown_seconds: float = 0.20
-    wake_tts_tail_seconds: float = 0.35
-    wake_rearm_seconds: float = 0.20
-    wake_enrollment_samples: int = 5
-    wake_template_path: str = "voice_profiles/wake_jarvis.npz"
-    interrupt_template_path: str = "voice_profiles/interrupt_calate.npz"
-    interrupt_enrollment_samples: int = 3
-    interrupt_match_floor: float = 0.66
-    wake_feature_sample_rate: int = 16000
-    wake_feature_frame_ms: float = 25.0
-    wake_feature_hop_ms: float = 10.0
-    wake_feature_bands: int = 24
-    wake_probe_min_seconds: float = 0.35
-    wake_probe_max_seconds: float = 1.40
-    wake_match_floor: float = 0.72
-    wake_match_margin: float = 0.08
-    wake_start_slack_seconds: float = 0.18
-    wake_command_start_timeout_seconds: float = 5.0
-    wake_command_silence_seconds: float = 1.00
-    wake_command_max_seconds: float = 12.0
-    wake_command_min_seconds: float = 0.25
-    wake_command_preroll_seconds: float = 0.42
-    wake_command_threshold_ratio: float = 0.65
 
     # Personal Operations Layer.
     security_watch_enabled: bool = True
@@ -499,120 +349,86 @@ class Settings:
         # External AI is a hard Core invariant in this hotfix. Legacy settings
         # are migrated to disabled even if an older release stored an opt-in.
 
-        # 0.21 voice migration: the OWNER explicitly selected a feminine, warm
-        # voice. Only migrate the untouched 0.20 defaults; preserve any custom
-        # voice/rate/pitch the OWNER may already have chosen manually.
-        voice_migrated: list[str] = []
-        if "speech_persona_profile" not in data:
-            legacy_voice_values = {
-                "speech_voice": ("pt-PT-DuarteNeural", defaults.speech_voice),
-                "speech_rate": ("-7%", defaults.speech_rate),
-                "speech_pitch": ("-16Hz", defaults.speech_pitch),
-            }
-            for field_name, (legacy_value, new_value) in legacy_voice_values.items():
-                if data.get(field_name) == legacy_value:
-                    data[field_name] = new_value
-                    voice_migrated.append(field_name)
+        # PC-local audio was retired from Core. Historical settings are
+        # removed instead of migrated or reintroduced.
+        retired_local_audio_settings_removed: list[str] = []
 
-        encoding_migrated: list[str] = []
-        for field_name in ("wake_stt_initial_prompt", "wake_stt_hotwords"):
-            repaired = _repair_utf8_mojibake(data.get(field_name))
-            if repaired is not None:
-                data[field_name] = repaired
-                encoding_migrated.append(field_name)
-
-        accuracy_migrated: list[str] = []
-        # 0.23.4 webcam STT migration. Only exact shipped 0.23.3 defaults are
-        # upgraded so OWNER-tuned values remain untouched.
-        legacy_prompt = (
-            "Português europeu. Assistente Jarvis. "
-            "Comandos e perguntas naturais. "
-            "Brave, Spotify, Steam, Discord, Cyberpunk 2077, "
-            "volume, áudio, GPU, gráfica, CPU, temperatura."
+        retired_local_audio_prefixes = (
+            "voice_v2_",
+            "listening_watchdog_",
+            "wake_",
+            "stt_",
+            "mic_",
+            "speech_",
+            "speaker_",
+            "interrupt_",
         )
-        if data.get("wake_stt_beam_size") == 3:
-            data["wake_stt_beam_size"] = 5
-            accuracy_migrated.append("wake_stt_beam_size")
-        if data.get("wake_command_silence_seconds") == 0.8:
-            data["wake_command_silence_seconds"] = 1.0
-            accuracy_migrated.append("wake_command_silence_seconds")
-        if data.get("wake_command_preroll_seconds") == 0.12:
-            data["wake_command_preroll_seconds"] = 0.18
-            accuracy_migrated.append("wake_command_preroll_seconds")
-        if data.get("wake_stt_initial_prompt") == legacy_prompt:
-            data["wake_stt_initial_prompt"] = defaults.wake_stt_initial_prompt
-            accuracy_migrated.append("wake_stt_initial_prompt")
 
+        for field_name in list(data):
+            if field_name in {
+                "local_voice_enabled",
+                "proactive_speech_enabled",
+            }:
+                continue
+
+            if (
+                field_name == "voice_input_backend"
+                or field_name.startswith(
+                    retired_local_audio_prefixes
+                )
+            ):
+                data.pop(field_name, None)
+                retired_local_audio_settings_removed.append(
+                    field_name
+                )
+
+        # Historical performance migrations remain independent of Voice.
         speed_migrated: list[str] = []
-        # 0.24.1 wake/STT latency and false-wake migration. Only the exact
-        # values shipped by 0.24.0 are changed; OWNER-tuned values survive.
         speed_values = {
-            "wake_stt_beam_size": (5, defaults.wake_stt_beam_size),
-            "wake_stt_retry_beam_size": (8, defaults.wake_stt_retry_beam_size),
-            "wake_stt_low_confidence_avg_logprob": (-0.85, defaults.wake_stt_low_confidence_avg_logprob),
-            "wake_stt_low_confidence_no_speech": (0.45, defaults.wake_stt_low_confidence_no_speech),
-            "wake_command_preroll_seconds": (0.18, defaults.wake_command_preroll_seconds),
-            "wake_candidate_reject_cooldown_seconds": (0.45, defaults.wake_candidate_reject_cooldown_seconds),
-            "performance_fast_ctx": (4096, defaults.performance_fast_ctx),
-            "performance_fast_predict": (160, defaults.performance_fast_predict),
-            "performance_history_fast": (6, defaults.performance_history_fast),
-            "performance_tool_budget_fast": (12, defaults.performance_tool_budget_fast),
+            "performance_fast_ctx": (
+                4096,
+                defaults.performance_fast_ctx,
+            ),
+            "performance_fast_predict": (
+                160,
+                defaults.performance_fast_predict,
+            ),
+            "performance_history_fast": (
+                6,
+                defaults.performance_history_fast,
+            ),
+            "performance_tool_budget_fast": (
+                12,
+                defaults.performance_tool_budget_fast,
+            ),
         }
+
         for field_name, (legacy_value, new_value) in speed_values.items():
             if data.get(field_name) == legacy_value:
                 data[field_name] = new_value
                 speed_migrated.append(field_name)
 
-        wake_hardening_migrated: list[str] = []
-        # 0.25.4 false-wake hardening. Only exact 0.25.3 shipped defaults are
-        # upgraded; explicit OWNER tuning is preserved.
-        wake_hardening_values = {
-            "voice_v2_wake_threshold": (0.55, defaults.voice_v2_wake_threshold),
-            "wake_match_floor": (0.62, defaults.wake_match_floor),
-            "wake_candidate_min_avg_logprob": (-0.80, defaults.wake_candidate_min_avg_logprob),
-            "wake_candidate_max_no_speech_prob": (0.35, defaults.wake_candidate_max_no_speech_prob),
+        latency_performance_migrated: list[str] = []
+        latency_performance_values = {
+            "performance_fast_ctx": (
+                3072,
+                defaults.performance_fast_ctx,
+            ),
+            "performance_fast_predict": (
+                128,
+                defaults.performance_fast_predict,
+            ),
         }
-        for field_name, (legacy_value, new_value) in wake_hardening_values.items():
+
+        for (
+            field_name,
+            (legacy_value, new_value),
+        ) in latency_performance_values.items():
             if data.get(field_name) == legacy_value:
                 data[field_name] = new_value
-                wake_hardening_migrated.append(field_name)
-
-        voice_v2_sensitivity_migrated: list[str] = []
-        # 0.26.2: the openWakeWord model has its own Silero VAD and temporal
-        # confirmation, so the 0.62 threshold inherited from the legacy
-        # false-wake incident was unnecessarily strict. Only the exact shipped
-        # 0.25.4-0.26.1 value is relaxed; OWNER tuning remains untouched.
-        if data.get("voice_v2_wake_threshold") == 0.62:
-            data["voice_v2_wake_threshold"] = defaults.voice_v2_wake_threshold
-            voice_v2_sensitivity_migrated.append("voice_v2_wake_threshold")
-
-        voice_latency_migrated: list[str] = []
-        # 0.26.7 latency + hallucination hardening. These exact values were
-        # shipped by 0.26.6; OWNER-tuned alternatives are preserved. On this
-        # Windows build Faster Whisper CUDA is not usable, so CPU/small avoids
-        # repeated CUDA fallback and keeps the local Qwen model resident.
-        voice_latency_values = {
-            "voice_v2_stt_model": ("medium", defaults.voice_v2_stt_model),
-            "voice_v2_stt_device": ("auto", defaults.voice_v2_stt_device),
-            "performance_fast_ctx": (3072, defaults.performance_fast_ctx),
-            "performance_fast_predict": (128, defaults.performance_fast_predict),
-        }
-        for field_name, (legacy_value, new_value) in voice_latency_values.items():
-            if data.get(field_name) == legacy_value:
-                data[field_name] = new_value
-                voice_latency_migrated.append(field_name)
-
-        voice_turn_migrated: list[str] = []
-        # 0.26.8 wake responsiveness. These exact values were shipped by
-        # 0.26.7; OWNER-tuned alternatives are preserved.
-        voice_turn_values = {
-            "voice_v2_owner_fast_accept_threshold": (0.82, defaults.voice_v2_owner_fast_accept_threshold),
-            "voice_v2_owner_max_phrase_seconds": (1.30, defaults.voice_v2_owner_max_phrase_seconds),
-        }
-        for field_name, (legacy_value, new_value) in voice_turn_values.items():
-            if data.get(field_name) == legacy_value:
-                data[field_name] = new_value
-                voice_turn_migrated.append(field_name)
+                latency_performance_migrated.append(
+                    field_name
+                )
 
         retired_desktop_settings_removed: list[str] = []
         # M-08: Core no longer owns Wallpaper, its bridge, or Wallpaper Engine.
@@ -661,25 +477,6 @@ class Settings:
             data.pop(legacy_field, None)
             core_state_migrated.append(legacy_field)
 
-        mic_binding_migrated: list[str] = []
-        # 0.27.5 microphone binding migration. 0.27.3 accidentally
-        # restored the legacy JBL/16 kHz preference even when the OWNER had
-        # selected the GENERAL WEBCAM WASAPI endpoint. Only migrate the exact
-        # shipped legacy triple; explicit OWNER microphone preferences remain.
-        if (
-            str(data.get("mic_preferred_device_name") or "").strip().upper() == "JBL WAVE BEAM"
-            and bool(data.get("mic_preferred_handsfree", True))
-            and int(data.get("mic_preferred_samplerate") or 0) == 16000
-        ):
-            data["mic_preferred_device_name"] = "GENERAL WEBCAM"
-            data["mic_preferred_handsfree"] = False
-            data["mic_preferred_samplerate"] = 48000
-            mic_binding_migrated.extend([
-                "mic_preferred_device_name",
-                "mic_preferred_handsfree",
-                "mic_preferred_samplerate",
-            ])
-
         vision_migrated: list[str] = []
         # 0.27.8 acceptance hotfix v3 replaces the old Ollama-style visual
         # model tag with a JARVIS-owned native llama.cpp multimodal runtime.
@@ -720,13 +517,7 @@ class Settings:
             # PC-local speech is retired. Schema normalization must never
             # resurrect any historical audio subsystem on startup.
             "local_voice_enabled": False,
-            "speech_enabled": False,
-            "speaker_lock_enabled": False,
-            "wake_enabled": False,
-            "wake_auto_start": False,
             "proactive_speech_enabled": False,
-            "listening_watchdog_enabled": False,
-            "voice_v2_preload_stt": False,
         }
         local_first_values.update({
             "external_ai_enabled": False,
@@ -738,7 +529,7 @@ class Settings:
                 data[field_name] = value
                 forced.append(field_name)
 
-        if had_utf8_bom or added or forced or voice_migrated or vision_migrated or resource_migrated or encoding_migrated or accuracy_migrated or speed_migrated or wake_hardening_migrated or voice_latency_migrated or voice_turn_migrated or retired_desktop_settings_removed or retired_companion_settings_removed or core_state_migrated or mic_binding_migrated or not p.exists():
+        if (had_utf8_bom or added or forced or vision_migrated or resource_migrated or speed_migrated or latency_performance_migrated or retired_local_audio_settings_removed or retired_desktop_settings_removed or retired_companion_settings_removed or core_state_migrated or not p.exists()):
             p.write_text(
                 json.dumps(data, ensure_ascii=False, indent=2) + "\n",
                 encoding="utf-8",
@@ -751,33 +542,29 @@ class Settings:
             "added_count": len(added),
             "forced_local_first": forced,
             "forced_local_first_count": len(forced),
-            "voice_migrated": voice_migrated,
-            "voice_migrated_count": len(voice_migrated),
+            "retired_local_audio_settings_removed": (
+                retired_local_audio_settings_removed
+            ),
+            "retired_local_audio_settings_removed_count": len(
+                retired_local_audio_settings_removed
+            ),
+            "latency_performance_migrated": (
+                latency_performance_migrated
+            ),
+            "latency_performance_migrated_count": len(
+                latency_performance_migrated
+            ),
             "vision_migrated": vision_migrated,
             "vision_migrated_count": len(vision_migrated),
             "resource_migrated": resource_migrated,
             "resource_migrated_count": len(resource_migrated),
-            "encoding_migrated": encoding_migrated,
-            "encoding_migrated_count": len(encoding_migrated),
-            "accuracy_migrated": accuracy_migrated,
-            "accuracy_migrated_count": len(accuracy_migrated),
             "speed_migrated": speed_migrated,
-            "wake_hardening_migrated": wake_hardening_migrated,
-            "wake_hardening_migrated_count": len(wake_hardening_migrated),
-            "voice_v2_sensitivity_migrated": voice_v2_sensitivity_migrated,
-            "voice_v2_sensitivity_migrated_count": len(voice_v2_sensitivity_migrated),
-            "voice_latency_migrated": voice_latency_migrated,
-            "voice_turn_migrated": voice_turn_migrated,
-            "voice_turn_migrated_count": len(voice_turn_migrated),
-            "voice_latency_migrated_count": len(voice_latency_migrated),
             "retired_desktop_settings_removed": retired_desktop_settings_removed,
             "retired_desktop_settings_removed_count": len(retired_desktop_settings_removed),
             "retired_companion_settings_removed": retired_companion_settings_removed,
             "retired_companion_settings_removed_count": len(retired_companion_settings_removed),
             "core_state_migrated": core_state_migrated,
             "core_state_migrated_count": len(core_state_migrated),
-            "mic_binding_migrated": mic_binding_migrated,
-            "mic_binding_migrated_count": len(mic_binding_migrated),
             "utf8_bom_normalized": had_utf8_bom,
             "speed_migrated_count": len(speed_migrated),
         }
@@ -867,16 +654,8 @@ class Settings:
         instance.expert_escalation_enabled = False
         instance.performance_cloud_offload_under_pressure = False
 
-        # PC-local voice and listening are retired. Runtime loading must never
-        # resurrect historical audio features, regardless of file contents,
-        # environment overrides, or malformed settings fallback.
+        # PC-local audio is structurally retired.
+        # Keep only the master policy tombstone.
         instance.local_voice_enabled = False
-        instance.speech_enabled = False
-        instance.speaker_lock_enabled = False
-        instance.wake_enabled = False
-        instance.wake_auto_start = False
-        instance.proactive_speech_enabled = False
-        instance.listening_watchdog_enabled = False
-        instance.voice_v2_preload_stt = False
 
         return instance

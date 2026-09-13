@@ -28,11 +28,11 @@ class QuietTerminalTests(unittest.TestCase):
             self.assertIn(f'lower == "{command}"', self.cli)
 
     def test_perf_output_is_conditioned_on_debug(self):
-        # All three PERF print sites should now have a nearby debug gate.
-        self.assertEqual(self.cli.count("[PERF  ]"), 3)
+        # The remaining terminal PERF output is visible only in debug mode.
+        self.assertEqual(self.cli.count("[PERF  ]"), 1)
         self.assertGreaterEqual(
             self.cli.count('if debug_terminal["enabled"]:'),
-            5,
+            2,
         )
 
     def test_eventbus_still_persists_diagnostics(self):
