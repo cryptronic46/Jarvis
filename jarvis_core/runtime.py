@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from time import monotonic
 
 from jarvis_core.services.learning_followup import (
@@ -35,6 +37,16 @@ from jarvis_core.memory.write_executor import (
     TrustedWriteExecutionContext,
     execute_memory_resolution_plan,
 )
+
+@dataclass(frozen=True, slots=True)
+class ProcessRequestResult:
+    """Stable transport-neutral result of one JARVIS turn."""
+
+    answer: str
+    route: str
+    elapsed_ms: int
+    hybrid: object | None
+
 
 _MODEL_OWNED_SEMANTIC_INTENTS = frozenset({
     "GENERAL_CONVERSATION",
@@ -325,7 +337,7 @@ class JarvisRuntime:
             learning_followup,
         )
 
-    def process_request(self, user_text: str, *, source: str = "terminal"):
+    def process_request(self, user_text: str, *, source: str = "terminal") -> ProcessRequestResult:
         """Fast Path -> local reasoning or direct-web/local-synthesis research."""
         settings = self.settings
         events = self.events
@@ -777,7 +789,12 @@ class JarvisRuntime:
                 )
                 elapsed = round((monotonic() - command_started) * 1000)
                 performance.record_request(elapsed_ms=elapsed, route=route)
-                return answer, route, elapsed, None
+                return ProcessRequestResult(
+                    answer=answer,
+                    route=route,
+                    elapsed_ms=elapsed,
+                    hybrid=None,
+                )
 
         except MemoryModelContractError as exc:
             memory1_turn_result = MemoryTurnResult(
@@ -828,7 +845,12 @@ class JarvisRuntime:
             )
             elapsed = round((monotonic() - command_started) * 1000)
             performance.record_request(elapsed_ms=elapsed, route=route)
-            return answer, route, elapsed, None
+            return ProcessRequestResult(
+                answer=answer,
+                route=route,
+                elapsed_ms=elapsed,
+                hybrid=None,
+            )
 
         except Exception as exc:
             if isinstance(exc, MemoryModelInvocationError):
@@ -871,7 +893,12 @@ class JarvisRuntime:
                 )
                 elapsed = round((monotonic() - command_started) * 1000)
                 performance.record_request(elapsed_ms=elapsed, route=route)
-                return answer, route, elapsed, None
+                return ProcessRequestResult(
+                    answer=answer,
+                    route=route,
+                    elapsed_ms=elapsed,
+                    hybrid=None,
+                )
             events.emit(
                 "MEMORY1_RUNTIME_ERROR",
                 source=source,
@@ -973,11 +1000,11 @@ class JarvisRuntime:
                 route=route,
             )
 
-            return (
-                answer,
-                route,
-                elapsed,
-                None,
+            return ProcessRequestResult(
+                answer=answer,
+                route=route,
+                elapsed_ms=elapsed,
+                hybrid=None,
             )
 
         if settings.persistent_context_enabled:
@@ -1042,9 +1069,9 @@ class JarvisRuntime:
                 route=hybrid.route,
             )
 
-        return (
-            hybrid.text,
-            hybrid.route,
-            elapsed,
-            hybrid,
+        return ProcessRequestResult(
+            answer=hybrid.text,
+            route=hybrid.route,
+            elapsed_ms=elapsed,
+            hybrid=hybrid,
         )

@@ -3,7 +3,10 @@ from types import SimpleNamespace
 import ast
 import unittest
 
-from jarvis_core.runtime import route_runtime_request
+from jarvis_core.runtime import (
+    ProcessRequestResult,
+    route_runtime_request,
+)
 
 
 APP_ALIASES = {
@@ -100,6 +103,43 @@ class FakeHybridBrain:
 class RuntimeRequestPipelineTests(
     unittest.TestCase
 ):
+    def test_process_request_result_is_named_contract(
+        self,
+    ):
+        hybrid = object()
+
+        result = ProcessRequestResult(
+            answer="ok",
+            route="LOCAL/test",
+            elapsed_ms=12,
+            hybrid=hybrid,
+        )
+
+        self.assertEqual(
+            result.answer,
+            "ok",
+        )
+
+        self.assertEqual(
+            result.route,
+            "LOCAL/test",
+        )
+
+        self.assertEqual(
+            result.elapsed_ms,
+            12,
+        )
+
+        self.assertIs(
+            result.hybrid,
+            hybrid,
+        )
+
+        with self.assertRaises(
+            TypeError
+        ):
+            tuple(result)
+
     def test_fast_path_uses_resolved_semantics_and_skips_hybrid(
         self,
     ):
@@ -463,6 +503,18 @@ class RuntimeRequestPipelineTests(
 
         self.assertIsNotNone(
             segment
+        )
+
+        self.assertIn(
+            "-> ProcessRequestResult",
+            segment,
+        )
+
+        self.assertEqual(
+            segment.count(
+                "return ProcessRequestResult("
+            ),
+            5,
         )
 
         self.assertIn(

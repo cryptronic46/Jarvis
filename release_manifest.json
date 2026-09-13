@@ -111,7 +111,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "7f81f6db097e0a18e6e84fd04f5623ea8c9f274fc00bf36a2ff90d3ed85c857b"
+      "sha256": "85938fddc726ba7cf55da22fe4912e5421dd785ff05a254159aa61f1ab8ff39a"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -263,7 +263,7 @@
     },
     {
       "path": "jarvis_core/runtime.py",
-      "sha256": "d5a17232c168def044e76b455822c0555b594cf4ad282649a68fcd2583408786"
+      "sha256": "a745b6f4fbe9bb808a6ff75705563a1940673b360be52a73377d43d1fad6b47b"
     },
     {
       "path": "jarvis_core/security/__init__.py",
@@ -1207,7 +1207,7 @@
     },
     {
       "path": "tests/test_memory1_runtime_integration.py",
-      "sha256": "baf9173d8529777cb3dd5fdbec9dee1113e76640e4b5ee0722c95c040f263da0"
+      "sha256": "ce231c9520897b9aa7d4f3ed6118ba5196e8ba1ce585bd4009a95177e1e3fb02"
     },
     {
       "path": "tests/test_memory1_runtime_result.py",
@@ -1435,7 +1435,7 @@
     },
     {
       "path": "tests/test_runtime_request_pipeline.py",
-      "sha256": "cb1839d4930721312270d6cc85c0d42ff6fab6eb66f36a8ed31653a08bb721f8"
+      "sha256": "06db8aaac8f3833b792f5cbf20b066c29c38ce0f32a32e77c15f64bdf2b915ce"
     },
     {
       "path": "tests/test_security.py",

@@ -14,6 +14,11 @@ CLI_PATH = (
     / "jarvis_core/cli.py"
 )
 
+RUNTIME_PATH = (
+    REPO_ROOT
+    / "jarvis_core/runtime.py"
+)
+
 
 def expr_text(
     node: ast.AST | None,
@@ -106,23 +111,36 @@ class Memory1RuntimeIntegrationTests(
     def setUpClass(
         cls,
     ) -> None:
-        cls.source = (
+        cls.cli_source = (
             CLI_PATH.read_text(
                 encoding="utf-8"
             )
         )
 
-        cls.tree = ast.parse(
-            cls.source,
+        cls.cli_tree = ast.parse(
+            cls.cli_source,
             filename=str(
                 CLI_PATH
+            ),
+        )
+
+        cls.runtime_source = (
+            RUNTIME_PATH.read_text(
+                encoding="utf-8"
+            )
+        )
+
+        cls.runtime_tree = ast.parse(
+            cls.runtime_source,
+            filename=str(
+                RUNTIME_PATH
             ),
         )
 
         main_nodes = [
             node
             for node
-            in cls.tree.body
+            in cls.cli_tree.body
             if (
                 isinstance(
                     node,
@@ -143,12 +161,34 @@ class Memory1RuntimeIntegrationTests(
             ]
         )
 
+        runtime_classes = [
+            node
+            for node
+            in cls.runtime_tree.body
+            if (
+                isinstance(
+                    node,
+                    ast.ClassDef,
+                )
+                and node.name
+                == "JarvisRuntime"
+            )
+        ]
+
+        assert len(
+            runtime_classes
+        ) == 1
+
+        cls.runtime_class = (
+            runtime_classes[
+                0
+            ]
+        )
+
         process_nodes = [
             node
             for node
-            in ast.walk(
-                cls.main
-            )
+            in cls.runtime_class.body
             if (
                 isinstance(
                     node,
@@ -172,7 +212,7 @@ class Memory1RuntimeIntegrationTests(
         route_nodes = [
             node
             for node
-            in cls.tree.body
+            in cls.runtime_tree.body
             if (
                 isinstance(
                     node,
@@ -195,7 +235,7 @@ class Memory1RuntimeIntegrationTests(
 
         cls.main_source = (
             ast.get_source_segment(
-                cls.source,
+                cls.cli_source,
                 cls.main,
             )
             or ""
@@ -203,7 +243,7 @@ class Memory1RuntimeIntegrationTests(
 
         cls.process_source = (
             ast.get_source_segment(
-                cls.source,
+                cls.runtime_source,
                 cls.process,
             )
             or ""
@@ -211,17 +251,23 @@ class Memory1RuntimeIntegrationTests(
 
         cls.route_source = (
             ast.get_source_segment(
-                cls.source,
+                cls.runtime_source,
                 cls.route,
             )
             or ""
         )
 
+        # Compatibility alias for contracts that intentionally inspect
+        # the canonical turn implementation as raw source.
+        cls.source = (
+            cls.runtime_source
+        )
+
     # 01
-    def test_memory1_runtime_dependencies_live_in_main(
+    def test_memory1_dependencies_are_split_between_bootstrap_and_runtime(
         self,
     ) -> None:
-        imported = set()
+        bootstrap_imports = set()
 
         for node in ast.walk(
             self.main
@@ -233,21 +279,40 @@ class Memory1RuntimeIntegrationTests(
                 continue
 
             for alias in node.names:
-                imported.add(
+                bootstrap_imports.add(
                     alias.name
                 )
 
-        required = {
+        runtime_imports = set()
+
+        for node in ast.walk(
+            self.runtime_tree
+        ):
+            if not isinstance(
+                node,
+                ast.ImportFrom,
+            ):
+                continue
+
+            for alias in node.names:
+                runtime_imports.add(
+                    alias.name
+                )
+
+        bootstrap_required = {
             "CanonicalMemoryStore",
+            "TrustedTwoStageSemanticMemoryAdapter",
+            "ensure_canonical_owner",
+            "QwenSemanticIdentityMatcher",
+            "JarvisQwenMemoryModel",
+        }
+
+        runtime_required = {
             "MemoryAuthority",
             "SourceType",
             "InterpreterContext",
             "MemoryOperation",
-            "TrustedTwoStageSemanticMemoryAdapter",
             "utc_now",
-            "ensure_canonical_owner",
-            "QwenSemanticIdentityMatcher",
-            "JarvisQwenMemoryModel",
             "build_memory_resolution_plan",
             "remember_plan_has_ambiguous_identity",
             "TrustedWriteExecutionContext",
@@ -260,8 +325,14 @@ class Memory1RuntimeIntegrationTests(
         }
 
         self.assertTrue(
-            required.issubset(
-                imported
+            bootstrap_required.issubset(
+                bootstrap_imports
+            )
+        )
+
+        self.assertTrue(
+            runtime_required.issubset(
+                runtime_imports
             )
         )
 
@@ -467,57 +538,69 @@ class Memory1RuntimeIntegrationTests(
     def test_process_request_captures_occurred_at_at_entry(
         self,
     ) -> None:
-        body = (
-            self.process.body
-        )
+        occurred = []
+        started = []
 
-        self.assertGreaterEqual(
-            len(
-                body
-            ),
-            3,
-        )
+        for node in ast.walk(
+            self.process
+        ):
+            if not isinstance(
+                node,
+                ast.Assign,
+            ):
+                continue
 
-        self.assertIsInstance(
-            body[
-                1
-            ],
-            ast.Assign,
+            targets = {
+                name
+                for target in node.targets
+                for name in assign_targets(
+                    target
+                )
+            }
+
+            if (
+                "memory1_occurred_at"
+                in targets
+            ):
+                occurred.append(
+                    node
+                )
+
+            if (
+                "command_started"
+                in targets
+            ):
+                started.append(
+                    node
+                )
+
+        self.assertEqual(
+            len(occurred),
+            1,
         )
 
         self.assertEqual(
-            assign_targets(
-                body[
-                    1
-                ].targets[
-                    0
-                ]
-            ),
-            (
-                "memory1_occurred_at",
-            ),
+            len(started),
+            1,
         )
 
         self.assertEqual(
             expr_text(
-                body[
-                    1
-                ].value
+                occurred[0].value
             ),
             "utc_now()",
         )
 
         self.assertEqual(
-            assign_targets(
-                body[
-                    2
-                ].targets[
-                    0
-                ]
+            expr_text(
+                started[0].value
             ),
-            (
-                "command_started",
-            ),
+            "monotonic()",
+        )
+
+        self.assertLess(
+            occurred[0].lineno,
+            started[0].lineno,
         )
 
     # 07

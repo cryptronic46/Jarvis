@@ -131,7 +131,11 @@ from jarvis_core.tools.security_audit import (
     format_network_devices,
 )
 from jarvis_core.tools.windows_actions import AppRegistry
-from jarvis_core.runtime import JarvisRuntime, route_runtime_request
+from jarvis_core.runtime import (
+    JarvisRuntime,
+    ProcessRequestResult,
+    route_runtime_request,
+)
 
 
 
@@ -1027,7 +1031,7 @@ def main() -> None:
         user_text: str,
         *,
         source: str = "terminal",
-    ):
+    ) -> ProcessRequestResult:
         return turn_runtime.process_request(
             user_text,
             source=source,
@@ -1367,11 +1371,11 @@ def main() -> None:
                 return
 
             with command_lock:
-                answer, route, command_ms, hybrid = process_request(
+                result = process_request(
                     query
                 )
                 print(
-                    f"\nJARVIS > {answer}\n"
+                    f"\nJARVIS > {result.answer}\n"
                 )
             return
 
@@ -1495,17 +1499,12 @@ def main() -> None:
                     )
 
                     with command_lock:
-                        (
-                            answer,
-                            route,
-                            command_ms,
-                            hybrid,
-                        ) = process_request(
+                        result = process_request(
                             original_query
                         )
 
                         print(
-                            f"\nJARVIS > {answer}\n"
+                            f"\nJARVIS > {result.answer}\n"
                         )
 
 
@@ -3354,7 +3353,11 @@ def main() -> None:
 
             with command_lock:
                 request_generation = silence_latch.generation()
-                answer, route, command_ms, hybrid = process_request(text)
+                result = process_request(text)
+                answer = result.answer
+                route = result.route
+                command_ms = result.elapsed_ms
+                hybrid = result.hybrid
                 if not silence_latch.output_allowed(request_generation):
                     silence_latch.mark_suppressed_response("response")
                     continue
