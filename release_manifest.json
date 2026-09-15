@@ -4,6 +4,7 @@
   "scope": {
     "trees": [
       "jarvis_core",
+      "jarvis_web",
       "tests",
       "defaults"
     ],
@@ -43,7 +44,7 @@
   "files": [
     {
       "path": ".gitignore",
-      "sha256": "475ee4009d3013aaf7478cb81237a20cabef5c656b828ed4fd5c437cf273c994"
+      "sha256": "3c631b65fc60da8d8ef90428a8d105c3fa1c1d99d806b74eca0b48c33a950b82"
     },
     {
       "path": "AUDIT_0.27.8.md",
@@ -63,7 +64,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "44809978bd2bdf7ce0a893083a03a4244d2f82b11b97c3f7772ae51db934497d"
+      "sha256": "de61189d28a2f0b43d60625e44abb2d8b450516515057352505a828fcb9712fb"
     },
     {
       "path": "acceptance_real_machine.ps1",
@@ -119,7 +120,7 @@
     },
     {
       "path": "jarvis_core/cli.py",
-      "sha256": "d2aa47acaa6ee77324f7d49292d3cdf8b70687103fe2c4d9bb5176f724f7187e"
+      "sha256": "c14bdaf6385e85ea188085810379cbe6d745cd66c320bd02bc2114b7f7a8aa5c"
     },
     {
       "path": "jarvis_core/core/__init__.py",
@@ -127,7 +128,7 @@
     },
     {
       "path": "jarvis_core/core/brain.py",
-      "sha256": "ed4844a6a0983c9644cded93ae415d3992725ecbece2e92d46b0e9303f1cb79f"
+      "sha256": "438e045bf03bdabc4d64daff094a45e4ccdd5c26c2b36b8165a470f5131bdce9"
     },
     {
       "path": "jarvis_core/core/cloud_brain.py",
@@ -159,7 +160,7 @@
     },
     {
       "path": "jarvis_core/core/hybrid_brain.py",
-      "sha256": "2037a76243548b4664f344dc028307e49d9cdc2109627c6afb08742bccc676cb"
+      "sha256": "6b36f2e7a88babdf6407dfc77ba90dbf965360f27d4d14c3e6694eed2d1f021b"
     },
     {
       "path": "jarvis_core/core/local_llm.py",
@@ -187,7 +188,7 @@
     },
     {
       "path": "jarvis_core/memory/canonical_store.py",
-      "sha256": "fa05627e64563be8f896a2c4fa6af3296c292c68d27d1606306e22e989dfccf5"
+      "sha256": "d5733bd4ab13c4b94c7a60f3f3cbc26d4df60be86c637f21abdc74088f1516c8"
     },
     {
       "path": "jarvis_core/memory/entity_bindings.py",
@@ -199,7 +200,7 @@
     },
     {
       "path": "jarvis_core/memory/enums.py",
-      "sha256": "36a4bc4267b4888a5f2e5be0dd4b6f5c8a1a593481a68a05c8cf918b5d2d36b3"
+      "sha256": "a3047b6a691f5629637a9fd7dbe1f4dfcd6021691d256b66e0321989451e91d5"
     },
     {
       "path": "jarvis_core/memory/errors.py",
@@ -271,7 +272,7 @@
     },
     {
       "path": "jarvis_core/runtime.py",
-      "sha256": "a745b6f4fbe9bb808a6ff75705563a1940673b360be52a73377d43d1fad6b47b"
+      "sha256": "7fd4690acdffc5401f7c780a0afedd09bd98793828267f1118362926a68397d6"
     },
     {
       "path": "jarvis_core/security/__init__.py",
@@ -296,6 +297,10 @@
     {
       "path": "jarvis_core/services/agenda.py",
       "sha256": "1a74b42574cbc77504d46c80bb87a2cbaa0fd730d0c8359b4af6d36ecafdec46"
+    },
+    {
+      "path": "jarvis_core/services/always_on_context.py",
+      "sha256": "f39a1845e74298a69e4ea08bb73b735de0891adc2037c770cdde1b688d51c3c4"
     },
     {
       "path": "jarvis_core/services/autonomy.py",
@@ -590,6 +595,322 @@
       "sha256": "7d2196db28de570b986a5988c5dc212702c5bad1c7924e62e0dc40d6344b8cff"
     },
     {
+      "path": "jarvis_web/.env.example",
+      "sha256": "78240cdfceeaa1f90653c6f65ddfa11389f9c22f0a4766dcb0cc1e8cea0dc5e1"
+    },
+    {
+      "path": "jarvis_web/README.md",
+      "sha256": "e6a601b0d28f08a947d5c3886c43a537afb459919c9a779bd99c23da3b67bac1"
+    },
+    {
+      "path": "jarvis_web/__init__.py",
+      "sha256": "02103fc76f72b75cea68b8eb7f8fe8dd347a7bb0634713f0bbf427ffbd2f868c"
+    },
+    {
+      "path": "jarvis_web/backend/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "jarvis_web/backend/adapters/__init__.py",
+      "sha256": "2294202a0053082512a34cf843408d1b3164f050b4b4b76c1cf9e7937be4268c"
+    },
+    {
+      "path": "jarvis_web/backend/adapters/base.py",
+      "sha256": "7f5919f7d4229842e4440a68917eb97fe396389f821223ee539954468df48d8b"
+    },
+    {
+      "path": "jarvis_web/backend/adapters/jarvis_core.py",
+      "sha256": "906f6140222a29ba50acd4eb38a8b93acaa0410cff097d6bd781572bab3ecba6"
+    },
+    {
+      "path": "jarvis_web/backend/adapters/mock.py",
+      "sha256": "a8a646ae40865e0f59ba4da6b87fb495acc60cb1c573e857a137471fdac2f50b"
+    },
+    {
+      "path": "jarvis_web/backend/app.py",
+      "sha256": "7b8982d812e42843cd60c0c2b7d4d903023d25374828013575d5f94d57cc910c"
+    },
+    {
+      "path": "jarvis_web/backend/audit_log.py",
+      "sha256": "036ec314615d726d853efe539add76416fc14e51386f905cb40ef08f12e0cd16"
+    },
+    {
+      "path": "jarvis_web/backend/auth.py",
+      "sha256": "d93801b0a73fb90404ee099fd3693f9970dda6c3ef92f29071b8f136980d2fb8"
+    },
+    {
+      "path": "jarvis_web/backend/config.py",
+      "sha256": "04808d24ed574c41c91c428150fe4a384e7b26095edd4bc70fcb83b2befce9e9"
+    },
+    {
+      "path": "jarvis_web/backend/dev_app.py",
+      "sha256": "248cb1c9d6e6b72ec8bc32b2e96d3dfc93823a3cef6686fe84a110388b2b9e78"
+    },
+    {
+      "path": "jarvis_web/backend/events/__init__.py",
+      "sha256": "22a396aec494ac38c91cc62eff7d507c6d48569a60bba56e544c230903a13bf3"
+    },
+    {
+      "path": "jarvis_web/backend/events/broker.py",
+      "sha256": "2e415103ad907e861b80c193364ab8169ee9b9274edb611b238646ddf4c53451"
+    },
+    {
+      "path": "jarvis_web/backend/history_service.py",
+      "sha256": "dd7d1c61013e818c7673c32d435eafe12ecf6b8b3cdec1caf537c46401444cb9"
+    },
+    {
+      "path": "jarvis_web/backend/home_capability_broker.py",
+      "sha256": "24c618456a67bf86094fe4b51282bf00c1d73b1d20c8d5520d709440b415b9ad"
+    },
+    {
+      "path": "jarvis_web/backend/models.py",
+      "sha256": "8b281da2da27d3f442cc0ac451ff841a5aa169090bb53068216d21b2b6e8d858"
+    },
+    {
+      "path": "jarvis_web/backend/permission_broker.py",
+      "sha256": "64ed145c42ceef5083e2909d084c2edf50a9620404300e9bb1a6c0d2e08a8843"
+    },
+    {
+      "path": "jarvis_web/backend/routes/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "jarvis_web/backend/routes/auth.py",
+      "sha256": "b84901c28fcce881ed554c5c4693e3a9c89d9702b9fafd9fa338de0fbc3b74fa"
+    },
+    {
+      "path": "jarvis_web/backend/routes/chat.py",
+      "sha256": "73119fed7987bd971c17f59fa05d851e6354f95d4a00a8de8be286ea8588c063"
+    },
+    {
+      "path": "jarvis_web/backend/routes/events.py",
+      "sha256": "254c7f4dc83ddc6a3c4fd6fed314e700169f7a9d0931f27adf8590a8562fa83b"
+    },
+    {
+      "path": "jarvis_web/backend/routes/health.py",
+      "sha256": "e31d5480c3aa84dc9a9b01094cf8cdde5b4b17c3faa8391e1fa3a55eb4196984"
+    },
+    {
+      "path": "jarvis_web/backend/routes/history.py",
+      "sha256": "c81c14fb86dcf50fd8a34a99e0e26de14259227038a9a50c8531eee17da20855"
+    },
+    {
+      "path": "jarvis_web/backend/routes/security_gateway.py",
+      "sha256": "e23ab9460013cc4d4c490d5a5f7c99129ad562aa7e8b88cc9091ad82930f2233"
+    },
+    {
+      "path": "jarvis_web/backend/routes/sessions.py",
+      "sha256": "4781de2e01f1691ab3e9dfaabc57fe4d024ba42432a0c825c3f5a67d3a6822be"
+    },
+    {
+      "path": "jarvis_web/backend/routes/status.py",
+      "sha256": "4bf92c6452d2b61b78184a758d64c0ab382c37d56270ba30f83a51da3fcf6897"
+    },
+    {
+      "path": "jarvis_web/backend/security.py",
+      "sha256": "831dc3563698bdbc5f4090428ba7288371db1eb0d40fa5216713dfba846f690d"
+    },
+    {
+      "path": "jarvis_web/backend/session_store.py",
+      "sha256": "815873d724ef4fe2bcb52ca261449bfefde737b1c63b22e0a9ec95bc178cb3e2"
+    },
+    {
+      "path": "jarvis_web/backend/storage_protection.py",
+      "sha256": "6aaae59c7619cf56122c37bf5bfa5ee952ca42e6ea472497b73d1f43f5bb7874"
+    },
+    {
+      "path": "jarvis_web/backend/web_chat_policy.py",
+      "sha256": "5c6e574403c4ceec84806ebdc8b0883a82838a0d7bc030421f6fdc5b9d0ac0cf"
+    },
+    {
+      "path": "jarvis_web/backup-encrypted-history.ps1",
+      "sha256": "6170c3507a79745c71636db698fc813184e1a1e708b35990587392058e159f15"
+    },
+    {
+      "path": "jarvis_web/clean-test-history.ps1",
+      "sha256": "57fbed31ec6d13568cec8b50be693dc39c9b48c5081e3a58e77de9479a687abf"
+    },
+    {
+      "path": "jarvis_web/pytest.ini",
+      "sha256": "064ce457fff4cb8ec972d64faa8f10ca19d096b5fefa67fb92a87b33615acddc"
+    },
+    {
+      "path": "jarvis_web/requirements.txt",
+      "sha256": "d9941837e0c0eee839d93b6a82cc118843d47c289439e04c992345d55a5c5169"
+    },
+    {
+      "path": "jarvis_web/tests/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "jarvis_web/tests/auth_helpers.py",
+      "sha256": "85e02452161c9aca4517150d0a504e61c89e9cd49cc4d28fded634ebf572492d"
+    },
+    {
+      "path": "jarvis_web/tests/conftest.py",
+      "sha256": "6bc210ae29ccde181ae4a3139364e36c22b4076e6012bcb1fc4211e016b94b35"
+    },
+    {
+      "path": "jarvis_web/tests/test_api.py",
+      "sha256": "580804deacc720e666b01f174f89e6832d44f3c3bbc93c79a7f7f398f5960b0b"
+    },
+    {
+      "path": "jarvis_web/tests/test_real_core_adapter.py",
+      "sha256": "cb75c334b50fd3e4ba376a8bb85445e4e506f117c675c55976fd11260b877f9a"
+    },
+    {
+      "path": "jarvis_web/tests/test_v02_sessions.py",
+      "sha256": "41275c090c5a5d9d92fd593dd8dee7a3c055244ef191d37b614dde5af90c52ba"
+    },
+    {
+      "path": "jarvis_web/tests/test_v031_security.py",
+      "sha256": "50b7c22b201add8effbd56f534218ddfef14eb70718661e98528c5a716f1b065"
+    },
+    {
+      "path": "jarvis_web/tests/test_v034_auth.py",
+      "sha256": "9368165ee7d2aa1c7799fccf51ff03710cfdca5f6ab173b14099cc809b78d3e3"
+    },
+    {
+      "path": "jarvis_web/tests/test_v037_command_firewall.py",
+      "sha256": "6e8403844b66752efbb1abfa0afd81710c29937f5ccee7ac75d952863742bfac"
+    },
+    {
+      "path": "jarvis_web/tests/test_v038_core_introspection_firewall.py",
+      "sha256": "ee10d2fa1e0755fe9da23c0ddfee7f69dcd463716632859b77606465ec2897da"
+    },
+    {
+      "path": "jarvis_web/tests/test_v03_history.py",
+      "sha256": "f90eb87406f823434887cbc3cb2878a2423ada08663647d6eaed1867cf07a0cb"
+    },
+    {
+      "path": "jarvis_web/tests/test_v040_security_gateway.py",
+      "sha256": "09e733b23b557251dbcbb862bd25e75ca34b57baa9bb2c0a34cc19ef28416a51"
+    },
+    {
+      "path": "jarvis_web/tests/test_v041_spa_path_hardening.py",
+      "sha256": "5af12f59c0c4984d18c7df4503f045907cc80357538baa9763db7a88c69015fe"
+    },
+    {
+      "path": "jarvis_web/tests/test_v042_local_gateway_hardening.py",
+      "sha256": "9f504cc7b56d2f510e8a3dea2e3ad1f0ef8e505870f28bc1852e7da9e2c6e80a"
+    },
+    {
+      "path": "jarvis_web/tests/test_v043_dpapi_storage.py",
+      "sha256": "ce7fc48662d656dd3ea049ff1c504879d71425323e513d02aa05916cc5cd679c"
+    },
+    {
+      "path": "jarvis_web/tests/test_v044_robustness.py",
+      "sha256": "befab931874d42fe18336b905af2ab010d0edb889d97237dea1f18efae1590cd"
+    },
+    {
+      "path": "jarvis_web/tests/test_v044a_test_isolation.py",
+      "sha256": "0bd60a63195459a8ecac8ccf862e6125dc76f9d606d68d50ce708ddc847d2209"
+    },
+    {
+      "path": "jarvis_web/tests/test_v050_frontend_contract.py",
+      "sha256": "062b872e19b22c209c1276582874c6b41e4ac8d6a5a33b9f7756d887034f9eff"
+    },
+    {
+      "path": "jarvis_web/tests/test_v050_game_delete.py",
+      "sha256": "b2f1596bcfd63b16899b2e84e148d4c180e9b99b248c0df567fc3a3c10451d8a"
+    },
+    {
+      "path": "jarvis_web/tests/test_v050_home_capabilities.py",
+      "sha256": "f1df0f932dc197be19825994fca3a44ecb315e314e643ec0995c68f742bbf636"
+    },
+    {
+      "path": "jarvis_web/tests/test_v051_concept_d_contract.py",
+      "sha256": "b0caa3f657a7952b2b71fbf85cd988f3ecaf04bd9d2465c3506cf194c12162a1"
+    },
+    {
+      "path": "jarvis_web/tests/test_v052_concept_d_earth_photo.py",
+      "sha256": "35cb8778557c014a254218a3060cf91c44d3bbd13351411d958259fb18e0a4ae"
+    },
+    {
+      "path": "jarvis_web/tests/test_web_transport_runner.py",
+      "sha256": "fd8c03aea258e96815c850c25f597e8b4c72fcb9c99c811a0f403197c66d4418"
+    },
+    {
+      "path": "jarvis_web/tests/test_web_transport_status.py",
+      "sha256": "8b54324d9ee9bbd71399a565da04d93773f0000d161640d57d61e4fe9eda3c71"
+    },
+    {
+      "path": "jarvis_web/transport_runner.py",
+      "sha256": "466a9573fd388395add89e0676ebb805b92b9ef42707ec34cd7bf98be6f93948"
+    },
+    {
+      "path": "jarvis_web/web/dist/assets/concept-d-earth-horizon.webp",
+      "sha256": "fc1b53585930a3bf8923a6d8cd6fb4bb4edb317955738373871c40eeda8a0a32"
+    },
+    {
+      "path": "jarvis_web/web/dist/assets/index-CyMDWF1P.js",
+      "sha256": "8af81e8baaf9dd23a10716d80536118af8781a4ea939bf119b9de51248c73140"
+    },
+    {
+      "path": "jarvis_web/web/dist/assets/index-DPhdtr2W.css",
+      "sha256": "d25d45dfd46cc3ae7e27c3593a2cec5f5a19ceec6c77ccead4dd8c372fe0c9e8"
+    },
+    {
+      "path": "jarvis_web/web/dist/index.html",
+      "sha256": "605453ae93004bfa0306c92cb9deb57f7c8c7b0b91442515d5529a26f11ab779"
+    },
+    {
+      "path": "jarvis_web/web/index.html",
+      "sha256": "9b5ec64229ca5b9b5747eebf67e575151a64974e7072b76ce8a28f2c0594628e"
+    },
+    {
+      "path": "jarvis_web/web/package-lock.json",
+      "sha256": "055c4fbdda0b9af684901b75a2afa41c11749667f4c35fa2f3ddcbcfe8008f05"
+    },
+    {
+      "path": "jarvis_web/web/package.json",
+      "sha256": "d06364719be6fc20932dbcea42832c185394e91ea2f5be98764146a2f6b285f7"
+    },
+    {
+      "path": "jarvis_web/web/public/assets/concept-d-earth-horizon.webp",
+      "sha256": "fc1b53585930a3bf8923a6d8cd6fb4bb4edb317955738373871c40eeda8a0a32"
+    },
+    {
+      "path": "jarvis_web/web/src/App.tsx",
+      "sha256": "eb76d8322e9d9cf27229c8192cc7db596a014d4130543a264f68f574407eed41"
+    },
+    {
+      "path": "jarvis_web/web/src/api.ts",
+      "sha256": "7c9f2cfbd96226cfb0b0e882a4f6ef27b7133bcc7c67cd6a86950bb28411470f"
+    },
+    {
+      "path": "jarvis_web/web/src/components/JarvisCoreVisual.tsx",
+      "sha256": "fb5edd5a7136ad57399d5e2019ca290ecd70358abc3bc54e971f2d4cba5d47bd"
+    },
+    {
+      "path": "jarvis_web/web/src/components/MessageContent.tsx",
+      "sha256": "e3fa70adc102d12fde393af664eb5d147389bcb3e4f046562f328535edc00188"
+    },
+    {
+      "path": "jarvis_web/web/src/components/Sidebar.tsx",
+      "sha256": "f502563469361aa03f16380816ec41362fd8dd90b3f4f197c3e22130d0b97326"
+    },
+    {
+      "path": "jarvis_web/web/src/main.tsx",
+      "sha256": "a80dcb91da9f1dd02e8b64c31d056e8b5894c2e08efe3500d2ef03f996293d30"
+    },
+    {
+      "path": "jarvis_web/web/src/styles.css",
+      "sha256": "9f0b47a903a45e61703336edfda0bd1f2255ad25916693d177ba33ab1c103068"
+    },
+    {
+      "path": "jarvis_web/web/src/types.ts",
+      "sha256": "14d356417b0e0c97e325608bdbcc9c526a967f16449d1c81f627e16e6150abe6"
+    },
+    {
+      "path": "jarvis_web/web/tsconfig.json",
+      "sha256": "790402074dd2b36eb702e322daf00240b821184558e008a635b9fac29ac2f679"
+    },
+    {
+      "path": "jarvis_web/web/vite.config.ts",
+      "sha256": "060e21a1da9ac91fe95b0a521803f0e39f6e8c14c2100b12b336c7ca22e9316f"
+    },
+    {
       "path": "migrate_state.ps1",
       "sha256": "6935343f743f4015bbef9bb4caeeb0404bc5d0b51c0e044167da5a6b6e34eb3c"
     },
@@ -611,7 +932,7 @@
     },
     {
       "path": "requirements.txt",
-      "sha256": "6603d0d4cc8ae8310442168e930f097b3b19f2692644ca2003f0756fffa6741e"
+      "sha256": "a2f761737901b84254affe384ea02ca1c6776e5d2cf0c90f8c7a6f2448f4fb0e"
     },
     {
       "path": "run.ps1",
@@ -1082,6 +1403,10 @@
       "sha256": "f5b09c16e8893595d9bebf2471df46c91fb3f8019fd531268c01027b192101ce"
     },
     {
+      "path": "tests/test_memory1_always_on_context.py",
+      "sha256": "231a16493ab2fdb766178b83a8e93b8e009dce30a2ede5e5afd42b6318e25d80"
+    },
+    {
       "path": "tests/test_memory1_canonical_identity_resolution.py",
       "sha256": "02b58dc2340e0524e6fb0046790ba83b83bb1fbeac7664d259e7e4fadf8c5d70"
     },
@@ -1131,11 +1456,11 @@
     },
     {
       "path": "tests/test_memory1_property_identity_schema_v3.py",
-      "sha256": "228eb6fd5611775382c6f944cbb98286ef1a1af5a1625aa152330d1793d27948"
+      "sha256": "231c4b0076bb2408048a4eb7a291dce5aed3ece526327cd06f1380b410ac8745"
     },
     {
       "path": "tests/test_memory1_property_registry_v2.py",
-      "sha256": "2f71128d38b7269b5429e91f45d3c8703a8055517ce4b4e9379090229f2a7523"
+      "sha256": "ebba8ec721c88ca007b348227aec12d3424f54493669d729a0d1f869f9752a11"
     },
     {
       "path": "tests/test_memory1_qwen_identity_matcher.py",
@@ -1167,7 +1492,7 @@
     },
     {
       "path": "tests/test_memory1_recall_fast_router_guard.py",
-      "sha256": "1b3cd67ea91d4f6ef10eeba73e064ec581a214a77afaeb6a05e22432e591bced"
+      "sha256": "b262ffab9dc52b3ef2cf13dd8b14f7cc2bb57791b03297397f3c532a7f5ac205"
     },
     {
       "path": "tests/test_memory1_recall_grounding.py",
@@ -1175,11 +1500,11 @@
     },
     {
       "path": "tests/test_memory1_recall_grounding_transport.py",
-      "sha256": "ff08e70eadc4cad3176e550932b556f141d920c8bada5e5e936da1f9c842032e"
+      "sha256": "d42b47c4f95d00f57c5a4de541a63d0218e060f19abdc931feaa1dfe578c7ca9"
     },
     {
       "path": "tests/test_memory1_recall_process_request_wiring.py",
-      "sha256": "b32e1b6f8f423ee998dc4db8c21dd6c3b7614be9d25643b4ec5f3fdf30911362"
+      "sha256": "89f06dd6f008d5a9b4f44f314c66d323a66f48479035ca406a120cd0c33fea6f"
     },
     {
       "path": "tests/test_memory1_recall_property_resolution.py",
@@ -1216,6 +1541,10 @@
     {
       "path": "tests/test_memory1_remember_property_proposal_v4.py",
       "sha256": "39df0929ef19e3a6fb85f139afe5a5f134136fad4c6ec1e66bbd3850f4a002cc"
+    },
+    {
+      "path": "tests/test_memory1_reserved_property_bindings_v4.py",
+      "sha256": "8a0d260eabb376ef7640433c9d4732279b131a6969b0e52b314536e14b3fdc12"
     },
     {
       "path": "tests/test_memory1_resolution_plan_contract.py",
@@ -1419,7 +1748,7 @@
     },
     {
       "path": "tests/test_release_manifest_complete.py",
-      "sha256": "937e62f89ef1c990aeb3b9894406074556421e85ae962240f3b14743dd636019"
+      "sha256": "79a0da502aaaf96c20f7d6df3afad9d26dd5fe819ce42f9e494c0e9ba079ef37"
     },
     {
       "path": "tests/test_release_updater_contract.py",
@@ -1650,6 +1979,10 @@
       "sha256": "0a2d87a1f932670b1e79da57c6265fea88a2e034a4229a29fcb240c1739458ee"
     },
     {
+      "path": "tests/test_web_transport_cli_contract.py",
+      "sha256": "7c6e62f9fac82015b8e8511cd42352b220af098e1140ae7d828767fc2a149cd8"
+    },
+    {
       "path": "tests/test_webcam_av_binding_0232.py",
       "sha256": "8a9755d93ec39ba801bd3687f3692cddc003b5c1c4653c186723233ff588724a"
     },
@@ -1683,11 +2016,11 @@
     },
     {
       "path": "update_core.ps1",
-      "sha256": "33cd5264cd0eb0f8fdbfe584a07482cbd6675331c683093f522006bd9372085c"
+      "sha256": "3058ff525f80753ee6d9309b8a9e521b827355779d47d53c1920cb86bb70e5f9"
     },
     {
       "path": "verify_release.ps1",
-      "sha256": "27bc896a4670fd0fa6ffd5b078e71a6e28021a6164eec0f6debcec4f55c3af7e"
+      "sha256": "d01e71f52b9b200f4eb79ac71040d4f840b9583be0abdd078ad7c3bc2020fd3f"
     }
   ]
 }

@@ -5,7 +5,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-import jarvis_core.cli as cli_module
+import jarvis_core.runtime as runtime_module
 from jarvis_core.core.fast_router import (
     FastCommandRouter,
 )
@@ -96,18 +96,18 @@ def _route(
 
     with (
         patch.object(
-            cli_module,
+            runtime_module,
             "resolve_semantic_request",
             return_value=request,
         ),
         patch.object(
-            cli_module,
+            runtime_module,
             "_MODEL_OWNED_SEMANTIC_INTENTS",
             frozenset(),
         ),
     ):
         answer, route, result = (
-            cli_module.route_runtime_request(
+            runtime_module.route_runtime_request(
                 "pedido",
                 source="terminal",
                 semantic_context_inputs=(
@@ -270,15 +270,9 @@ class Memory1RecallFastRouterGuardTests(
     def test_process_request_is_fail_closed_until_interpretation_succeeds(
         self,
     ):
-        source = inspect.getsource(
-            cli_module.main
+        process = inspect.getsource(
+            runtime_module.JarvisRuntime.process_request
         )
-
-        process = source[
-            source.index(
-                "def process_request"
-            ):
-        ]
 
         default_index = process.index(
             "memory1_requires_memory_aware_response = True"
@@ -305,15 +299,9 @@ class Memory1RecallFastRouterGuardTests(
     def test_process_request_transports_memory_aware_requirement_to_router(
         self,
     ):
-        source = inspect.getsource(
-            cli_module.main
+        process = inspect.getsource(
+            runtime_module.JarvisRuntime.process_request
         )
-
-        process = source[
-            source.index(
-                "def process_request"
-            ):
-        ]
 
         route_index = process.index(
             "answer, route, hybrid = "

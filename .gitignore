@@ -46,3 +46,21 @@ Thumbs.db
 !jarvis_core/memory/
 jarvis_core/memory/*
 !jarvis_core/memory/*.py
+
+# Integrated WebJarvis release boundary
+
+# Web runtime/personal state stays local and untracked.
+jarvis_web/.venv/
+jarvis_web/.pytest_cache/
+jarvis_web/.cache/
+jarvis_web/**/__pycache__/
+jarvis_web/**/node_modules/
+jarvis_web/data/
+jarvis_web/logs/
+jarvis_web/run/
+jarvis_web/.env
+jarvis_web/web/*.tsbuildinfo
+
+# The built WebJarvis frontend is part of the immutable release.
+!jarvis_web/web/dist/
+!jarvis_web/web/dist/**

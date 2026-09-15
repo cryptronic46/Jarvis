@@ -197,7 +197,7 @@ class Memory1PropertyRegistryV2Tests(
 
             self.assertEqual(
                 latest_version,
-                3,
+                4,
             )
 
             fact_count = int(
@@ -435,6 +435,13 @@ class Memory1PropertyRegistryV2Tests(
 
                 conn.execute(
                     """
+                    DROP TABLE
+                        reserved_property_bindings
+                    """
+                )
+
+                conn.execute(
+                    """
                     DROP TABLE properties
                     """
                 )
@@ -446,7 +453,7 @@ class Memory1PropertyRegistryV2Tests(
                     WHERE
                         key =
                             'schema_version'
-                        AND value = '3'
+                        AND value = '4'
                     """
                 )
 
@@ -495,6 +502,11 @@ class Memory1PropertyRegistryV2Tests(
 
             self.assertNotIn(
                 "properties",
+                tables,
+            )
+
+            self.assertNotIn(
+                "reserved_property_bindings",
                 tables,
             )
 
@@ -929,7 +941,7 @@ class Memory1PropertyRegistryV2Tests(
 
         self.assertEqual(
             SCHEMA_VERSION,
-            3,
+            4,
         )
 
         self._downgrade_latest_to_v1_shape()

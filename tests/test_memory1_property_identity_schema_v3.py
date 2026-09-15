@@ -442,7 +442,7 @@ class Memory1PropertyIdentitySchemaV3Tests(
                         "value"
                     ]
                 ),
-                "3",
+                "4",
             )
 
             self.assertEqual(
@@ -487,6 +487,13 @@ class Memory1PropertyIdentitySchemaV3Tests(
             )
 
             try:
+                conn.execute(
+                    """
+                    DROP TABLE
+                        reserved_property_bindings
+                    """
+                )
+
                 conn.execute(
                     """
                     CREATE TABLE
@@ -681,7 +688,7 @@ class Memory1PropertyIdentitySchemaV3Tests(
                     WHERE
                         key =
                             'schema_version'
-                        AND value = '3'
+                        AND value = '4'
                     """
                 )
 
@@ -1491,12 +1498,16 @@ class Memory1PropertyIdentitySchemaV3Tests(
         self,
         seed,
         before,
+        *,
+        expected_schema_version="3",
     ):
         self.assertEqual(
             self._meta_value(
                 "schema_version"
             ),
-            "3",
+            str(
+                expected_schema_version
+            ),
         )
 
         self.assertEqual(
@@ -1802,12 +1813,12 @@ class Memory1PropertyIdentitySchemaV3Tests(
 
         self.assertEqual(
             SCHEMA_VERSION,
-            3,
+            4,
         )
 
         self.assertEqual(
             store.schema_version(),
-            3,
+            4,
         )
 
         self.assertEqual(
@@ -1935,12 +1946,20 @@ class Memory1PropertyIdentitySchemaV3Tests(
 
         self.assertEqual(
             reopened.schema_version(),
-            3,
+            4,
+        )
+
+        self.assertIn(
+            "reserved_property_bindings",
+            set(
+                reopened.table_names()
+            ),
         )
 
         self._assert_successful_mapping(
             seed,
             before,
+            expected_schema_version="4",
         )
 
     def test_v2_to_v3_zero_match_fails_closed_and_rolls_back(
@@ -2038,7 +2057,7 @@ class Memory1PropertyIdentitySchemaV3Tests(
 
         self.assertEqual(
             migrated.schema_version(),
-            3,
+            4,
         )
 
         self.assertEqual(
@@ -2048,6 +2067,13 @@ class Memory1PropertyIdentitySchemaV3Tests(
 
         self.assertIn(
             "properties",
+            set(
+                migrated.table_names()
+            ),
+        )
+
+        self.assertIn(
+            "reserved_property_bindings",
             set(
                 migrated.table_names()
             ),

@@ -10,3 +10,4 @@ cryptography==50.0.1
 pypdfium2==5.13.0
 rapidocr-onnxruntime==1.2.3
 jsonschema==4.26.0
+-r jarvis_web/requirements.txt

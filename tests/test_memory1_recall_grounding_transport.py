@@ -6,7 +6,7 @@ from dataclasses import fields
 from types import SimpleNamespace
 from unittest.mock import patch
 
-import jarvis_core.cli as cli_module
+import jarvis_core.runtime as runtime_module
 from jarvis_core.core.brain import JarvisBrain
 from jarvis_core.core.hybrid_brain import HybridBrain
 from jarvis_core.services.semantic_request import StructuredRequest
@@ -138,7 +138,7 @@ class Memory1RecallGroundingTransportTests(
         self,
     ):
         signature = inspect.signature(
-            cli_module.route_runtime_request
+            runtime_module.route_runtime_request
         )
 
         parameter = signature.parameters[
@@ -164,11 +164,11 @@ class Memory1RecallGroundingTransportTests(
         hybrid = _GroundingAwareHybrid()
 
         with patch(
-            "jarvis_core.cli.resolve_semantic_request",
+            "jarvis_core.runtime.resolve_semantic_request",
             return_value=request,
         ):
             answer, route, result = (
-                cli_module.route_runtime_request(
+                runtime_module.route_runtime_request(
                     "pedido",
                     source="terminal",
                     semantic_context_inputs=(
@@ -228,11 +228,11 @@ class Memory1RecallGroundingTransportTests(
         hybrid = _LegacyHybrid()
 
         with patch(
-            "jarvis_core.cli.resolve_semantic_request",
+            "jarvis_core.runtime.resolve_semantic_request",
             return_value=request,
         ):
             answer, route, _ = (
-                cli_module.route_runtime_request(
+                runtime_module.route_runtime_request(
                     "pedido",
                     source="terminal",
                     semantic_context_inputs=(

@@ -334,7 +334,6 @@ class JarvisBrain:
         profile = user_memory_store().profile()
         identity = (
             f"User name: {profile.get('name', 'Tiago')}. "
-            f"Address the user as: {profile.get('address_as', 'Senhor')}. "
             f"Configured home: {(profile.get('home') or {}).get('label', 'Furadouro, Ovar')}."
         )
         persistent_turns: list[dict[str, Any]] = []
@@ -360,27 +359,13 @@ class JarvisBrain:
             base_system_content
         )
 
+        # Global interaction behavior must never be
+        # derived from Personal Cognition. The static base
+        # contract stays here; authoritative OWNER interaction
+        # settings arrive fresh per request from Memory 1.0.
         system_content = (
             base_system_content
         )
-        try:
-            personal = personal_cognition().profile().get("model") or {}
-            personal_block = {
-                "preferences": personal.get("preferences", [])[-8:],
-                "goals": personal.get("goals", [])[-8:],
-                "constraints": personal.get("constraints", [])[-8:],
-                "projects": personal.get("projects", [])[-8:],
-            }
-            jarvis_learning_goals = list(personal.get("jarvis_learning_goals") or [])[-8:]
-            system_content += (
-                "\n\nLocal personal model (OWNER facts only; use only when relevant; do not treat topic frequency as a hidden trait):\n"
-                + json.dumps(personal_block, ensure_ascii=False)
-                + "\nInteraction-style preferences in the preferences field are explicit OWNER preferences. Apply them when writing, while preserving factual truth and tool results. Always use natural European Portuguese (pt-PT), never Brazilian Portuguese.\n"
-                + "\nJARVIS learning objectives (these belong to JARVIS, NOT to the OWNER's interests/preferences):\n"
-                + json.dumps(jarvis_learning_goals, ensure_ascii=False)
-            )
-        except Exception:
-            pass
         self.messages: list[Any] = [{
             "role": "system",
             "content": system_content,
@@ -794,6 +779,7 @@ class JarvisBrain:
         learning_context: str = "",
         request_contract: str = "",
         self_context: str = "",
+        always_on_context: str = "",
     ) -> list[Any]:
         history_count = max(
             2,
@@ -854,6 +840,12 @@ class JarvisBrain:
                 "content": clean_system,
             }]
 
+            if always_on_context:
+                result.append({
+                    "role": "system",
+                    "content": always_on_context,
+                })
+
             if self_context:
                 result.append({
                     "role": "system",
@@ -900,6 +892,12 @@ class JarvisBrain:
             self.messages[0]
         ]
 
+        if always_on_context:
+            result.append({
+                "role": "system",
+                "content": always_on_context,
+            })
+
         if self_context:
             result.append({
                 "role": "system",
@@ -939,6 +937,7 @@ class JarvisBrain:
         learning_context: str = "",
         request_contract: str = "",
         self_context: str = "",
+        always_on_context: str = "",
     ) -> list[Any]:
         """Keep a local request below a conservative prompt budget.
 
@@ -949,7 +948,12 @@ class JarvisBrain:
         OWNER turn and base system contract are always preserved.
         """
         messages = self._request_messages(
-            plan, cyber_context, learning_context, request_contract, self_context
+            plan,
+            cyber_context,
+            learning_context,
+            request_contract,
+            self_context,
+            always_on_context,
         )
         tools = list(tool_schemas or [])
         prompt_budget_ctx = int(
@@ -996,6 +1000,7 @@ class JarvisBrain:
         protected_system_contents = {
             str(value)
             for value in (
+                always_on_context,
                 self_context,
                 request_contract,
             )
@@ -1970,6 +1975,7 @@ class JarvisBrain:
         learning_context: str,
         request_contract: str,
         self_context: str = "",
+        always_on_context: str,
         requested_predict: int | None = None,
     ) -> str:
         """Finish a locally generated answer when the local runtime hits num_predict.
@@ -2024,7 +2030,7 @@ class JarvisBrain:
                         learning_context,
                         retry_contract,
                         self_context,
-                    ),
+                    always_on_context),
                     think=False,
                     keep_alive=plan.keep_alive,
                     options={
@@ -2080,7 +2086,7 @@ class JarvisBrain:
             learning_context,
             request_contract,
             self_context,
-        ) + [{
+        always_on_context) + [{
             "role": "assistant",
             "content": content,
         }]
@@ -2652,16 +2658,34 @@ class JarvisBrain:
         *,
         request: StructuredRequest | None = None,
         memory_grounding_context: str = "",
+        always_on_context: str = "",
     ) -> BrainAnswer:
         with self._lock:
             try:
-                text = self._ask_locked(
-                    user_text,
-                    request=request,
-                    memory_grounding_context=(
-                        memory_grounding_context
-                    ),
-                )
+                if always_on_context:
+                    text = self._ask_locked(
+                        user_text,
+                        request=request,
+                        memory_grounding_context=(
+                            memory_grounding_context
+                        ),
+                        always_on_context=(
+                            always_on_context
+                        ),
+                    )
+                else:
+                    # Preserve the pre-Always-On extension seam for
+                    # subclasses/probes that override _ask_locked().
+                    # The canonical Runtime supplies a non-empty
+                    # Always-On block when reserved interaction state
+                    # exists, so live Memory1 propagation is unchanged.
+                    text = self._ask_locked(
+                        user_text,
+                        request=request,
+                        memory_grounding_context=(
+                            memory_grounding_context
+                        ),
+                    )
             except LocalLLMError:
                 return BrainAnswer(
                     text="",
@@ -2681,10 +2705,42 @@ class JarvisBrain:
         *,
         request: StructuredRequest | None = None,
         memory_grounding_context: str = "",
+        always_on_context: str = "",
     ) -> str:
         perf_started = monotonic()
         request_started_at = time()
         self.tools.request_started_at = request_started_at
+
+        if always_on_context is None:
+            provided_always_on_context = ""
+
+        elif not isinstance(
+            always_on_context,
+            str,
+        ):
+            raise TypeError(
+                "always_on_context must be str"
+            )
+
+        else:
+            provided_always_on_context = (
+                always_on_context.strip()
+            )
+
+        if (
+            provided_always_on_context
+            and not (
+                provided_always_on_context
+                .startswith(
+                    "JARVIS_ALWAYS_ON_INTERACTION:"
+                )
+            )
+        ):
+            raise ValueError(
+                "always_on_context must use "
+                "the canonical JARVIS Always-On "
+                "interaction boundary"
+            )
 
         performance = self.performance
         if performance is not None:
@@ -3301,7 +3357,7 @@ class JarvisBrain:
                         learning_context=learning_context,
                         request_contract=request_contract,
                         self_context=self_context,
-                    ),
+                    always_on_context=provided_always_on_context),
                     "think": bool(plan.think),
                     "keep_alive": plan.keep_alive,
                     "options": {
@@ -3400,7 +3456,7 @@ class JarvisBrain:
                         request_contract=request_contract,
                         self_context=self_context,
                         requested_predict=model_num_predict,
-                    )
+                    always_on_context=provided_always_on_context)
                     content = self._repair_capability_answer(
                         user_text=user_text,
                         draft=content,
@@ -3631,8 +3687,8 @@ class JarvisBrain:
             if successful_tool_calls:
                 try:
                     final_messages = self._request_messages(
-                        plan, cyber_context, learning_context, request_contract, self_context
-                    ) + [{
+                        plan, cyber_context, learning_context, request_contract, self_context,
+                    provided_always_on_context) + [{
                         "role": "system",
                         "content": "O limite de ferramentas terminou. Não chames mais ferramentas. Responde agora ao pedido do OWNER usando apenas os resultados já obtidos, de forma curta e completa.",
                     }]

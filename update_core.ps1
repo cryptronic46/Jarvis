@@ -35,7 +35,21 @@ function Get-ControlledReleaseFiles(
         [System.IO.Path]::GetFullPath($Root)
     ).TrimEnd('\')
     $RuntimeParts = @(
-        "__pycache__"
+        "__pycache__",
+        ".pytest_cache",
+        ".venv",
+        ".cache",
+        "node_modules",
+        "data",
+        "logs",
+        "run"
+    )
+    $RuntimeFileNames = @(
+        ".env"
+    )
+    $RuntimeExtensions = @(
+        ".pyc",
+        ".tsbuildinfo"
     )
     $Result = @()
 
@@ -60,7 +74,11 @@ function Get-ControlledReleaseFiles(
                 }
             }
 
-            if ($_.Extension -ieq ".pyc") {
+            if ($RuntimeFileNames -contains $_.Name) {
+                $Skip = $true
+            }
+
+            if ($RuntimeExtensions -contains $_.Extension) {
                 $Skip = $true
             }
 
@@ -165,19 +183,40 @@ function Mirror-Tree([string]$Name) {
 
     New-Item -ItemType Directory -Force -Path $To | Out-Null
 
-    $null = & robocopy.exe `
-        $From `
-        $To `
-        /MIR `
-        /COPY:DAT `
-        /DCOPY:DAT `
-        /R:2 `
-        /W:1 `
-        /NFL `
-        /NDL `
-        /NJH `
-        /NJS `
-        /NP
+    $RoboArgs = @(
+        $From,
+        $To,
+        "/MIR",
+        "/COPY:DAT",
+        "/DCOPY:DAT",
+        "/R:2",
+        "/W:1",
+        "/NFL",
+        "/NDL",
+        "/NJH",
+        "/NJS",
+        "/NP"
+    )
+
+    if ($Name -eq "jarvis_web") {
+        $RoboArgs += @(
+            "/XD",
+            "__pycache__",
+            ".pytest_cache",
+            ".venv",
+            ".cache",
+            "node_modules",
+            "data",
+            "logs",
+            "run",
+            "/XF",
+            ".env",
+            "*.pyc",
+            "*.tsbuildinfo"
+        )
+    }
+
+    $null = & robocopy.exe @RoboArgs
 
     if ($LASTEXITCODE -ge 8) {
         Fail "robocopy falhou em $Name (exit code $LASTEXITCODE)"
@@ -299,6 +338,7 @@ else {
     Write-Host "A sincronizar arvores controladas pela release..." -ForegroundColor Cyan
 
     Mirror-Tree "jarvis_core"
+    Mirror-Tree "jarvis_web"
     Mirror-Tree "tests"
     Mirror-Tree "defaults"
 

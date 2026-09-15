@@ -67,6 +67,7 @@ def route_runtime_request(
     fast_router,
     hybrid_brain,
     memory_grounding_context: str = "",
+    always_on_context: str = "",
     requires_memory_aware_response: bool = False,
     before_hybrid=None,
 ):
@@ -183,18 +184,39 @@ def route_runtime_request(
         before_hybrid()
 
     if memory_grounding_context:
-        hybrid = hybrid_brain.ask(
-            user_text,
-            request=structured_request,
-            memory_grounding_context=(
-                memory_grounding_context
-            ),
-        )
+        if always_on_context:
+            hybrid = hybrid_brain.ask(
+                user_text,
+                request=structured_request,
+                memory_grounding_context=(
+                    memory_grounding_context
+                ),
+                always_on_context=(
+                    always_on_context
+                ),
+            )
+        else:
+            hybrid = hybrid_brain.ask(
+                user_text,
+                request=structured_request,
+                memory_grounding_context=(
+                    memory_grounding_context
+                ),
+            )
     else:
-        hybrid = hybrid_brain.ask(
-            user_text,
-            request=structured_request,
-        )
+        if always_on_context:
+            hybrid = hybrid_brain.ask(
+                user_text,
+                request=structured_request,
+                always_on_context=(
+                    always_on_context
+                ),
+            )
+        else:
+            hybrid = hybrid_brain.ask(
+                user_text,
+                request=structured_request,
+            )
 
     return (
         hybrid.text,
@@ -354,6 +376,63 @@ class JarvisRuntime:
         hybrid_brain = self.hybrid_brain
         fast_router = self.fast_router
         semantic_context_inputs = self.semantic_context_inputs
+
+        # MEMORY1_ALWAYS_ON_INTERACTION_V1
+        # Rebuild on every request. No Personal Cognition
+        # state and no cached interaction state are allowed.
+        from jarvis_core.services.always_on_context import (
+            build_memory1_always_on_context,
+        )
+
+        always_on_context = ""
+
+        try:
+            always_on_build = (
+                build_memory1_always_on_context(
+                    memory1_store,
+                    memory1_owner_id,
+                )
+            )
+
+            always_on_context = (
+                always_on_build.context
+            )
+
+            events.emit(
+                "MEMORY1_ALWAYS_ON_CONTEXT_BUILT",
+                source=source,
+                bound_slots=list(
+                    always_on_build.bound_slots
+                ),
+                included_slots=list(
+                    always_on_build.included_slots
+                ),
+                dropped_slots=list(
+                    always_on_build.dropped_slots
+                ),
+                chars=(
+                    always_on_build.char_count
+                ),
+                max_chars=(
+                    always_on_build.max_chars
+                ),
+            )
+
+        except Exception as exc:
+            # Fail closed: an unreadable or inconsistent
+            # Always-On policy never falls back to inferred
+            # Personal Cognition behavior.
+            always_on_context = ""
+
+            events.emit(
+                "MEMORY1_ALWAYS_ON_CONTEXT_ERROR",
+                source=source,
+                error=(
+                    f"{type(exc).__name__}: "
+                    f"{exc}"
+                ),
+            )
+
         memory1_occurred_at = utc_now()
         command_started = monotonic()
         try:
@@ -930,6 +1009,9 @@ class JarvisRuntime:
                 hybrid_brain=hybrid_brain,
                 memory_grounding_context=(
                     memory1_grounding_context
+                ),
+                always_on_context=(
+                    always_on_context
                 ),
                 requires_memory_aware_response=(
                     memory1_requires_memory_aware_response

@@ -137,6 +137,7 @@ from jarvis_core.runtime import (
     route_runtime_request,
 )
 from jarvis_core.bootstrap import build_application
+from jarvis_web.transport_runner import WebTransportRunner
 
 
 
@@ -560,6 +561,7 @@ def main() -> None:
     bootstrap = build_application()
     application = bootstrap.application
     context = bootstrap.context
+    web_transport = WebTransportRunner()
 
     settings = application.settings
     events = application.events
@@ -755,7 +757,7 @@ def main() -> None:
     print(
         f"Security  : {security_startup_status}"
     )
-    print("Web       : NOT INTEGRATED")
+    print("Web       : INTEGRATED | PENDING")
     print("Debug     : OFF | /debug on")
 
     if not ok:
@@ -1143,6 +1145,8 @@ def main() -> None:
             return
 
     try:
+        web_transport.start(application)
+
         while True:
             try:
                 text = input(f"{current_address()} > ").strip()
@@ -1289,7 +1293,7 @@ def main() -> None:
                         else "OFF"
                     )
                 )
-                print("Web       : NOT INTEGRATED")
+                print(f"Web       : {web_transport.status.state.value}")
 
                 if not brain_ok:
                     print(f"Warning   : {brain_msg}")
@@ -3001,21 +3005,24 @@ def main() -> None:
                     )
                 events.emit("LLM_RESPONSE_READY", chars=len(answer), route=route, source="terminal")
     finally:
-        application.stop_activity_trace()
+        try:
+            web_transport.stop()
+        finally:
+            application.stop_activity_trace()
 
-        if settings.skills_enabled:
-            skills.stop_all()
+            if settings.skills_enabled:
+                skills.stop_all()
 
-        application.release_models_on_shutdown()
+            application.release_models_on_shutdown()
 
-        reminder_service.stop()
-        security_watch_service.stop()
-        proactive_service.stop()
-        companion_service.stop()
-        book_library_service.stop()
-        cyber_knowledge_service.stop()
+            reminder_service.stop()
+            security_watch_service.stop()
+            proactive_service.stop()
+            companion_service.stop()
+            book_library_service.stop()
+            cyber_knowledge_service.stop()
 
-        application.stop_runtime_services()
+            application.stop_runtime_services()
 
 
 if __name__ == "__main__":

@@ -11,6 +11,7 @@ MUTABLE = {
 
 CONTROLLED_TREES = (
     "jarvis_core",
+    "jarvis_web",
     "tests",
     "defaults",
 )
@@ -44,6 +45,22 @@ CONTROLLED_TOP_LEVEL = {
 
 RUNTIME_PARTS = {
     "__pycache__",
+    ".pytest_cache",
+    ".venv",
+    ".cache",
+    "node_modules",
+    "data",
+    "logs",
+    "run",
+}
+
+RUNTIME_FILE_NAMES = {
+    ".env",
+}
+
+RUNTIME_SUFFIXES = {
+    ".pyc",
+    ".tsbuildinfo",
 }
 
 
@@ -67,10 +84,17 @@ class ReleaseManifestCompletenessTests(unittest.TestCase):
                     continue
 
                 rel = path.relative_to(root)
+
                 if any(
                     part in RUNTIME_PARTS
                     for part in rel.parts
                 ):
+                    continue
+
+                if rel.name in RUNTIME_FILE_NAMES:
+                    continue
+
+                if rel.suffix.lower() in RUNTIME_SUFFIXES:
                     continue
 
                 expected.add(rel.as_posix())

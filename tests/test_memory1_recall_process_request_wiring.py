@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 import unittest
 
-import jarvis_core.cli as cli_module
+from jarvis_core.runtime import JarvisRuntime
 
 from jarvis_core.memory.recall_grounding import (
     MEMORY1_RECALL_SCOPE,
@@ -13,15 +13,9 @@ from jarvis_core.memory.recall_grounding import (
 
 
 def process_source():
-    source = inspect.getsource(
-        cli_module.main
+    return inspect.getsource(
+        JarvisRuntime.process_request
     )
-
-    return source[
-        source.index(
-            "def process_request"
-        ):
-    ]
 
 
 class Memory1RecallProcessRequestWiringTests(

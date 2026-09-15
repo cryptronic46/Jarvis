@@ -432,12 +432,30 @@ idx_memory1_properties_kind
     ON properties(kind)
 """
 
+
+_RESERVED_PROPERTY_BINDINGS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS reserved_property_bindings(
+    slot_name TEXT PRIMARY KEY,
+    property_id TEXT NOT NULL UNIQUE
+        REFERENCES properties(id),
+    bound_at TEXT NOT NULL,
+    created_transaction_id TEXT NOT NULL
+        REFERENCES transactions(
+            transaction_id
+        ),
+    created_revision INTEGER NOT NULL
+)
+"""
+
+
 _SCHEMA_SQL = (
     _SCHEMA_SQL
     + "\n"
     + _PROPERTY_TABLE_SQL
     + ";\n"
     + _PROPERTY_INDEX_SQL
+    + ";\n"
+    + _RESERVED_PROPERTY_BINDINGS_TABLE_SQL
     + ";\n"
 )
 
@@ -521,6 +539,7 @@ class CanonicalMemoryTransaction:
         self.episode_ids: list[str] = []
         self.fact_ids: list[str] = []
         self.relation_ids: list[str] = []
+        self.reserved_property_binding_slots: list[str] = []
         self.superseded_fact_ids: list[str] = []
         self.superseded_relation_ids: list[str] = []
         self.conflicts_created: list[str] = []
@@ -888,6 +907,193 @@ class CanonicalMemoryTransaction:
         self._mutation_count += 1
 
         return property.id
+
+    def bind_reserved_property(
+        self,
+        slot_name: str,
+        property_id: str,
+    ) -> str:
+        self._require_active()
+
+        if (
+            not isinstance(
+                slot_name,
+                str,
+            )
+            or not slot_name.strip()
+        ):
+            raise MemoryIntegrityError(
+                "reserved property slot_name "
+                "must be non-empty text"
+            )
+
+        if (
+            slot_name
+            != slot_name.strip()
+        ):
+            raise MemoryIntegrityError(
+                "reserved property slot_name "
+                "must not contain surrounding "
+                "whitespace"
+            )
+
+        if (
+            not isinstance(
+                property_id,
+                str,
+            )
+            or not property_id.strip()
+        ):
+            raise MemoryIntegrityError(
+                "reserved property property_id "
+                "must be non-empty text"
+            )
+
+        if (
+            property_id
+            != property_id.strip()
+        ):
+            raise MemoryIntegrityError(
+                "reserved property property_id "
+                "must not contain surrounding "
+                "whitespace"
+            )
+
+        property_row = (
+            self._conn.execute(
+                """
+                SELECT id
+                FROM properties
+                WHERE id = ?
+                """,
+                (
+                    property_id,
+                ),
+            ).fetchone()
+        )
+
+        if property_row is None:
+            raise MemoryIntegrityError(
+                "reserved property binding "
+                "references unknown property: "
+                + property_id
+            )
+
+        existing_slot = (
+            self._conn.execute(
+                """
+                SELECT property_id
+                FROM reserved_property_bindings
+                WHERE slot_name = ?
+                """,
+                (
+                    slot_name,
+                ),
+            ).fetchone()
+        )
+
+        if (
+            existing_slot
+            is not None
+        ):
+            existing_property_id = str(
+                existing_slot[
+                    "property_id"
+                ]
+            )
+
+            if (
+                existing_property_id
+                == property_id
+            ):
+                return (
+                    existing_property_id
+                )
+
+            raise MemoryIntegrityError(
+                "reserved property slot "
+                "is already bound to a "
+                "different property"
+            )
+
+        existing_property = (
+            self._conn.execute(
+                """
+                SELECT slot_name
+                FROM reserved_property_bindings
+                WHERE property_id = ?
+                """,
+                (
+                    property_id,
+                ),
+            ).fetchone()
+        )
+
+        if (
+            existing_property
+            is not None
+        ):
+            raise MemoryIntegrityError(
+                "canonical property is already "
+                "bound to reserved slot: "
+                + str(
+                    existing_property[
+                        "slot_name"
+                    ]
+                )
+            )
+
+        bound_at = utc_now()
+
+        self._conn.execute(
+            """
+            INSERT INTO
+                reserved_property_bindings(
+                    slot_name,
+                    property_id,
+                    bound_at,
+                    created_transaction_id,
+                    created_revision
+                )
+            VALUES(
+                ?, ?, ?, ?, ?
+            )
+            """,
+            (
+                slot_name,
+                property_id,
+                utc_text(
+                    bound_at
+                ),
+                self.transaction_id,
+                self.revision,
+            ),
+        )
+
+        self._append_audit(
+            AuditEventType
+            .RESERVED_PROPERTY_BOUND,
+            record_id=slot_name,
+            record_type=(
+                "RESERVED_PROPERTY_BINDING"
+            ),
+            details={
+                "slot_name":
+                    slot_name,
+                "property_id":
+                    property_id,
+            },
+            timestamp=bound_at,
+        )
+
+        self.reserved_property_binding_slots.append(
+            slot_name
+        )
+
+        self._mutation_count += 1
+
+        return property_id
+
 
     def create_entity(
         self,
@@ -1702,6 +1908,10 @@ class CanonicalMemoryTransaction:
                         len(
                             self.relation_ids
                         ),
+                    "binding_count":
+                        len(
+                            self.reserved_property_binding_slots
+                        ),
                     "canonical_revision":
                         self.revision,
                 },
@@ -1833,6 +2043,7 @@ class CanonicalMemoryStore:
         "transactions",
         "entities",
         "properties",
+        "reserved_property_bindings",
         "episodes",
         "episode_subject_hints",
         "facts",
@@ -2092,7 +2303,7 @@ class CanonicalMemoryStore:
     def _migrate_v1_to_v2(self, conn: sqlite3.Connection) -> None:
         target_version = 2
         tables = {str(row['name']) for row in conn.execute("\n            SELECT name\n            FROM sqlite_master\n            WHERE\n                type = 'table'\n                AND name NOT LIKE\n                    'sqlite_%'\n            ")}
-        required_v1 = self.REQUIRED_TABLES - {'properties'}
+        required_v1 = self.REQUIRED_TABLES - {'properties', 'reserved_property_bindings'}
         missing = sorted(required_v1 - tables)
         if missing:
             raise MemorySchemaError('v1 schema missing tables: ' + ', '.join(missing))
@@ -2953,6 +3164,231 @@ class CanonicalMemoryStore:
                 "violations"
             )
 
+    def _migrate_v3_to_v4(
+        self,
+        conn: sqlite3.Connection,
+    ) -> None:
+        source_version = 3
+        target_version = 4
+
+        conn.execute(
+            "BEGIN IMMEDIATE"
+        )
+
+        try:
+            version_row = conn.execute(
+                """
+                SELECT value
+                FROM meta
+                WHERE key =
+                    'schema_version'
+                """
+            ).fetchone()
+
+            if (
+                version_row is None
+                or int(
+                    version_row["value"]
+                )
+                != source_version
+            ):
+                raise MemorySchemaError(
+                    "v3->v4 migration "
+                    "requires schema "
+                    "version 3"
+                )
+
+            existing_binding_table = (
+                conn.execute(
+                    """
+                    SELECT name
+                    FROM sqlite_master
+                    WHERE
+                        type = 'table'
+                        AND name =
+                            'reserved_property_bindings'
+                    """
+                ).fetchone()
+            )
+
+            if (
+                existing_binding_table
+                is not None
+            ):
+                raise MemorySchemaError(
+                    "v3->v4 migration found "
+                    "pre-existing "
+                    "reserved_property_bindings"
+                )
+
+            revision_before = str(
+                conn.execute(
+                    """
+                    SELECT value
+                    FROM meta
+                    WHERE key =
+                        'canonical_revision'
+                    """
+                ).fetchone()[
+                    "value"
+                ]
+            )
+
+            transactions_before = tuple(
+                tuple(row)
+                for row
+                in conn.execute(
+                    """
+                    SELECT *
+                    FROM transactions
+                    ORDER BY
+                        revision,
+                        transaction_id
+                    """
+                )
+            )
+
+            audit_before = tuple(
+                tuple(row)
+                for row
+                in conn.execute(
+                    """
+                    SELECT *
+                    FROM audit_events
+                    ORDER BY
+                        revision,
+                        event_index,
+                        id
+                    """
+                )
+            )
+
+            conn.execute(
+                _RESERVED_PROPERTY_BINDINGS_TABLE_SQL
+            )
+
+            cursor = conn.execute(
+                """
+                UPDATE meta
+                SET value = ?
+                WHERE
+                    key =
+                        'schema_version'
+                    AND value = '3'
+                """,
+                (
+                    str(
+                        target_version
+                    ),
+                ),
+            )
+
+            if cursor.rowcount != 1:
+                raise MemorySchemaError(
+                    "v3 schema_version "
+                    "changed during migration"
+                )
+
+            conn.execute(
+                (
+                    "PRAGMA "
+                    "user_version = "
+                    f"{target_version}"
+                )
+            )
+
+            revision_after = str(
+                conn.execute(
+                    """
+                    SELECT value
+                    FROM meta
+                    WHERE key =
+                        'canonical_revision'
+                    """
+                ).fetchone()[
+                    "value"
+                ]
+            )
+
+            transactions_after = tuple(
+                tuple(row)
+                for row
+                in conn.execute(
+                    """
+                    SELECT *
+                    FROM transactions
+                    ORDER BY
+                        revision,
+                        transaction_id
+                    """
+                )
+            )
+
+            audit_after = tuple(
+                tuple(row)
+                for row
+                in conn.execute(
+                    """
+                    SELECT *
+                    FROM audit_events
+                    ORDER BY
+                        revision,
+                        event_index,
+                        id
+                    """
+                )
+            )
+
+            if (
+                revision_after
+                != revision_before
+            ):
+                raise MemoryIntegrityError(
+                    "v3->v4 migration "
+                    "changed "
+                    "canonical_revision"
+                )
+
+            if (
+                transactions_after
+                != transactions_before
+            ):
+                raise MemoryIntegrityError(
+                    "v3->v4 migration "
+                    "changed memory "
+                    "transactions"
+                )
+
+            if (
+                audit_after
+                != audit_before
+            ):
+                raise MemoryIntegrityError(
+                    "v3->v4 migration "
+                    "changed audit "
+                    "chain rows"
+                )
+
+            violations = tuple(
+                conn.execute(
+                    "PRAGMA foreign_key_check"
+                )
+            )
+
+            if violations:
+                raise MemoryIntegrityError(
+                    "v3->v4 migration "
+                    "produced foreign-key "
+                    "violations"
+                )
+
+            conn.commit()
+
+        except Exception:
+            conn.rollback()
+            raise
+
+
     def _initialize(
         self,
     ) -> None:
@@ -3026,6 +3462,16 @@ class CanonicalMemoryStore:
                         )
 
                         current_version = 3
+
+                    elif (
+                        current_version
+                        == 3
+                    ):
+                        self._migrate_v3_to_v4(
+                            conn
+                        )
+
+                        current_version = 4
 
                     else:
                         raise MemorySchemaError(
@@ -3133,6 +3579,145 @@ class CanonicalMemoryStore:
             found = {(str(row['from']), str(row['table']), str(row['to'])) for row in conn.execute(f'PRAGMA foreign_key_list("{table}")')}
             if required not in found:
                 raise MemorySchemaError(f'canonical schema missing property FK for {table}')
+
+        binding_columns = {
+            str(row["name"]):
+                row
+            for row
+            in conn.execute(
+                'PRAGMA table_info('
+                '"reserved_property_bindings"'
+                ')'
+            )
+        }
+
+        expected_binding_columns = {
+            "slot_name",
+            "property_id",
+            "bound_at",
+            "created_transaction_id",
+            "created_revision",
+        }
+
+        if (
+            set(
+                binding_columns
+            )
+            != expected_binding_columns
+        ):
+            raise MemorySchemaError(
+                "reserved_property_bindings "
+                "column mismatch"
+            )
+
+        if (
+            int(
+                binding_columns[
+                    "slot_name"
+                ][
+                    "pk"
+                ]
+            )
+            != 1
+        ):
+            raise MemorySchemaError(
+                "reserved_property_bindings "
+                "slot_name must be "
+                "primary key"
+            )
+
+        binding_fks = {
+            (
+                str(row["from"]),
+                str(row["table"]),
+                str(row["to"]),
+            )
+            for row
+            in conn.execute(
+                'PRAGMA foreign_key_list('
+                '"reserved_property_bindings"'
+                ')'
+            )
+        }
+
+        required_binding_fks = {
+            (
+                "property_id",
+                "properties",
+                "id",
+            ),
+            (
+                "created_transaction_id",
+                "transactions",
+                "transaction_id",
+            ),
+        }
+
+        if not (
+            required_binding_fks
+            .issubset(
+                binding_fks
+            )
+        ):
+            raise MemorySchemaError(
+                "reserved_property_bindings "
+                "foreign-key contract "
+                "mismatch"
+            )
+
+        property_id_unique = False
+
+        for index_row in conn.execute(
+            'PRAGMA index_list('
+            '"reserved_property_bindings"'
+            ')'
+        ):
+            if (
+                int(
+                    index_row[
+                        "unique"
+                    ]
+                )
+                != 1
+            ):
+                continue
+
+            index_name = str(
+                index_row[
+                    "name"
+                ]
+            ).replace(
+                '"',
+                '""',
+            )
+
+            index_columns = tuple(
+                str(row["name"])
+                for row
+                in conn.execute(
+                    (
+                        'PRAGMA index_info("'
+                        + index_name
+                        + '")'
+                    )
+                )
+            )
+
+            if (
+                index_columns
+                == (
+                    "property_id",
+                )
+            ):
+                property_id_unique = True
+                break
+
+        if not property_id_unique:
+            raise MemorySchemaError(
+                "reserved_property_bindings "
+                "property_id must be UNIQUE"
+            )
+
 
     def idempotent_no_change_receipt(
         self,
@@ -3953,6 +4538,103 @@ class CanonicalMemoryStore:
 
         finally:
             conn.close()
+
+    def get_reserved_property_binding(
+        self,
+        slot_name: str,
+    ) -> str | None:
+        if (
+            not isinstance(
+                slot_name,
+                str,
+            )
+            or not slot_name.strip()
+        ):
+            raise ValueError(
+                "slot_name must be "
+                "non-empty text"
+            )
+
+        if (
+            slot_name
+            != slot_name.strip()
+        ):
+            raise ValueError(
+                "slot_name must not contain "
+                "surrounding whitespace"
+            )
+
+        conn = self._connect()
+
+        try:
+            row = conn.execute(
+                """
+                SELECT property_id
+                FROM reserved_property_bindings
+                WHERE slot_name = ?
+                """,
+                (
+                    slot_name,
+                ),
+            ).fetchone()
+
+            if row is None:
+                return None
+
+            return str(
+                row[
+                    "property_id"
+                ]
+            )
+
+        finally:
+            conn.close()
+
+    def list_reserved_property_bindings(
+        self,
+    ) -> tuple[
+        tuple[
+            str,
+            str,
+        ],
+        ...,
+    ]:
+        conn = self._connect()
+
+        try:
+            rows = tuple(
+                conn.execute(
+                    """
+                    SELECT
+                        slot_name,
+                        property_id
+                    FROM
+                        reserved_property_bindings
+                    ORDER BY slot_name
+                    """
+                )
+            )
+
+            return tuple(
+                (
+                    str(
+                        row[
+                            "slot_name"
+                        ]
+                    ),
+                    str(
+                        row[
+                            "property_id"
+                        ]
+                    ),
+                )
+                for row
+                in rows
+            )
+
+        finally:
+            conn.close()
+
 
     def get_entity(
         self,
@@ -5102,6 +5784,12 @@ class CanonicalMemoryStore:
                 (
                     "relations",
                     "id",
+                    "created_transaction_id",
+                    "created_revision",
+                ),
+                (
+                    "reserved_property_bindings",
+                    "slot_name",
                     "created_transaction_id",
                     "created_revision",
                 ),

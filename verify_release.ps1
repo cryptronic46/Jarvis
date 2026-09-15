@@ -41,7 +41,21 @@ function Get-ControlledReleaseFiles(
         [System.IO.Path]::GetFullPath($Root)
     ).TrimEnd('\')
     $RuntimeParts = @(
-        "__pycache__"
+        "__pycache__",
+        ".pytest_cache",
+        ".venv",
+        ".cache",
+        "node_modules",
+        "data",
+        "logs",
+        "run"
+    )
+    $RuntimeFileNames = @(
+        ".env"
+    )
+    $RuntimeExtensions = @(
+        ".pyc",
+        ".tsbuildinfo"
     )
     $Result = @()
 
@@ -66,7 +80,11 @@ function Get-ControlledReleaseFiles(
                 }
             }
 
-            if ($_.Extension -ieq ".pyc") {
+            if ($RuntimeFileNames -contains $_.Name) {
+                $Skip = $true
+            }
+
+            if ($RuntimeExtensions -contains $_.Extension) {
                 $Skip = $true
             }
 
@@ -135,7 +153,7 @@ if ($ManifestOutsideScope.Count -gt 0) {
 }
 
 $UnexpectedPy = @()
-foreach ($Tree in @("jarvis_core", "tests")) {
+foreach ($Tree in @("jarvis_core", "jarvis_web", "tests")) {
     $Base = Join-Path $Destination $Tree
     if (-not (Test-Path -LiteralPath $Base)) {
         continue

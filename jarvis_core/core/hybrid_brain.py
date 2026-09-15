@@ -518,6 +518,7 @@ class HybridBrain:
         *,
         request: StructuredRequest | None = None,
         memory_grounding_context: str = "",
+        always_on_context: str = "",
     ) -> HybridAnswer:
         started = monotonic()
         decision = self.policy.decide(user_text, cloud_available=False)
@@ -846,6 +847,11 @@ class HybridBrain:
                 local_kwargs[
                     "memory_grounding_context"
                 ] = memory_grounding_context
+
+            if always_on_context:
+                local_kwargs[
+                    "always_on_context"
+                ] = always_on_context
 
             local_result = self.local.ask(
                 decision.text,

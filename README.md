@@ -4,60 +4,55 @@
 
 ## Current development state
 
-The active JARVIS Core is currently being prepared for its next major interface phase.
+The active JARVIS runtime now uses one shared application graph for every local interaction transport.
 
-- **Local brain:** Qwen3 14B running through the JARVIS-owned native `llama.cpp` runtime.
-- **Memory:** Memory 1.0 is complete and integrated into the active Core.
+- **Local brain:** Qwen3 14B runs through the JARVIS-owned native `llama.cpp` runtime.
+- **Shared Core:** one process-wide `JarvisApplication` owns the active `JarvisRuntime`, Brain, Memory and supporting services.
+- **Terminal and Web:** both transports enter the same application and therefore use the same Core, reasoning pipeline and canonical memory.
+- **Memory 1.0:** canonical Memory1 is complete and active. The current schema is v4 and includes canonical `reserved_property_bindings` for reserved Core interaction slots.
+- **Always-On interaction state:** OWNER-confirmed global interaction settings are rebuilt from Memory1 on every request. They are bounded to 512 characters and fail closed if canonical state cannot be read consistently.
+- **Current canonical interaction binding:** `interaction.language` is bound to the OWNER-confirmed `pt-PT` preference.
+- **Personal Cognition:** the Personal Model remains part of JARVIS and remains available for relevant request-scoped cognition/retrieval, but it is no longer dumped globally into every system prompt and is not authoritative for reserved interaction slots.
+- **Prompt footprint:** the fixed pre-OWNER prompt footprint is currently 8,980 characters, down from the previous 16,242-character baseline; the active base system prompt is 6,460 characters.
 - **PC-local Voice:** the former microphone, wake-word, STT, Voice ID and local speech runtime has been retired and structurally removed from the active runtime.
-- **Vision:** screen and camera capabilities remain available and are independent from the retired Voice stack.
-- **Terminal:** now operates as a quiet technical/admin control plane. Debug telemetry is hidden by default and can be explicitly enabled when required.
-- **Shutdown:** the JARVIS-owned native `llama-server` is released and verified on `/quit`.
-- **External AI:** external LLM reasoning remains blocked; public-Web research is treated as source data and synthesized locally by JARVIS.
+- **Vision:** screen and camera capabilities remain available independently from the retired Voice stack.
+- **Shutdown:** JARVIS releases its owned native `llama-server` during normal application shutdown.
+- **External AI:** external LLM reasoning remains hard blocked; public-Web material is treated as source data and synthesized by the local JARVIS brain.
 
-### WebJarvis ? in development
+### WebJarvis - integrated transport
 
-**WebJarvis is now the next active development phase.**
+WebJarvis is integrated into the main JARVIS process. It does not create a second Core, Brain, Memory1 store or reasoning pipeline.
 
-The browser interface is intended to become the primary user-facing interaction layer, while the terminal remains available for administration, diagnostics, recovery and development.
+    Terminal -----------------------------+
+                                          |
+                                          v
+                                   SAME JarvisApplication
+                                          |
+    Browser -> Web security gateway       |
+              -> RealJarvisCoreAdapter ---+
+                                          |
+                                          v
+                                   SAME JarvisRuntime
+                                          |
+                                          v
+                                      SAME Brain
+                                          |
+                                          v
+                                     SAME Memory1
 
-The Web project already has a security-oriented FastAPI/browser architecture, but it is **not yet integrated with the real JARVIS Core**.
+The Web transport currently includes the real Core adapter, embedded FastAPI/Uvicorn lifecycle, local authentication/session handling, Host/Origin and WebSocket protections, Security Gateway, Permission Broker, audit/history protection, bounded request bodies and hardened SPA/API routing.
 
-The next phase will connect the Web interface to the existing JARVIS request pipeline through a real Core adapter:
+The browser never connects directly to the privileged terminal command parser. Terminal remains the technical/admin control plane while the browser is the primary direction for normal user interaction.
 
-    Browser / authenticated client
-              |
-              v
-    Web security gateway
-              |
-              v
-    RealJarvisCoreAdapter
-              |
-              v
-    Existing JARVIS Core
-              |
-              +-- Qwen3 14B / llama.cpp
-              +-- Memory 1.0
-              +-- tools
-              +-- permissions
-              +-- security
+Current follow-on Web work includes:
 
-WebJarvis must not create a second brain, a second memory architecture or an independent reasoning pipeline.
-
-Planned work includes:
-
-- replacing the current mock Web adapter with the real JARVIS Core adapter;
-- reusing the existing Qwen/Memory 1.0 request pipeline;
 - secure file intake and quarantine;
-- isolated analysis of untrusted files;
+- isolated/sandboxed inspection of potentially untrusted files;
 - PDF summarization, translation and explanation;
-- browser-first interaction;
+- further browser-first interaction work;
 - possible authenticated browser/mobile voice transport later.
 
-Until the real adapter is integrated, the Core correctly reports:
-
-    Web       : NOT INTEGRATED
-
-> The release notes below are historical. Older Voice/STT sections describe the state of those historical releases and do not represent the current active runtime.
+> The release notes below are historical. Older Voice/STT, Web-integration and memory sections describe their respective release states and do not override the current architecture documented above.
 
 <!-- JARVIS_CURRENT_STATE_END -->
 
